@@ -7,7 +7,7 @@ Bojro (বজ্র) is a Bangla-first, mobile-first, single-brand commerce plat
 - Node.js 22+
 - pnpm 10+
 - Python 3.12
-- [uv](https://docs.astral.sh/uv/)
+- [uv](https://docs.astral.sh/uv/) 0.11.23
 - PostgreSQL 16 and Redis 7, or Docker with the Compose plugin
 
 ## First Run With Docker

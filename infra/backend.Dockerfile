@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-RUN pip install --no-cache-dir uv==0.9.5 \
+RUN pip install --no-cache-dir uv==0.11.23 \
     && addgroup --system bojro \
     && adduser --system --ingroup bojro bojro
 

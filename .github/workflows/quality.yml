@@ -67,6 +67,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          version: "0.11.23"
 
       - name: Install dependencies
         run: |
@@ -86,6 +87,7 @@ jobs:
         run: |
           pnpm api:generate
           git diff --exit-code -- backend/openapi.json frontend/src/lib/api/schema.d.ts
+          test -z "$(git status --porcelain -- backend/openapi.json frontend/src/lib/api/schema.d.ts)"
 
       - name: Lint
         run: pnpm lint
@@ -101,3 +103,27 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start the full stack
+        run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml up --build --wait
+
+      - name: Smoke-test services
+        run: |
+          curl --fail --retry 5 --retry-all-errors http://localhost:8000/health
+          curl --fail --retry 5 --retry-all-errors http://localhost:8000/ready
+          curl --fail --retry 5 --retry-all-errors http://localhost:3000/bn
+          curl --fail --retry 5 --retry-all-errors http://localhost:3000/en
+
+      - name: Print container logs on failure
+        if: failure()
+        run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml logs --no-color
+
+      - name: Stop services
+        if: always()
+        run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml down --volumes
