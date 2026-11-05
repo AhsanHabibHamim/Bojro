@@ -5,7 +5,7 @@
   "description": "Bangla-first single-brand commerce for Bangladesh",
   "packageManager": "pnpm@11.5.2",
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.15.0",
     "pnpm": ">=10.0.0"
   },
   "scripts": {
@@ -26,8 +26,9 @@
     "api:export": "uv run --project backend python backend/scripts/export_openapi.py",
     "api:generate": "pnpm api:export && pnpm --filter @bojro/frontend api:generate",
     "db:migrate": "uv run --project backend alembic -c backend/alembic.ini upgrade head",
+    "db:check": "uv run --project backend alembic -c backend/alembic.ini check",
     "db:seed": "uv run --project backend python backend/scripts/seed.py",
-    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm api:generate && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

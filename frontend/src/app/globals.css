@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+:root {
+  --brand-deep-indigo: #2a1565;
+  --brand-purple: #5b2fc9;
+  --brand-electric-violet: #7c4dff;
+  --brand-soft-lavender: #ede7ff;
+  --brand-background: #f7f5fc;
+  --brand-surface: #ffffff;
+  --brand-text: #1b1033;
+  --brand-text-secondary: #5e5675;
+  --brand-sale-amber: #ffb400;
+  --brand-success: #16a34a;
+  --brand-error: #dc2626;
+  --brand-gradient: linear-gradient(135deg, #2a1565, #5b2fc9, #7c4dff);
+  --brand-shadow-soft: 0 20px 60px rgb(42 21 101 / 12%);
+}
+
+@theme inline {
+  --color-deep-indigo: var(--brand-deep-indigo);
+  --color-brand-purple: var(--brand-purple);
+  --color-electric-violet: var(--brand-electric-violet);
+  --color-soft-lavender: var(--brand-soft-lavender);
+  --color-page-background: var(--brand-background);
+  --color-surface: var(--brand-surface);
+  --color-ink: var(--brand-text);
+  --color-muted: var(--brand-text-secondary);
+  --color-sale-amber: var(--brand-sale-amber);
+  --color-success: var(--brand-success);
+  --color-error: var(--brand-error);
+  --font-display: var(--font-chonburi), "Rozha One", serif;
+  --font-display-bn: var(--font-noto-serif-bengali), serif;
+  --font-body: var(--font-nunito-sans), sans-serif;
+  --font-body-bn: var(--font-hind-siliguri), sans-serif;
+  --background-image-signature: var(--brand-gradient);
+  --shadow-soft: var(--brand-shadow-soft);
+  --radius-card: 1rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  background: var(--brand-background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: clip;
+  background: var(--brand-background);
+  color: var(--brand-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.7;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[lang="bn"] body {
+  font-family: var(--font-body-bn);
+  line-height: 1.8;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--brand-deep-indigo);
+  font-family: var(--font-display);
+  line-height: 1.16;
+  text-wrap: balance;
+}
+
+html[lang="bn"] h1,
+html[lang="bn"] h2,
+html[lang="bn"] h3,
+html[lang="bn"] h4 {
+  font-family: var(--font-display-bn);
+  line-height: 1.28;
+}
+
+html[lang="en"] h1,
+html[lang="en"] h2,
+html[lang="en"] h3,
+html[lang="en"] h4 {
+  font-weight: 400;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+a,
+button,
+input,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--brand-electric-violet);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--brand-soft-lavender);
+  color: var(--brand-deep-indigo);
+}
+
+.container-shell {
+  width: min(100% - 2rem, 80rem);
+  margin-inline: auto;
+}
+
+.signature-gradient {
+  background-image: var(--brand-gradient);
+}
+
+.hero-texture {
+  background-color: var(--brand-soft-lavender);
+  background-image:
+    radial-gradient(circle at 15% 25%, rgb(124 77 255 / 16%) 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 18%, rgb(91 47 201 / 14%) 0 1px, transparent 2px),
+    linear-gradient(145deg, rgb(255 255 255 / 72%), transparent 56%);
+  background-size:
+    42px 42px,
+    31px 31px,
+    auto;
+}
+
+.bolt-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 7%) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 24s linear infinite;
+  will-change: transform;
+}
+
+.marquee-track:hover,
+.marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+.marquee-group {
+  display: flex;
+  min-width: max-content;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2rem;
+  padding-inline: 1rem 3rem;
+}
+
+.lottie-fallback.is-animated {
+  animation: soft-pulse 1.8s ease-in-out infinite;
+}
+
+.mobile-safe-area {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@keyframes marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes soft-pulse {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.82;
+  }
+}
+
+@media (min-width: 48rem) {
+  .container-shell {
+    width: min(100% - 3rem, 80rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .marquee-track {
+    width: 100%;
+    transform: none;
+  }
+
+  .marquee-group {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-block: 0.25rem;
+  }
+
+  .marquee-group[aria-hidden="true"] {
+    display: none;
+  }
+}

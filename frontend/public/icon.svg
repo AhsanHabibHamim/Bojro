@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">বজ্র আইকন</title>
+  <path d="M18 53C20 23 48 17 64 40C78 16 108 24 110 54" fill="none" stroke="#7C4DFF" stroke-linecap="round" stroke-width="11"/>
+  <text x="8" y="104" fill="#2A1565" font-family="'Noto Serif Bengali', serif" font-size="65" font-weight="800">বজ্র</text>
+  <path d="M71 4L44 60H62L49 119L91 50H71L88 4Z" fill="#5B2FC9" stroke="#FFFFFF" stroke-linejoin="round" stroke-width="3"/>
+  <path d="M73 21L58 54H69L61 82L81 48H70Z" fill="#FFFFFF" opacity="0.9"/>
+</svg>

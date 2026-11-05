@@ -4,7 +4,7 @@ Bojro (বজ্র) is a Bangla-first, mobile-first, single-brand commerce plat
 
 ## Prerequisites
 
-- Node.js 22+
+- Node.js 24.15+
 - pnpm 10+
 - Python 3.12
 - [uv](https://docs.astral.sh/uv/) 0.11.23

@@ -57,7 +57,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
 
       - uses: actions/setup-python@v5
@@ -82,6 +82,7 @@ jobs:
           pnpm db:migrate
           pnpm db:seed
           pnpm db:seed
+          pnpm db:check
 
       - name: Verify generated API contract
         run: |

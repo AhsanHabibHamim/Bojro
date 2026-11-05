@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 112" role="img" aria-labelledby="title description">
+  <title id="title">বজ্র</title>
+  <desc id="description">Deep indigo Bangla Bojro wordmark with a purple lightning bolt</desc>
+  <path d="M54 50C57 16 94 6 126 39C148 5 191 10 204 49" fill="none" stroke="#7C4DFF" stroke-linecap="round" stroke-width="14"/>
+  <path d="M54 50C59 24 91 16 119 43" fill="none" stroke="#5B2FC9" stroke-linecap="round" stroke-width="6"/>
+  <text x="18" y="98" fill="#2A1565" font-family="'Noto Serif Bengali', serif" font-size="84" font-weight="800">বজ্র</text>
+  <path d="M163 2L124 58H151L130 108L190 43H159L181 2Z" fill="#5B2FC9" stroke="#FFFFFF" stroke-linejoin="round" stroke-width="4"/>
+  <path d="M166 20L142 53H158L147 76L176 47H158Z" fill="#FFFFFF" opacity="0.9"/>
+</svg>
