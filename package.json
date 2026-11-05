@@ -1,0 +1,35 @@
+{
+  "name": "bojro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bangla-first single-brand commerce for Bangladesh",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others --names frontend,backend --prefix-colors magenta,cyan \"pnpm --filter @bojro/frontend dev\" \"uv run --project backend uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000\"",
+    "dev:frontend": "pnpm --filter @bojro/frontend dev",
+    "dev:backend": "uv run --project backend uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000",
+    "lint": "pnpm lint:frontend && pnpm lint:backend",
+    "lint:frontend": "pnpm --filter @bojro/frontend lint",
+    "lint:backend": "uv run --project backend ruff check --config backend/pyproject.toml backend",
+    "format:check": "pnpm --filter @bojro/frontend format:check && uv run --project backend ruff format --check --config backend/pyproject.toml backend",
+    "typecheck": "pnpm typecheck:frontend && pnpm typecheck:backend",
+    "typecheck:frontend": "pnpm --filter @bojro/frontend typecheck",
+    "typecheck:backend": "uv run --project backend mypy --config-file backend/pyproject.toml backend/app backend/tests",
+    "test": "pnpm test:frontend && pnpm test:backend",
+    "test:frontend": "pnpm --filter @bojro/frontend test:run",
+    "test:backend": "uv run --project backend pytest -c backend/pyproject.toml backend/tests",
+    "build": "pnpm --filter @bojro/frontend build",
+    "api:export": "uv run --project backend python backend/scripts/export_openapi.py",
+    "api:generate": "pnpm api:export && pnpm --filter @bojro/frontend api:generate",
+    "db:migrate": "uv run --project backend alembic -c backend/alembic.ini upgrade head",
+    "db:seed": "uv run --project backend python backend/scripts/seed.py",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

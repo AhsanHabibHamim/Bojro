@@ -1,0 +1,103 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bojro_test
+          POSTGRES_USER: bojro
+          POSTGRES_PASSWORD: bojro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bojro -d bojro_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: test
+      APP_SECRET_KEY: ci-only-secret-key-with-at-least-32-characters
+      DATABASE_URL: postgresql+asyncpg://bojro:bojro_test@localhost:5432/bojro_test
+      REDIS_URL: redis://localhost:6379/15
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          uv sync --project backend --frozen --all-groups
+
+      - name: Validate Compose configuration
+        run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml config --quiet
+
+      - name: Apply and validate database seed
+        run: |
+          pnpm db:migrate
+          pnpm db:seed
+          pnpm db:seed
+
+      - name: Verify generated API contract
+        run: |
+          pnpm api:generate
+          git diff --exit-code -- backend/openapi.json frontend/src/lib/api/schema.d.ts
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Formatting
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
