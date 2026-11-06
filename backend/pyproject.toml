@@ -14,6 +14,7 @@ dependencies = [
   "email-validator>=2.2,<3",
   "fastapi>=0.115,<1",
   "pydantic-settings>=2.7,<3",
+  "PyJWT>=2.10,<3",
   "redis[hiredis]>=5.2,<7",
   "sqlalchemy[asyncio]>=2.0.36,<3",
   "structlog>=24.4,<26",
@@ -84,4 +85,4 @@ source = ["app"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 80
+fail_under = 85

@@ -8,6 +8,7 @@ from enum import Enum
 from uuid import UUID
 
 from sqlalchemy import (
+    CHAR,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -27,7 +28,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 from app.db.enums import (
@@ -69,6 +70,12 @@ class User(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ),
         Index("ix_users_role_created_at", "role", "created_at"),
         Index(
+            "uq_users_email_lower",
+            func.lower(text("email")),
+            unique=True,
+            postgresql_where=text("email IS NOT NULL"),
+        ),
+        Index(
             "uq_users_single_admin",
             "role",
             unique=True,
@@ -81,11 +88,16 @@ class User(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(14), unique=True)
-    email: Mapped[str | None] = mapped_column(String(320), unique=True)
+    email: Mapped[str | None] = mapped_column(String(320))
     password_hash: Mapped[str | None] = mapped_column(String(512))
     is_guest: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     addresses: Mapped[list[Address]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -93,6 +105,36 @@ class User(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     carts: Mapped[list[Cart]] = relationship(back_populates="user")
     orders: Mapped[list[Order]] = relationship(back_populates="user")
     reviews: Mapped[list[Review]] = relationship(back_populates="user")
+    auth_sessions: Mapped[list[AuthSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class AuthSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "auth_sessions"
+    __table_args__ = (
+        CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        Index("ix_auth_sessions_user_expires", "user_id", "expires_at"),
+        Index("ix_auth_sessions_family", "family_id"),
+        Index(
+            "ix_auth_sessions_active_expiry",
+            "expires_at",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    refresh_jti_hash: Mapped[str] = mapped_column(CHAR(64), unique=True, nullable=False)
+    family_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_rotated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user_agent_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    ip_prefix_hash: Mapped[str | None] = mapped_column(CHAR(64))
+
+    user: Mapped[User] = relationship(back_populates="auth_sessions")
 
 
 class GeoDivision(UUIDPrimaryKeyMixin, Base):
@@ -464,23 +506,34 @@ class Cart(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
     )
-    guest_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), unique=True)
+    guest_token: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     status: Mapped[CartStatus] = mapped_column(
         db_enum(CartStatus, "cart_status"), default=CartStatus.ACTIVE, nullable=False
     )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    coupon_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("coupons.id", ondelete="SET NULL")
+    )
+    shipping_district_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("geo_districts.id", ondelete="SET NULL")
+    )
+    version: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     user: Mapped[User | None] = relationship(back_populates="carts")
     items: Mapped[list[CartItem]] = relationship(
         back_populates="cart", cascade="all, delete-orphan"
     )
+    coupon: Mapped[Coupon | None] = relationship()
+    shipping_district: Mapped[GeoDistrict | None] = relationship()
 
 
 class CartItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "cart_items"
     __table_args__ = (
         UniqueConstraint("cart_id", "variant_id"),
-        CheckConstraint("quantity > 0", name="quantity_positive"),
+        CheckConstraint("quantity >= 1 AND quantity <= 99", name="quantity_range"),
         Index("ix_cart_items_cart_created_at", "cart_id", "created_at"),
     )
 
@@ -517,6 +570,11 @@ class Coupon(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at", name="dates"
         ),
         CheckConstraint("currency = 'BDT'", name="currency_bdt"),
+        CheckConstraint(
+            "code = upper(btrim(code)) AND code <> ''",
+            name="code_normalized",
+        ),
+        Index("uq_coupons_code_upper", func.upper(text("code")), unique=True),
         Index("ix_coupons_active_dates", "is_active", "starts_at", "ends_at"),
     )
 
@@ -542,6 +600,13 @@ class Coupon(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
+
+    @validates("code")
+    def normalize_code(self, _key: str, value: str) -> str:
+        normalized = value.strip().upper()
+        if not normalized:
+            raise ValueError("coupon code cannot be blank")
+        return normalized
 
 
 class FlashSale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -622,6 +687,9 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
+    source_cart_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("carts.id", ondelete="RESTRICT"), unique=True
+    )
     status: Mapped[OrderStatus] = mapped_column(
         db_enum(OrderStatus, "order_status"), default=OrderStatus.PENDING, nullable=False
     )
@@ -647,7 +715,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     coupon_code: Mapped[str | None] = mapped_column(String(64))
     address_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
-    idempotency_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
@@ -661,6 +729,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     payments: Mapped[list[Payment]] = relationship(back_populates="order")
     shipments: Mapped[list[Shipment]] = relationship(back_populates="order")
+    source_cart: Mapped[Cart | None] = relationship()
 
 
 class OrderItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -672,6 +741,7 @@ class OrderItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         CheckConstraint("currency = 'BDT'", name="currency_bdt"),
         Index("ix_order_items_order", "order_id"),
         Index("ix_order_items_product", "product_id"),
+        Index("ix_order_items_flash_sale_item", "flash_sale_item_id"),
     )
 
     order_id: Mapped[UUID] = mapped_column(
@@ -682,6 +752,9 @@ class OrderItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     variant_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL")
+    )
+    flash_sale_item_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("flash_sale_items.id", ondelete="SET NULL")
     )
     name_bn: Mapped[str] = mapped_column(String(240), nullable=False)
     name_en: Mapped[str] = mapped_column(String(240), nullable=False)
@@ -697,6 +770,70 @@ class OrderItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product | None] = relationship()
     variant: Mapped[ProductVariant | None] = relationship()
+    flash_sale_item: Mapped[FlashSaleItem | None] = relationship()
+
+
+class CouponRedemption(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "coupon_redemptions"
+    __table_args__ = (
+        Index("ix_coupon_redemptions_coupon_user_released", "coupon_id", "user_id", "released_at"),
+        Index("ix_coupon_redemptions_user_created", "user_id", "created_at"),
+    )
+
+    coupon_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("coupons.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    order_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("orders.id", ondelete="RESTRICT"),
+        unique=True,
+        nullable=False,
+    )
+    code_snapshot: Mapped[str] = mapped_column(String(64), nullable=False)
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    coupon: Mapped[Coupon] = relationship()
+    user: Mapped[User] = relationship()
+    order: Mapped[Order] = relationship()
+
+
+class IdempotencyRecord(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "idempotency_records"
+    __table_args__ = (
+        UniqueConstraint("endpoint", "scope_hash", "idempotency_key"),
+        CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        Index("ix_idempotency_records_expiry", "expires_at"),
+        Index("ix_idempotency_records_order", "order_id"),
+    )
+
+    endpoint: Mapped[str] = mapped_column(String(160), nullable=False)
+    scope_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    order_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
+    )
+    response_status: Mapped[int | None] = mapped_column(SmallInteger)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    order: Mapped[Order | None] = relationship()
+
+
+class OrderNumberCounter(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "order_number_counters"
+    __table_args__ = (
+        CheckConstraint("year >= 2020 AND year <= 9999", name="year_range"),
+        CheckConstraint("next_value >= 1 AND next_value <= 1000000", name="next_value_range"),
+    )
+
+    year: Mapped[int] = mapped_column(SmallInteger, unique=True, nullable=False)
+    next_value: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
 
 class OrderStatusHistory(UUIDPrimaryKeyMixin, Base):

@@ -1,13 +1,19 @@
+from typing import Any, cast
+
+import pytest
 from scripts.seed import (
     CATEGORIES,
     HOMEPAGE_SECTIONS,
     PRODUCTS,
+    ensure_demo_target_is_empty,
     homepage_content_v2,
     load_geo_dataset,
     merge_missing,
     seed_id,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.base import Base
 from app.db.enums import HomepageSectionType
 
 
@@ -83,3 +89,18 @@ def test_v1_to_v2_merge_never_overwrites_operator_content() -> None:
         "cta": "Browse",
     }
     assert existing["countdown"] == {"enabled": False}
+
+
+@pytest.mark.asyncio
+async def test_initial_seed_emptiness_guard_checks_every_managed_table() -> None:
+    class RecordingSession:
+        def __init__(self) -> None:
+            self.tables: set[str] = set()
+
+        async def scalar(self, statement: Any) -> int:
+            self.tables.update(table.name for table in statement.get_final_froms())
+            return 0
+
+    session = RecordingSession()
+    await ensure_demo_target_is_empty(cast(AsyncSession, session))
+    assert session.tables == set(Base.metadata.tables)

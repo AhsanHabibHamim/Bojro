@@ -16,10 +16,18 @@ from app import __version__
 from app.api.health import router as operations_router
 from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
+from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import (
+    NoStoreMiddleware,
+    RequestContextMiddleware,
+    SecurityHeadersMiddleware,
+)
+from app.core.security import TokenService
 from app.db.session import create_engine, create_session_factory
 from app.services.cache import HotCache
+from app.services.otp import OTPService
+from app.services.rate_limit import RateLimiter
 
 _LOGGER = structlog.get_logger(__name__)
 
@@ -45,6 +53,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.session_factory = create_session_factory(engine)
         application.state.redis = redis
         application.state.hot_cache = HotCache(redis)
+        application.state.rate_limiter = RateLimiter(
+            redis, fail_closed=resolved_settings.is_production
+        )
+        application.state.otp_service = OTPService(
+            redis,
+            application.state.rate_limiter,
+            resolved_settings,
+        )
         _LOGGER.info("application_started", environment=resolved_settings.app_env)
         try:
             yield
@@ -64,19 +80,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None if resolved_settings.is_production else "/redoc",
     )
     application.state.settings = resolved_settings
+    application.state.token_service = TokenService(resolved_settings)
+    install_error_handlers(application)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-CSRF-Token"],
-        expose_headers=["X-Request-ID"],
+        expose_headers=["X-Request-ID", "Idempotent-Replayed", "Retry-After"],
     )
     application.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=resolved_settings.trusted_hosts,
     )
     application.add_middleware(SecurityHeadersMiddleware)
+    application.add_middleware(NoStoreMiddleware)
     application.add_middleware(RequestContextMiddleware)
     application.include_router(operations_router)
     application.include_router(api_v1_router, prefix=resolved_settings.api_v1_prefix)

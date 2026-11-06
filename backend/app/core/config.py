@@ -29,6 +29,40 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://bojro:bojro@localhost:5432/bojro"
     redis_url: str | None = None
     app_secret_key: SecretStr | None = None
+    jwt_secret_key: SecretStr = SecretStr("development-jwt-secret-change-me-32-characters")
+    guest_identity_secret: SecretStr = SecretStr("development-guest-secret-change-me-32-characters")
+    quote_token_secret: SecretStr = SecretStr("development-quote-secret-change-me-32-characters")
+    otp_hmac_secret: SecretStr = SecretStr("development-otp-hmac-change-me-32-characters")
+    jwt_issuer: str = "bojro-api"
+    jwt_audience: str = "bojro-storefront"
+    access_token_minutes: int = Field(default=15, ge=1, le=60)
+    refresh_token_days: int = Field(default=30, ge=1, le=90)
+    guest_identity_days: int = Field(default=30, ge=1, le=90)
+    quote_token_minutes: int = Field(default=5, ge=1, le=15)
+    cookie_secure: bool | None = None
+    cookie_same_site: Literal["lax"] = "lax"
+    cookie_prefix: str = Field(default="bojro", pattern=r"^[a-z0-9_-]{1,32}$")
+    otp_provider: Literal["mock", "external"] = "mock"
+    otp_mock_code: SecretStr = SecretStr("123456")
+    otp_ttl_seconds: int = Field(default=300, ge=60, le=600)
+    otp_resend_seconds: int = Field(default=60, ge=30, le=300)
+    otp_max_attempts: int = Field(default=5, ge=1, le=10)
+    otp_phone_limit: int = Field(default=3, ge=1, le=20)
+    otp_phone_window_seconds: int = Field(default=900, ge=60, le=3600)
+    otp_ip_limit: int = Field(default=10, ge=1, le=100)
+    otp_ip_window_seconds: int = Field(default=3600, ge=60, le=86400)
+    login_identity_limit: int = Field(default=5, ge=1, le=100)
+    login_ip_limit: int = Field(default=20, ge=1, le=200)
+    auth_rate_window_seconds: int = Field(default=900, ge=60, le=3600)
+    checkout_quote_identity_limit: int = Field(default=10, ge=1, le=100)
+    checkout_quote_ip_limit: int = Field(default=30, ge=1, le=300)
+    checkout_quote_phone_limit: int = Field(default=5, ge=1, le=100)
+    checkout_order_identity_limit: int = Field(default=10, ge=1, le=100)
+    checkout_order_ip_limit: int = Field(default=30, ge=1, le=300)
+    checkout_order_phone_limit: int = Field(default=10, ge=1, le=100)
+    checkout_rate_window_seconds: int = Field(default=900, ge=60, le=3600)
+    tracking_rate_limit: int = Field(default=10, ge=1, le=100)
+    tracking_rate_window_seconds: int = Field(default=600, ge=60, le=3600)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     trusted_hosts: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver", "backend"]
@@ -96,13 +130,59 @@ class Settings(BaseSettings):
                 raise ValueError("REDIS_URL is required in production")
             if self.app_secret_key is None or len(self.app_secret_key.get_secret_value()) < 32:
                 raise ValueError("APP_SECRET_KEY must contain at least 32 characters in production")
+            secrets = {
+                "JWT_SECRET_KEY": self.jwt_secret_key,
+                "GUEST_IDENTITY_SECRET": self.guest_identity_secret,
+                "QUOTE_TOKEN_SECRET": self.quote_token_secret,
+                "OTP_HMAC_SECRET": self.otp_hmac_secret,
+            }
+            for name, secret in secrets.items():
+                value = secret.get_secret_value()
+                if len(value) < 32 or value.startswith(("development-", "replace-with-")):
+                    raise ValueError(
+                        f"{name} must be a non-default secret of at least 32 characters"
+                    )
+            if len({secret.get_secret_value() for secret in secrets.values()}) != len(secrets):
+                raise ValueError("Phase 3 signing secrets must be distinct")
+            if self.otp_provider == "mock":
+                raise ValueError("mock OTP provider is forbidden in production")
+            if self.cookie_secure is False:
+                raise ValueError("COOKIE_SECURE cannot be false in production")
             if "*" in self.trusted_hosts:
                 raise ValueError("wildcard TRUSTED_HOSTS are forbidden in production")
+            raise ValueError(
+                "OTP_PROVIDER=external is not implemented; production startup is refused"
+            )
+        mock_code = self.otp_mock_code.get_secret_value()
+        if len(mock_code) != 6 or not mock_code.isascii() or not mock_code.isdigit():
+            raise ValueError("OTP_MOCK_CODE must contain exactly six ASCII digits")
         return self
 
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def effective_cookie_secure(self) -> bool:
+        return self.is_production if self.cookie_secure is None else self.cookie_secure
+
+    @property
+    def access_cookie_name(self) -> str:
+        if self.effective_cookie_secure:
+            return f"__Host-{self.cookie_prefix}_access"
+        return f"{self.cookie_prefix}_access"
+
+    @property
+    def refresh_cookie_name(self) -> str:
+        if self.effective_cookie_secure:
+            return f"__Secure-{self.cookie_prefix}_refresh"
+        return f"{self.cookie_prefix}_refresh"
+
+    @property
+    def guest_cookie_name(self) -> str:
+        if self.effective_cookie_secure:
+            return f"__Host-{self.cookie_prefix}_guest"
+        return f"{self.cookie_prefix}_guest"
 
 
 @lru_cache

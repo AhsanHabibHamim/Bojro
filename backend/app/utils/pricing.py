@@ -28,13 +28,16 @@ def discount_percent(current_poisha: int, compare_at_poisha: int | None) -> int:
 def effective_variant_price(
     variant: ProductVariant,
     now: datetime,
+    quantity: int = 1,
 ) -> EffectiveVariantPrice:
+    if quantity < 1:
+        raise ValueError("quantity must be positive")
     eligible_sales = (
         item
         for item in variant.flash_sale_items
         if item.flash_sale.is_active
         and item.flash_sale.starts_at <= now < item.flash_sale.ends_at
-        and item.sold_qty < item.qty_limit
+        and item.qty_limit - item.sold_qty >= quantity
         and item.sale_price < variant.price
     )
     flash_price = min((item.sale_price for item in eligible_sales), default=None)

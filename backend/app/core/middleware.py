@@ -6,10 +6,12 @@ import re
 import time
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 
+from app.core.errors import DomainError, error_payload, map_integrity_error
 from app.utils.uuid7 import uuid7
 
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
@@ -26,14 +28,37 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         started = time.perf_counter()
         try:
             response = await call_next(request)
-        except Exception:
-            _LOGGER.exception(
-                "request_failed",
+        except IntegrityError as exc:
+            error = map_integrity_error(exc)
+            _LOGGER.warning(
+                "request_integrity_conflict",
+                error_code=error.code,
                 method=request.method,
                 path=request.url.path,
                 duration_ms=round((time.perf_counter() - started) * 1000, 2),
             )
-            raise
+            response = JSONResponse(
+                status_code=error.status_code,
+                content=error_payload(request, error),
+            )
+            response.headers["X-Request-ID"] = request_id
+            return response
+        except Exception as exc:
+            _LOGGER.error(
+                "request_failed",
+                error_type=type(exc).__name__,
+                method=request.method,
+                path=request.url.path,
+                duration_ms=round((time.perf_counter() - started) * 1000, 2),
+            )
+            error = DomainError(
+                "INTERNAL_SERVER_ERROR",
+                "An unexpected server error occurred.",
+                status_code=500,
+            )
+            response = JSONResponse(status_code=500, content=error_payload(request, error))
+            response.headers["X-Request-ID"] = request_id
+            return response
         else:
             response.headers["X-Request-ID"] = request_id
             _LOGGER.info(
@@ -72,4 +97,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
         if request.app.state.settings.is_production:
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        return response
+
+
+class NoStoreMiddleware(BaseHTTPMiddleware):
+    """Prevent browsers and intermediaries from caching private commerce data."""
+
+    _PREFIXES = (
+        "/api/v1/auth",
+        "/api/v1/cart",
+        "/api/v1/checkout",
+        "/api/v1/orders",
+    )
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+        if request.url.path.startswith(self._PREFIXES):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
         return response

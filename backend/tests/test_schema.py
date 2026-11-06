@@ -20,6 +20,7 @@ from app.db.models import (
 
 EXPECTED_TABLES = {
     "users",
+    "auth_sessions",
     "addresses",
     "geo_divisions",
     "geo_districts",
@@ -32,9 +33,12 @@ EXPECTED_TABLES = {
     "carts",
     "cart_items",
     "coupons",
+    "coupon_redemptions",
     "flash_sales",
     "flash_sale_items",
     "orders",
+    "idempotency_records",
+    "order_number_counters",
     "order_items",
     "order_status_history",
     "payments",
@@ -101,6 +105,7 @@ def test_core_integrity_constraints_are_modeled() -> None:
     carts = cast(Table, Cart.__table__)
     orders = cast(Table, Order.__table__)
     order_items = cast(Table, OrderItem.__table__)
+    coupons = cast(Table, Coupon.__table__)
 
     assert "ck_carts_exactly_one_owner" in {constraint.name for constraint in carts.constraints}
     assert "ck_orders_discount_within_subtotal" in {
@@ -108,6 +113,8 @@ def test_core_integrity_constraints_are_modeled() -> None:
     }
     assert "ck_orders_number_format" in {constraint.name for constraint in orders.constraints}
     assert {"price", "qty"}.issubset(order_items.c.keys())
+    assert "ck_coupons_code_normalized" in {constraint.name for constraint in coupons.constraints}
+    assert "uq_coupons_code_upper" in {index.name for index in coupons.indexes}
 
 
 def test_phase2_search_sort_and_projection_indexes_are_modeled() -> None:

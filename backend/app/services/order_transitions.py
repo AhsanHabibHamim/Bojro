@@ -68,6 +68,8 @@ class OrderTransitionService:
             if not is_legal_order_transition(from_status, to_status):
                 raise IllegalOrderTransitionError(from_status, to_status)
 
+            if to_status in {OrderStatus.CANCELLED, OrderStatus.SHIPPED}:
+                await unit_of_work.orders.apply_inventory_side_effects(order, to_status)
             order.status = to_status
             unit_of_work.orders.add_status_history(
                 order_id,

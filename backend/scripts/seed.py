@@ -1,4 +1,4 @@
-"""Idempotently seed and upgrade Bojro's Phase 2 demonstration data."""
+"""Idempotently seed and upgrade Bojro's demonstration data."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.core.config import Settings, get_settings  # noqa: E402
 from app.core.logging import configure_logging  # noqa: E402
+from app.db.base import Base  # noqa: E402
 from app.db.enums import (  # noqa: E402
     CouponType,
     HomepageSectionType,
@@ -1417,14 +1418,32 @@ async def seed_content(session: AsyncSession) -> None:
             "id": seed_id("site_setting", "shipping_rules"),
             "key": "shipping_rules",
             "value": {
-                "inside_dhaka_poisha": 7000,
-                "outside_dhaka_poisha": 12000,
+                "version": 3,
                 "free_shipping_threshold_poisha": 150000,
-                "inside_dhaka_min_days": 1,
-                "inside_dhaka_max_days": 2,
-                "outside_dhaka_min_days": 3,
-                "outside_dhaka_max_days": 5,
-                "weight_tiers_g": [500, 1000, 2000],
+                "zones": {
+                    "inside_dhaka": {
+                        "district_codes": ["47"],
+                        "tiers": [
+                            {"max_weight_g": 1000, "charge_poisha": 7000},
+                            {"max_weight_g": 2000, "charge_poisha": 9000},
+                            {"max_weight_g": 5000, "charge_poisha": 13000},
+                        ],
+                        "additional_kg_poisha": 3000,
+                        "minimum_days": 1,
+                        "maximum_days": 2,
+                    },
+                    "outside_dhaka": {
+                        "district_codes": [],
+                        "tiers": [
+                            {"max_weight_g": 1000, "charge_poisha": 12000},
+                            {"max_weight_g": 2000, "charge_poisha": 15000},
+                            {"max_weight_g": 5000, "charge_poisha": 21000},
+                        ],
+                        "additional_kg_poisha": 4000,
+                        "minimum_days": 3,
+                        "maximum_days": 5,
+                    },
+                },
             },
         },
         {
@@ -1470,7 +1489,14 @@ async def seed_content(session: AsyncSession) -> None:
         {
             "id": seed_id("site_setting", "cod_risk"),
             "key": "cod_risk",
-            "value": {"enabled": False, "minimum_completed_orders": 3, "maximum_return_rate": 0.4},
+            "value": {
+                "version": 3,
+                "enabled": False,
+                "minimum_completed_orders": 3,
+                "maximum_return_rate": 0.4,
+                "advance_payment_required": True,
+                "return_statuses": ["returned", "refunded"],
+            },
         },
     ]
     await upsert_rows(
@@ -1551,6 +1577,66 @@ async def upgrade_demo_seed_v1_to_v2(
     marker.value = {**marker.value, "version": 2, "upgraded_at": upgraded_at.isoformat()}
 
 
+async def upgrade_demo_seed_v2_to_v3(
+    session: AsyncSession,
+    marker: SiteSetting,
+    upgraded_at: datetime,
+) -> None:
+    """Add Phase 3 settings without replacing any operator-owned values."""
+
+    setting_defaults: dict[str, dict[str, object]] = {
+        "shipping_rules": {
+            "version": 3,
+            "free_shipping_threshold_poisha": 150_000,
+            "zones": {
+                "inside_dhaka": {
+                    "district_codes": ["47"],
+                    "tiers": [
+                        {"max_weight_g": 1_000, "charge_poisha": 7_000},
+                        {"max_weight_g": 2_000, "charge_poisha": 9_000},
+                        {"max_weight_g": 5_000, "charge_poisha": 13_000},
+                    ],
+                    "additional_kg_poisha": 3_000,
+                    "minimum_days": 1,
+                    "maximum_days": 2,
+                },
+                "outside_dhaka": {
+                    "district_codes": [],
+                    "tiers": [
+                        {"max_weight_g": 1_000, "charge_poisha": 12_000},
+                        {"max_weight_g": 2_000, "charge_poisha": 15_000},
+                        {"max_weight_g": 5_000, "charge_poisha": 21_000},
+                    ],
+                    "additional_kg_poisha": 4_000,
+                    "minimum_days": 3,
+                    "maximum_days": 5,
+                },
+            },
+        },
+        "cod_risk": {
+            "version": 3,
+            "enabled": False,
+            "minimum_completed_orders": 3,
+            "maximum_return_rate": 0.4,
+            "advance_payment_required": True,
+            "return_statuses": ["returned", "refunded"],
+        },
+    }
+    existing_settings = {
+        setting.key: setting
+        for setting in await session.scalars(
+            select(SiteSetting).where(SiteSetting.key.in_(setting_defaults))
+        )
+    }
+    for key, value in setting_defaults.items():
+        setting = existing_settings.get(key)
+        if setting is None:
+            session.add(SiteSetting(id=seed_id("site_setting_v3", key), key=key, value=value))
+        else:
+            setting.value = {**merge_missing(setting.value, value), "version": 3}
+    marker.value = {**marker.value, "version": 3, "upgraded_at_v3": upgraded_at.isoformat()}
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if settings.seed_admin_email is None or settings.seed_admin_password is None:
         return False
@@ -1597,13 +1683,11 @@ async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
 async def ensure_demo_target_is_empty(session: AsyncSession) -> None:
     """Refuse to merge demo records into an existing operational database."""
 
-    checks = {
-        "users": await session.scalar(select(func.count(User.id))),
-        "geo_divisions": await session.scalar(select(func.count(GeoDivision.id))),
-        "products": await session.scalar(select(func.count(Product.id))),
-        "site_settings": await session.scalar(select(func.count(SiteSetting.id))),
-    }
-    populated = [name for name, count in checks.items() if (count or 0) > 0]
+    populated: list[str] = []
+    for table in Base.metadata.sorted_tables:
+        count = await session.scalar(select(func.count()).select_from(table))
+        if (count or 0) > 0:
+            populated.append(table.name)
     if populated:
         raise RuntimeError(
             "demo seed requires an empty database; populated tables: " + ", ".join(populated)
@@ -1635,15 +1719,17 @@ async def seed_database() -> None:
                     id=uuid7(),
                     key=_DEMO_SEED_KEY,
                     value={
-                        "version": 2,
+                        "version": 3,
                         "geo_coverage_as_of": dataset.metadata.coverage_as_of,
                     },
                 )
                 session.add(marker)
             elif (marker_version := marker.value.get("version")) in {1, 2}:
-                demo_upgraded = marker_version == 1
-                await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
-            elif marker.value.get("version") != 2:
+                demo_upgraded = True
+                if marker_version == 1:
+                    await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
+                await upgrade_demo_seed_v2_to_v3(session, marker, seeded_at)
+            elif marker.value.get("version") != 3:
                 raise RuntimeError("unsupported demo seed marker version")
             admin_configured = await seed_admin(session, settings)
         _LOGGER.info(

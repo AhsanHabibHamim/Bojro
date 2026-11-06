@@ -8,11 +8,19 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
+from app.repositories.auth import AuthRepository
 from app.repositories.catalog import CatalogRepository
+from app.repositories.checkout import CheckoutRepository
+from app.repositories.commerce import CommerceRepository
+from app.repositories.geo import GeoRepository
 from app.repositories.health import HealthRepository
 from app.repositories.storefront import StorefrontRepository
+from app.services.auth import AuthService
 from app.services.cache import HotCache
+from app.services.cart import CartService
 from app.services.catalog import CatalogService
+from app.services.checkout import CheckoutService
+from app.services.geo import GeoService
 from app.services.health import HealthService
 from app.services.storefront import StorefrontService
 
@@ -44,3 +52,41 @@ def get_storefront_service(
     cache: HotCache = request.app.state.hot_cache
     catalog = CatalogService(CatalogRepository(session), cache)
     return StorefrontService(StorefrontRepository(session), catalog, cache)
+
+
+def get_auth_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuthService:
+    return AuthService(
+        AuthRepository(session),
+        request.app.state.token_service,
+        request.app.state.otp_service,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
+
+
+def get_geo_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> GeoService:
+    return GeoService(GeoRepository(session))
+
+
+def get_cart_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CartService:
+    return CartService(CommerceRepository(session))
+
+
+def get_checkout_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CheckoutService:
+    return CheckoutService(
+        CheckoutRepository(session),
+        CommerceRepository(session),
+        request.app.state.token_service,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
