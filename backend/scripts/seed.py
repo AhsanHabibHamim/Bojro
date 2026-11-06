@@ -1,14 +1,14 @@
-"""Idempotently seed Bojro's Phase 1 reference and demonstration data."""
+"""Idempotently seed and upgrade Bojro's Phase 2 demonstration data."""
 
 from __future__ import annotations
 
 import asyncio
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
-from urllib.parse import quote_plus
+from typing import cast
 from uuid import UUID
 
 import structlog
@@ -414,6 +414,415 @@ HOMEPAGE_SECTIONS: tuple[tuple[HomepageSectionType, str, str], ...] = (
 )
 
 
+def homepage_content_v2() -> dict[HomepageSectionType, tuple[dict[str, object], dict[str, object]]]:
+    """Return fresh rich content; callers may safely merge it without shared mutation."""
+
+    content: dict[HomepageSectionType, tuple[dict[str, object], dict[str, object]]] = {
+        section_type: (
+            {"title": title_bn, "eyebrow": "বজ্র", "cta": "এখনই দেখুন"},
+            {"title": title_en, "eyebrow": "Bojro", "cta": "Explore now"},
+        )
+        for section_type, title_bn, title_en in HOMEPAGE_SECTIONS
+    }
+    content[HomepageSectionType.HERO][0].update(
+        {
+            "description": "দেশজুড়ে আসল পণ্য, স্বচ্ছ দাম ও নির্ভরযোগ্য ডেলিভারি।",
+            "primary_target": "catalog:all",
+            "benefits": [
+                {"label": "আসল পণ্যের নিশ্চয়তা", "icon": "shield-check"},
+                {"label": "ক্যাশ অন ডেলিভারি", "icon": "wallet"},
+                {"label": "সহজ রিটার্ন", "icon": "rotate-left"},
+            ],
+        }
+    )
+    content[HomepageSectionType.HERO][1].update(
+        {
+            "description": "Authentic products, clear prices, and dependable delivery nationwide.",
+            "primary_target": "catalog:all",
+            "benefits": [
+                {"label": "Authenticity guaranteed", "icon": "shield-check"},
+                {"label": "Cash on delivery", "icon": "wallet"},
+                {"label": "Easy returns", "icon": "rotate-left"},
+            ],
+        }
+    )
+    content[HomepageSectionType.MARQUEE][0].update(
+        {
+            "items": [
+                "১০০% অথেনটিক পণ্য",
+                "সারা দেশে ডেলিভারি",
+                "নিরাপদ ক্যাশ অন ডেলিভারি",
+                "সহজ রিটার্ন সহায়তা",
+            ],
+            "speed_seconds": 28,
+        }
+    )
+    content[HomepageSectionType.MARQUEE][1].update(
+        {
+            "items": [
+                "100% authentic products",
+                "Nationwide delivery",
+                "Secure cash on delivery",
+                "Simple return support",
+            ],
+            "speed_seconds": 28,
+        }
+    )
+    content[HomepageSectionType.PROMO_CHIPS][0].update(
+        {
+            "chips": [
+                {"label": "নতুন এসেছে", "target": "collection:newest"},
+                {"label": "সেরা বিক্রি", "target": "collection:best_selling"},
+                {"label": "আজকের ডিল", "target": "collection:deals"},
+                {"label": "৳১৫০০+ ফ্রি ডেলিভারি", "target": "offer:free_shipping"},
+            ]
+        }
+    )
+    content[HomepageSectionType.PROMO_CHIPS][1].update(
+        {
+            "chips": [
+                {"label": "New arrivals", "target": "collection:newest"},
+                {"label": "Best sellers", "target": "collection:best_selling"},
+                {"label": "Today's deals", "target": "collection:deals"},
+                {"label": "Free delivery over ৳1500", "target": "offer:free_shipping"},
+            ]
+        }
+    )
+    content[HomepageSectionType.FLASH_SALE][0].update(
+        {
+            "subtitle": "সময় শেষ হওয়ার আগেই পছন্দের পণ্যটি নিন।",
+            "countdown": {"enabled": True, "source": "sale_end"},
+            "view_all_target": "collection:deals",
+        }
+    )
+    content[HomepageSectionType.FLASH_SALE][1].update(
+        {
+            "subtitle": "Pick your favourites before the clock runs out.",
+            "countdown": {"enabled": True, "source": "sale_end"},
+            "view_all_target": "collection:deals",
+        }
+    )
+    content[HomepageSectionType.BEST_SELLER_CATEGORIES][0].update(
+        {"subtitle": "ক্রেতাদের সবচেয়ে পছন্দের বিভাগ", "max_items": 4}
+    )
+    content[HomepageSectionType.BEST_SELLER_CATEGORIES][1].update(
+        {"subtitle": "The categories customers return to", "max_items": 4}
+    )
+    content[HomepageSectionType.BEST_SELLING][0].update(
+        {"subtitle": "সারা দেশে জনপ্রিয় পণ্য", "view_all_target": "collection:best_selling"}
+    )
+    content[HomepageSectionType.BEST_SELLING][1].update(
+        {
+            "subtitle": "Popular products across Bangladesh",
+            "view_all_target": "collection:best_selling",
+        }
+    )
+    content[HomepageSectionType.FEATURE_BANDS][0].update(
+        {
+            "bands": [
+                {
+                    "title": "ঘরের প্রতিদিনের প্রয়োজন",
+                    "description": "রান্নাঘর ও ঘর গোছানোর বাছাই করা পণ্য।",
+                    "target": "category:home-kitchen",
+                    "image": "/seed/feature-home.svg",
+                },
+                {
+                    "title": "নিজের যত্ন, নিজের মতো",
+                    "description": "স্কিনকেয়ার ও পার্সোনাল কেয়ারের বিশ্বস্ত পছন্দ।",
+                    "target": "category:skincare",
+                    "image": "/seed/feature-care.svg",
+                },
+            ]
+        }
+    )
+    content[HomepageSectionType.FEATURE_BANDS][1].update(
+        {
+            "bands": [
+                {
+                    "title": "Everyday home essentials",
+                    "description": "Selected kitchen and home-organisation products.",
+                    "target": "category:home-kitchen",
+                    "image": "/seed/feature-home.svg",
+                },
+                {
+                    "title": "Personal care, your way",
+                    "description": "Dependable skincare and personal-care picks.",
+                    "target": "category:skincare",
+                    "image": "/seed/feature-care.svg",
+                },
+            ]
+        }
+    )
+    content[HomepageSectionType.FEATURED_CATEGORY_BAND][0].update(
+        {
+            "category": "groceries",
+            "headline": "বাংলার স্বাদ, বিশ্বস্ত উৎস থেকে",
+            "description": "তেল, ঘি, মধু ও চায়ের বাছাই করা সংগ্রহ।",
+            "target": "category:groceries",
+            "image": "/seed/feature-groceries.svg",
+            "categories": [
+                {
+                    "slug": "groceries",
+                    "title": "বিশ্বস্ত গ্রোসারি",
+                    "description": "তেল, ঘি, মধু ও চায়ের বাছাই করা সংগ্রহ।",
+                    "target": "category:groceries",
+                    "image": "/seed/feature-groceries.svg",
+                },
+                {
+                    "slug": "fashion",
+                    "title": "প্রতিদিনের ফ্যাশন",
+                    "description": "আরামদায়ক ও ব্যবহারিক পোশাকের পছন্দ।",
+                    "target": "category:fashion",
+                    "image": "/seed/feature-fashion.svg",
+                },
+                {
+                    "slug": "electronics",
+                    "title": "স্মার্ট ইলেকট্রনিকস",
+                    "description": "দৈনন্দিন কাজ সহজ করা নির্ভরযোগ্য ডিভাইস।",
+                    "target": "category:electronics",
+                    "image": "/seed/feature-electronics.svg",
+                },
+            ],
+        }
+    )
+    content[HomepageSectionType.FEATURED_CATEGORY_BAND][1].update(
+        {
+            "category": "groceries",
+            "headline": "Flavours of Bangladesh, from trusted sources",
+            "description": "A selected range of oils, ghee, honey, and tea.",
+            "target": "category:groceries",
+            "image": "/seed/feature-groceries.svg",
+            "categories": [
+                {
+                    "slug": "groceries",
+                    "title": "Trusted groceries",
+                    "description": "A selected range of oils, ghee, honey, and tea.",
+                    "target": "category:groceries",
+                    "image": "/seed/feature-groceries.svg",
+                },
+                {
+                    "slug": "fashion",
+                    "title": "Everyday fashion",
+                    "description": "Comfortable and practical clothing picks.",
+                    "target": "category:fashion",
+                    "image": "/seed/feature-fashion.svg",
+                },
+                {
+                    "slug": "electronics",
+                    "title": "Smart electronics",
+                    "description": "Dependable devices that simplify everyday tasks.",
+                    "target": "category:electronics",
+                    "image": "/seed/feature-electronics.svg",
+                },
+            ],
+        }
+    )
+    content[HomepageSectionType.COMPARISON][0].update(
+        {
+            "columns": ["বজ্র", "সাধারণ মার্কেটপ্লেস"],
+            "rows": [
+                {"label": "পণ্যের উৎস যাচাই", "bojro": True, "other": False},
+                {"label": "দাম ও ডেলিভারি চার্জ আগে থেকেই স্পষ্ট", "bojro": True, "other": False},
+                {"label": "বাংলায় সহায়তা", "bojro": True, "other": False},
+                {"label": "সহজ রিটার্ন নির্দেশনা", "bojro": True, "other": False},
+            ],
+        }
+    )
+    content[HomepageSectionType.COMPARISON][1].update(
+        {
+            "columns": ["Bojro", "Typical marketplace"],
+            "rows": [
+                {"label": "Product sources checked", "bojro": True, "other": False},
+                {"label": "Prices and delivery fees shown upfront", "bojro": True, "other": False},
+                {"label": "Bangla support", "bojro": True, "other": False},
+                {"label": "Clear return guidance", "bojro": True, "other": False},
+            ],
+        }
+    )
+    content[HomepageSectionType.SOCIAL_PROOF][0].update(
+        {
+            "subtitle": "বাংলাদেশের নানা প্রান্তের ক্রেতাদের দৈনন্দিন পছন্দ।",
+            "stats": [
+                {"value": "40+", "label": "বাছাই করা পণ্য"},
+                {"value": "8", "label": "জনপ্রিয় বিভাগ"},
+                {"value": "64", "label": "জেলায় ডেলিভারি কভারেজ"},
+            ],
+            "gallery": [
+                "/seed/social-proof-1.svg",
+                "/seed/social-proof-2.svg",
+                "/seed/social-proof-3.svg",
+            ],
+        }
+    )
+    content[HomepageSectionType.SOCIAL_PROOF][1].update(
+        {
+            "subtitle": "Everyday picks for customers across Bangladesh.",
+            "stats": [
+                {"value": "40+", "label": "Selected products"},
+                {"value": "8", "label": "Popular categories"},
+                {"value": "64", "label": "Districts covered"},
+            ],
+            "gallery": [
+                "/seed/social-proof-1.svg",
+                "/seed/social-proof-2.svg",
+                "/seed/social-proof-3.svg",
+            ],
+        }
+    )
+    content[HomepageSectionType.SHIPPING_OFFER][0].update(
+        {
+            "description": "এক অর্ডারে বেশি কিনুন, ডেলিভারি চার্জ বাঁচান।",
+            "threshold_poisha": 150_000,
+            "target": "offer:free_shipping",
+            "code": "FREESHIP",
+        }
+    )
+    content[HomepageSectionType.SHIPPING_OFFER][1].update(
+        {
+            "description": "Bundle everyday needs and save the delivery charge.",
+            "threshold_poisha": 150_000,
+            "target": "offer:free_shipping",
+            "code": "FREESHIP",
+        }
+    )
+    content[HomepageSectionType.BRAND_STORY][0].update(
+        {
+            "paragraphs": [
+                (
+                    "বজ্র তৈরি হয়েছে বাংলাদেশের মানুষের অনলাইন কেনাকাটাকে সহজ, স্বচ্ছ ও "
+                    "নির্ভরযোগ্য করার লক্ষ্য নিয়ে। আমরা দৈনন্দিন প্রয়োজনের পণ্য বাছাই করি "
+                    "উৎস, মূল্য ও ব্যবহারিক মান বিবেচনা করে।"
+                ),
+                (
+                    "আমাদের লক্ষ্য শুধু পণ্য পৌঁছে দেওয়া নয়; বাংলায় স্পষ্ট তথ্য, পরিচিত "
+                    "পেমেন্ট পদ্ধতি ও প্রয়োজনে মানুষের সহায়তা দিয়ে দীর্ঘমেয়াদি আস্থা গড়ে তোলা।"
+                ),
+            ],
+            "image": "/seed/brand-story.svg",
+            "target": "page:about",
+        }
+    )
+    content[HomepageSectionType.BRAND_STORY][1].update(
+        {
+            "paragraphs": [
+                (
+                    "Bojro was built to make online shopping in Bangladesh simpler, clearer, "
+                    "and more dependable. We select everyday products with their source, price, "
+                    "and practical quality in mind."
+                ),
+                (
+                    "Our goal is not only to deliver products, but to earn lasting trust through "
+                    "clear Bangla information, familiar payment methods, and helpful human support "
+                    "when it matters."
+                ),
+            ],
+            "image": "/seed/brand-story.svg",
+            "target": "page:about",
+        }
+    )
+    content[HomepageSectionType.REVIEWS][0].update(
+        {
+            "subtitle": "অনুমোদিত ক্রেতা মতামত থেকে সাম্প্রতিক অভিজ্ঞতা।",
+            "max_items": 8,
+            "verified_badge_requires_order": True,
+        }
+    )
+    content[HomepageSectionType.REVIEWS][1].update(
+        {
+            "subtitle": "Recent experiences from approved customer reviews.",
+            "max_items": 8,
+            "verified_badge_requires_order": True,
+        }
+    )
+    content[HomepageSectionType.DEALS][0].update(
+        {
+            "subtitle": "কার্যকর ছাড় অনুযায়ী সাজানো বর্তমান অফার।",
+            "page_size": 8,
+            "sort": "discount_desc",
+            "view_all_target": "collection:deals",
+        }
+    )
+    content[HomepageSectionType.DEALS][1].update(
+        {
+            "subtitle": "Current offers ranked by effective savings.",
+            "page_size": 8,
+            "sort": "discount_desc",
+            "view_all_target": "collection:deals",
+        }
+    )
+    content[HomepageSectionType.FOOTER][0].update(
+        {
+            "description": "আসল পণ্য ও নির্ভরযোগ্য সেবায় বাংলাদেশের প্রতিদিনের অনলাইন দোকান।",
+            "link_groups": [
+                {
+                    "title": "কেনাকাটা",
+                    "links": [
+                        {"label": "সব পণ্য", "target": "catalog:all"},
+                        {"label": "সেরা বিক্রি", "target": "collection:best_selling"},
+                        {"label": "ডিল", "target": "collection:deals"},
+                    ],
+                },
+                {
+                    "title": "সহায়তা",
+                    "links": [
+                        {"label": "সাহায্য", "target": "page:help"},
+                        {"label": "রিটার্ন ও রিফান্ড", "target": "page:return-refund"},
+                        {"label": "যোগাযোগ", "target": "page:contact"},
+                    ],
+                },
+            ],
+            "newsletter": {"enabled": True, "title": "অফার ও নতুন পণ্যের খবর নিন"},
+        }
+    )
+    content[HomepageSectionType.FOOTER][1].update(
+        {
+            "description": (
+                "Bangladesh's everyday online shop for authentic products and dependable service."
+            ),
+            "link_groups": [
+                {
+                    "title": "Shop",
+                    "links": [
+                        {"label": "All products", "target": "catalog:all"},
+                        {"label": "Best sellers", "target": "collection:best_selling"},
+                        {"label": "Deals", "target": "collection:deals"},
+                    ],
+                },
+                {
+                    "title": "Support",
+                    "links": [
+                        {"label": "Help", "target": "page:help"},
+                        {"label": "Return & refund", "target": "page:return-refund"},
+                        {"label": "Contact", "target": "page:contact"},
+                    ],
+                },
+            ],
+            "newsletter": {"enabled": True, "title": "Get offers and new-product updates"},
+        }
+    )
+    return content
+
+
+def merge_missing(
+    existing: dict[str, object],
+    defaults: dict[str, object],
+) -> dict[str, object]:
+    """Deep-merge missing keys while treating every existing operator value as authoritative."""
+
+    merged = dict(existing)
+    for key, default in defaults.items():
+        if key not in merged:
+            merged[key] = default
+            continue
+        current = merged[key]
+        if isinstance(current, dict) and isinstance(default, dict):
+            merged[key] = merge_missing(
+                cast(dict[str, object], current),
+                cast(dict[str, object], default),
+            )
+    return merged
+
+
 @cache
 def seed_id(entity: str, natural_key: str) -> UUID:
     """Return one UUIDv7 per seed entity for the lifetime of this process."""
@@ -619,17 +1028,13 @@ async def seed_catalog(session: AsyncSession) -> list[UUID]:
                     "is_active": True,
                 }
             )
-        encoded_slug = quote_plus(product.slug)
-        for image_number, color in enumerate(("EDE7FF", "F7F5FC"), start=1):
+        for image_number in range(1, 3):
             image_rows.append(
                 {
                     "id": seed_id("product_image", f"{product.slug}:{image_number}"),
                     "product_id": product_id,
                     "variant_id": None,
-                    "url": (
-                        f"https://placehold.co/800x800/{color}/2A1565.svg"
-                        f"?text={encoded_slug}+{image_number}"
-                    ),
+                    "url": "/seed/product-placeholder.svg",
                     "alt": product.name_en,
                     "sort": image_number,
                 }
@@ -731,9 +1136,15 @@ async def seed_reviews(session: AsyncSession) -> None:
     )
 
 
-async def seed_promotions(session: AsyncSession, primary_variant_ids: list[UUID]) -> None:
-    starts_at = datetime(2024, 1, 1, tzinfo=UTC)
-    ends_at = datetime(2099, 12, 31, 23, 59, tzinfo=UTC)
+async def seed_promotions(
+    session: AsyncSession,
+    primary_variant_ids: list[UUID],
+    seeded_at: datetime,
+) -> None:
+    coupon_starts_at = seeded_at - timedelta(days=1)
+    coupon_ends_at = seeded_at + timedelta(days=3650)
+    sale_starts_at = seeded_at - timedelta(minutes=15)
+    sale_ends_at = seeded_at + timedelta(hours=24)
     coupon_rows: list[dict[str, object]] = [
         {
             "id": seed_id("coupon", "BOJRO10"),
@@ -746,8 +1157,8 @@ async def seed_promotions(session: AsyncSession, primary_variant_ids: list[UUID]
             "usage_limit": 500,
             "usage_count": 0,
             "per_user_limit": 1,
-            "starts_at": starts_at,
-            "ends_at": ends_at,
+            "starts_at": coupon_starts_at,
+            "ends_at": coupon_ends_at,
             "is_active": True,
         },
         {
@@ -761,8 +1172,8 @@ async def seed_promotions(session: AsyncSession, primary_variant_ids: list[UUID]
             "usage_limit": 1_000,
             "usage_count": 0,
             "per_user_limit": 1,
-            "starts_at": starts_at,
-            "ends_at": ends_at,
+            "starts_at": coupon_starts_at,
+            "ends_at": coupon_ends_at,
             "is_active": True,
         },
         {
@@ -776,8 +1187,8 @@ async def seed_promotions(session: AsyncSession, primary_variant_ids: list[UUID]
             "usage_limit": 300,
             "usage_count": 0,
             "per_user_limit": 2,
-            "starts_at": starts_at,
-            "ends_at": ends_at,
+            "starts_at": coupon_starts_at,
+            "ends_at": coupon_ends_at,
             "is_active": True,
         },
     ]
@@ -809,8 +1220,8 @@ async def seed_promotions(session: AsyncSession, primary_variant_ids: list[UUID]
                 "id": sale_id,
                 "name_bn": "বজ্র লঞ্চ ফ্ল্যাশ সেল",
                 "name_en": "Bojro Launch Flash Sale",
-                "starts_at": starts_at,
-                "ends_at": ends_at,
+                "starts_at": sale_starts_at,
+                "ends_at": sale_ends_at,
                 "is_active": True,
             }
         ],
@@ -850,7 +1261,7 @@ async def seed_content(session: AsyncSession) -> None:
             "subtitle_en": "Fast delivery across Bangladesh",
             "image_bn": "/seed/banner-placeholder.svg",
             "image_en": "/seed/banner-placeholder.svg",
-            "href": "/shop",
+            "href": "catalog:all",
             "sort": 1,
             "is_visible": True,
             "starts_at": None,
@@ -866,7 +1277,7 @@ async def seed_content(session: AsyncSession) -> None:
             "subtitle_en": "Order your favourites today",
             "image_bn": "/seed/banner-placeholder.svg",
             "image_en": "/seed/banner-placeholder.svg",
-            "href": "/shop",
+            "href": "offer:free_shipping",
             "sort": 2,
             "is_visible": True,
             "starts_at": None,
@@ -882,7 +1293,7 @@ async def seed_content(session: AsyncSession) -> None:
             "subtitle_en": "Safe, clear, and dependable",
             "image_bn": "/seed/banner-placeholder.svg",
             "image_en": "/seed/banner-placeholder.svg",
-            "href": "/help",
+            "href": "page:help",
             "sort": 3,
             "is_visible": True,
             "starts_at": None,
@@ -910,16 +1321,17 @@ async def seed_content(session: AsyncSession) -> None:
         ),
     )
 
+    section_content = homepage_content_v2()
     section_rows = [
         {
             "id": seed_id("homepage_section", section_type.value),
             "type": section_type,
             "order": order,
             "is_visible": True,
-            "content_bn": {"title": title_bn, "eyebrow": "বজ্র", "cta": "এখনই দেখুন"},
-            "content_en": {"title": title_en, "eyebrow": "Bojro", "cta": "Explore now"},
+            "content_bn": section_content[section_type][0],
+            "content_en": section_content[section_type][1],
         }
-        for order, (section_type, title_bn, title_en) in enumerate(HOMEPAGE_SECTIONS, start=1)
+        for order, (section_type, _, _) in enumerate(HOMEPAGE_SECTIONS, start=1)
     ]
     await upsert_rows(
         session,
@@ -1008,6 +1420,10 @@ async def seed_content(session: AsyncSession) -> None:
                 "inside_dhaka_poisha": 7000,
                 "outside_dhaka_poisha": 12000,
                 "free_shipping_threshold_poisha": 150000,
+                "inside_dhaka_min_days": 1,
+                "inside_dhaka_max_days": 2,
+                "outside_dhaka_min_days": 3,
+                "outside_dhaka_max_days": 5,
                 "weight_tiers_g": [500, 1000, 2000],
             },
         },
@@ -1016,8 +1432,11 @@ async def seed_content(session: AsyncSession) -> None:
             "key": "contact",
             "value": {
                 "email": "support@bojro.com.bd",
+                "phone": "+8801700000000",
                 "hours_bn": "সকাল ৯টা-রাত ৯টা",
                 "hours_en": "9 AM-9 PM",
+                "address_bn": "ঢাকা, বাংলাদেশ",
+                "address_en": "Dhaka, Bangladesh",
             },
         },
         {
@@ -1033,7 +1452,20 @@ async def seed_content(session: AsyncSession) -> None:
         {
             "id": seed_id("site_setting", "announcement"),
             "key": "announcement",
-            "value": {"bn": "৳১৫০০+ অর্ডারে ফ্রি ডেলিভারি", "en": "Free delivery on orders over ৳1500"},
+            "value": {
+                "enabled": True,
+                "bn": "৳১৫০০+ অর্ডারে ফ্রি ডেলিভারি",
+                "en": "Free delivery on orders over ৳1500",
+            },
+        },
+        {
+            "id": seed_id("site_setting", "storefront_toggles"),
+            "key": "storefront_toggles",
+            "value": {
+                "show_announcement": True,
+                "show_social_links": True,
+                "show_payment_methods": True,
+            },
         },
         {
             "id": seed_id("site_setting", "cod_risk"),
@@ -1048,6 +1480,75 @@ async def seed_content(session: AsyncSession) -> None:
         conflict_columns=("key",),
         update_columns=("value",),
     )
+
+
+async def upgrade_demo_seed_v1_to_v2(
+    session: AsyncSession,
+    marker: SiteSetting,
+    upgraded_at: datetime,
+) -> None:
+    """One-time additive content upgrade that never replaces existing operator values."""
+
+    defaults = homepage_content_v2()
+    existing_sections = {
+        section.section_type: section for section in await session.scalars(select(HomepageSection))
+    }
+    used_orders = {section.sort_order for section in existing_sections.values()}
+    for order, (section_type, _, _) in enumerate(HOMEPAGE_SECTIONS, start=1):
+        section = existing_sections.get(section_type)
+        content_bn, content_en = defaults[section_type]
+        if section is None:
+            assigned_order = order
+            if assigned_order in used_orders:
+                assigned_order = next(value for value in range(1, 16) if value not in used_orders)
+            used_orders.add(assigned_order)
+            session.add(
+                HomepageSection(
+                    id=seed_id("homepage_section_v2", section_type.value),
+                    section_type=section_type,
+                    sort_order=assigned_order,
+                    is_visible=True,
+                    content_bn=content_bn,
+                    content_en=content_en,
+                )
+            )
+            continue
+        section.content_bn = merge_missing(section.content_bn, content_bn)
+        section.content_en = merge_missing(section.content_en, content_en)
+
+    setting_defaults: dict[str, dict[str, object]] = {
+        "shipping_rules": {
+            "inside_dhaka_min_days": 1,
+            "inside_dhaka_max_days": 2,
+            "outside_dhaka_min_days": 3,
+            "outside_dhaka_max_days": 5,
+        },
+        "contact": {
+            "phone": "+8801700000000",
+            "address_bn": "ঢাকা, বাংলাদেশ",
+            "address_en": "Dhaka, Bangladesh",
+        },
+        "announcement": {"enabled": True},
+        "storefront_toggles": {
+            "show_announcement": True,
+            "show_social_links": True,
+            "show_payment_methods": True,
+        },
+    }
+    existing_settings = {
+        setting.key: setting
+        for setting in await session.scalars(
+            select(SiteSetting).where(SiteSetting.key.in_(setting_defaults))
+        )
+    }
+    for key, value in setting_defaults.items():
+        setting = existing_settings.get(key)
+        if setting is None:
+            session.add(SiteSetting(id=seed_id("site_setting_v2", key), key=key, value=value))
+        else:
+            setting.value = merge_missing(setting.value, value)
+
+    marker.value = {**marker.value, "version": 2, "upgraded_at": upgraded_at.isoformat()}
 
 
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
@@ -1117,26 +1618,33 @@ async def seed_database() -> None:
     session_factory = create_session_factory(engine)
     try:
         async with session_factory() as session, session.begin():
-            demo_seeded = await session.scalar(
-                select(SiteSetting.id).where(SiteSetting.key == _DEMO_SEED_KEY)
+            seeded_at = datetime.now(UTC)
+            marker = await session.scalar(
+                select(SiteSetting).where(SiteSetting.key == _DEMO_SEED_KEY)
             )
-            if demo_seeded is None:
+            demo_seeded = marker is None
+            demo_upgraded = False
+            if marker is None:
                 await ensure_demo_target_is_empty(session)
                 await seed_geo(session, dataset)
                 primary_variant_ids = await seed_catalog(session)
                 await seed_reviews(session)
-                await seed_promotions(session, primary_variant_ids)
+                await seed_promotions(session, primary_variant_ids, seeded_at)
                 await seed_content(session)
-                session.add(
-                    SiteSetting(
-                        id=uuid7(),
-                        key=_DEMO_SEED_KEY,
-                        value={
-                            "version": 1,
-                            "geo_coverage_as_of": dataset.metadata.coverage_as_of,
-                        },
-                    )
+                marker = SiteSetting(
+                    id=uuid7(),
+                    key=_DEMO_SEED_KEY,
+                    value={
+                        "version": 2,
+                        "geo_coverage_as_of": dataset.metadata.coverage_as_of,
+                    },
                 )
+                session.add(marker)
+            elif (marker_version := marker.value.get("version")) in {1, 2}:
+                demo_upgraded = marker_version == 1
+                await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
+            elif marker.value.get("version") != 2:
+                raise RuntimeError("unsupported demo seed marker version")
             admin_configured = await seed_admin(session, settings)
         _LOGGER.info(
             "seed_complete",
@@ -1148,7 +1656,8 @@ async def seed_database() -> None:
             homepage_sections=len(HOMEPAGE_SECTIONS),
             admin_configured=admin_configured,
             geo_coverage_as_of=dataset.metadata.coverage_as_of,
-            demo_seeded=demo_seeded is None,
+            demo_seeded=demo_seeded,
+            demo_upgraded=demo_upgraded,
         )
     finally:
         await engine.dispose()

@@ -19,6 +19,7 @@ from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from app.db.session import create_engine, create_session_factory
+from app.services.cache import HotCache
 
 _LOGGER = structlog.get_logger(__name__)
 
@@ -32,11 +33,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_engine(resolved_settings)
         redis: Redis | None = None
         if resolved_settings.redis_url is not None:
-            redis = Redis.from_url(resolved_settings.redis_url, decode_responses=True)
+            redis = Redis.from_url(
+                resolved_settings.redis_url,
+                decode_responses=True,
+                socket_connect_timeout=resolved_settings.readiness_timeout_seconds,
+                socket_timeout=resolved_settings.readiness_timeout_seconds,
+                retry_on_timeout=False,
+            )
 
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
         application.state.redis = redis
+        application.state.hot_cache = HotCache(redis)
         _LOGGER.info("application_started", environment=resolved_settings.app_env)
         try:
             yield

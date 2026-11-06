@@ -5,13 +5,17 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from app.db.base import Base
 from app.db.models import (
+    Brand,
     Cart,
+    Category,
     Coupon,
     FlashSaleItem,
     Order,
     OrderItem,
     Payment,
+    Product,
     ProductVariant,
+    Review,
 )
 
 EXPECTED_TABLES = {
@@ -104,3 +108,32 @@ def test_core_integrity_constraints_are_modeled() -> None:
     }
     assert "ck_orders_number_format" in {constraint.name for constraint in orders.constraints}
     assert {"price", "qty"}.issubset(order_items.c.keys())
+
+
+def test_phase2_search_sort_and_projection_indexes_are_modeled() -> None:
+    expected = {
+        "categories": {
+            "ix_categories_name_bn_trgm",
+            "ix_categories_name_en_trgm",
+            "ix_categories_slug_trgm",
+        },
+        "brands": {"ix_brands_name_trgm", "ix_brands_slug_trgm"},
+        "products": {
+            "ix_products_name_bn_trgm",
+            "ix_products_name_en_trgm",
+            "ix_products_slug_trgm",
+            "ix_products_status_created_id",
+            "ix_products_status_rating_id",
+            "ix_products_status_sold_id",
+        },
+        "product_variants": {
+            "ix_product_variants_product_active_price_id",
+            "ix_product_variants_product_active_stock",
+        },
+        "reviews": {"ix_reviews_approved_product_created_id"},
+    }
+    tables = (Category, Brand, Product, ProductVariant, Review)
+
+    for model in tables:
+        table = cast(Table, model.__table__)
+        assert expected[table.name].issubset({index.name for index in table.indexes})

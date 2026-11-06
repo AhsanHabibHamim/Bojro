@@ -29,7 +29,9 @@ def test_settings_reject_invalid_cors_origins(origin: str) -> None:
         Settings(cors_origins=[origin])
 
 
-def test_production_requires_redis_and_strong_secret() -> None:
+def test_production_requires_redis_and_strong_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.delenv("APP_SECRET_KEY", raising=False)
     with pytest.raises(ValidationError, match="REDIS_URL"):
         Settings(app_env="production", app_secret_key="a" * 32)
 

@@ -203,6 +203,24 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("sort >= 0", name="sort_nonnegative"),
         Index("ix_categories_parent_sort", "parent_id", "sort"),
         Index("ix_categories_active_sort", "is_active", "sort"),
+        Index(
+            "ix_categories_name_bn_trgm",
+            "name_bn",
+            postgresql_using="gin",
+            postgresql_ops={"name_bn": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_categories_name_en_trgm",
+            "name_en",
+            postgresql_using="gin",
+            postgresql_ops={"name_en": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_categories_slug_trgm",
+            "slug",
+            postgresql_using="gin",
+            postgresql_ops={"slug": "gin_trgm_ops"},
+        ),
     )
 
     parent_id: Mapped[UUID | None] = mapped_column(
@@ -229,6 +247,20 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class Brand(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "brands"
+    __table_args__ = (
+        Index(
+            "ix_brands_name_trgm",
+            "name",
+            postgresql_using="gin",
+            postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_brands_slug_trgm",
+            "slug",
+            postgresql_using="gin",
+            postgresql_ops={"slug": "gin_trgm_ops"},
+        ),
+    )
 
     slug: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
@@ -248,6 +280,27 @@ class Product(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_products_status_created_at", "status", "created_at"),
         Index("ix_products_status_rating_avg", "status", "rating_avg"),
         Index("ix_products_status_sold_count", "status", "sold_count"),
+        Index("ix_products_status_created_id", "status", "created_at", "id"),
+        Index("ix_products_status_rating_id", "status", "rating_avg", "id"),
+        Index("ix_products_status_sold_id", "status", "sold_count", "id"),
+        Index(
+            "ix_products_name_bn_trgm",
+            "name_bn",
+            postgresql_using="gin",
+            postgresql_ops={"name_bn": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_products_name_en_trgm",
+            "name_en",
+            postgresql_using="gin",
+            postgresql_ops={"name_en": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_products_slug_trgm",
+            "slug",
+            postgresql_using="gin",
+            postgresql_ops={"slug": "gin_trgm_ops"},
+        ),
     )
 
     slug: Mapped[str] = mapped_column(String(220), unique=True, nullable=False)
@@ -311,6 +364,20 @@ class ProductVariant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_product_variants_product_active", "product_id", "is_active"),
         Index("ix_product_variants_active_stock", "is_active", "stock_on_hand"),
         Index("ix_product_variants_active_price", "is_active", "price"),
+        Index(
+            "ix_product_variants_product_active_price_id",
+            "product_id",
+            "is_active",
+            "price",
+            "id",
+        ),
+        Index(
+            "ix_product_variants_product_active_stock",
+            "product_id",
+            "is_active",
+            "stock_on_hand",
+            "stock_reserved",
+        ),
     )
 
     product_id: Mapped[UUID] = mapped_column(
@@ -337,6 +404,9 @@ class ProductVariant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     product: Mapped[Product] = relationship(back_populates="variants")
     images: Mapped[list[ProductImage]] = relationship(
         back_populates="variant", foreign_keys="ProductImage.variant_id"
+    )
+    flash_sale_items: Mapped[list[FlashSaleItem]] = relationship(
+        back_populates="variant", cascade="all, delete-orphan"
     )
 
 
@@ -523,7 +593,7 @@ class FlashSaleItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
 
     flash_sale: Mapped[FlashSale] = relationship(back_populates="items")
-    variant: Mapped[ProductVariant] = relationship()
+    variant: Mapped[ProductVariant] = relationship(back_populates="flash_sale_items")
 
 
 class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -724,6 +794,13 @@ class Review(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("rating >= 1 AND rating <= 5", name="rating_range"),
         Index("ix_reviews_product_status_created", "product_id", "status", "created_at"),
         Index("ix_reviews_user_created_at", "user_id", "created_at"),
+        Index(
+            "ix_reviews_approved_product_created_id",
+            "product_id",
+            "created_at",
+            "id",
+            postgresql_where=text("status = 'approved'"),
+        ),
     )
 
     product_id: Mapped[UUID] = mapped_column(
