@@ -25,7 +25,7 @@ export function ProductGallery({
   return (
     <div>
       <div
-        className="group relative aspect-square overflow-hidden rounded-[1.5rem] border border-brand-purple/10 bg-white shadow-sm"
+        className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-brand-purple/10 bg-white shadow-sm sm:aspect-square"
         onPointerLeave={() => setOrigin("50% 50%")}
         onPointerMove={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
