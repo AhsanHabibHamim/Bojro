@@ -1144,7 +1144,7 @@ async def seed_promotions(
     coupon_starts_at = seeded_at - timedelta(days=1)
     coupon_ends_at = seeded_at + timedelta(days=3650)
     sale_starts_at = seeded_at - timedelta(minutes=15)
-    sale_ends_at = seeded_at + timedelta(hours=24)
+    sale_ends_at = seeded_at + timedelta(days=30)
     coupon_rows: list[dict[str, object]] = [
         {
             "id": seed_id("coupon", "BOJRO10"),
