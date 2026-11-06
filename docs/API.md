@@ -1,6 +1,6 @@
 # API Contract
 
-The REST API is rooted at `/api/v1`. FastAPI serves interactive OpenAPI documentation at `/docs`, ReDoc at `/redoc`, and the raw schema at `/openapi.json`.
+The REST API is rooted at `/api/v1`. Outside production, FastAPI serves interactive OpenAPI documentation at `/docs`, ReDoc at `/redoc`, and the raw schema at `/api/v1/openapi.json`. Interactive documentation is disabled in production.
 
 ## Operational Endpoints
 

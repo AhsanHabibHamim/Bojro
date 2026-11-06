@@ -1,6 +1,14 @@
 packages:
   - frontend
 
+overrides:
+  '@redocly/openapi-core': 1.34.23
+  '@swc/core': 1.16.21
+  caniuse-lite: 1.0.30001820
+
+minimumReleaseAgeExclude:
+  - jsdom
+
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true

@@ -42,12 +42,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bojro}:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/${POSTGRES_DB:-bojro}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: '["http://localhost:3000"]'
+      TRUSTED_HOSTS: '["localhost","127.0.0.1","backend"]'
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     command: >-
-      sh -c "uv run alembic -c alembic.ini upgrade head &&
-      uv run python scripts/seed.py &&
-      uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh -c ".venv/bin/alembic -c alembic.ini upgrade head &&
+      .venv/bin/python scripts/seed.py &&
+      exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "${BACKEND_HOST_PORT:-8000}:8000"
     depends_on:
@@ -78,7 +79,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/bn"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/bn"]
       interval: 10s
       timeout: 5s
       retries: 12

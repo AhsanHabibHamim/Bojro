@@ -8,9 +8,9 @@
 
 ## 2026-11-05: UUIDv7 public identifiers
 
-**Decision:** Generate UUIDv7 identifiers in the application with `uuid-utils` while storing native PostgreSQL UUID values.
+**Decision:** Generate RFC 9562 UUIDv7 identifiers with the tested application utility in `backend/app/utils/uuid7.py` while storing native PostgreSQL UUID values.
 
-**Reason:** Python 3.12 lacks standard-library UUIDv7 support. Time-sortable native UUID values retain good index locality without leaking sequential counts.
+**Reason:** Python 3.12 lacks standard-library UUIDv7 support. The small local implementation avoids another runtime dependency while tests validate version, variant, ordering, and uniqueness; native UUID values retain good index locality without leaking sequential counts.
 
 ## 2026-11-05: uv for backend dependency locking
 
