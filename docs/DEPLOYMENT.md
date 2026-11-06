@@ -11,7 +11,7 @@ Services expose the storefront on `3000`, API on `8000`, PostgreSQL on `5432`, a
 
 ## Vercel Frontend
 
-Use `frontend` as the project root and pnpm. Required variables are documented in `frontend/.env.example`. `NEXT_PUBLIC_API_URL` must be the public HTTPS Railway API URL. Configure `bojro.com.bd` only after DNS ownership and TLS are verified.
+Use `frontend` as the project root and pnpm. Required variables are documented in `frontend/.env.example`. Production must use `https://bojro.com.bd` for the storefront and a Railway custom domain such as `https://api.bojro.com.bd` for `NEXT_PUBLIC_API_URL`; the bare `*.railway.app` hostname is cross-site and incompatible with the required SameSite=Lax auth cookies. Configure both domains only after DNS ownership and TLS are verified.
 
 Set `INTERNAL_API_URL` to the Railway private/backend URL when available and provide the same strong `REVALIDATION_SECRET` to the trusted admin publisher and Vercel runtime. Never expose that secret through a `NEXT_PUBLIC_` variable.
 
@@ -20,3 +20,5 @@ Set `INTERNAL_API_URL` to the Railway private/backend URL when available and pro
 Build with `infra/backend.Dockerfile` from repository root. Attach PostgreSQL and Redis, then configure all variables from `backend/.env.example`. Run `uv run alembic -c alembic.ini upgrade head` inside the image as a release command before starting web and worker processes.
 
 Production payment, courier, notification, storage, analytics, and LLM credentials are intentionally absent in Phase 1. Later provider phases must use official sandbox credentials before production activation.
+
+Vercel preview domains cannot validate production cookie auth against Railway. Use paired custom staging domains such as `staging.bojro.com.bd` and `api-staging.bojro.com.bd`, or a same-origin BFF. Set four independent 32+ character secrets for JWT, guest identity, checkout quotes, and OTP HMAC; never reuse `APP_SECRET_KEY` for them. The mock OTP provider is development/test-only and production startup rejects it.

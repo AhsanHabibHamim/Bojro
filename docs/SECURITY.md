@@ -9,6 +9,10 @@
 - PostgreSQL access uses SQLAlchemy-bound parameters; no raw user interpolation is present.
 - Pydantic settings reject malformed origins and production startup fails with placeholder secrets.
 - Admin creation requires operator-provided credentials and Argon2id hashing.
+- Auth uses short access JWTs and rotating hashed refresh sessions in host-only HttpOnly cookies; guest and quote tokens use separate signing secrets.
+- Unsafe commerce/auth mutations require exact-Origin validation and an in-memory synchronizer CSRF token bound to the signed identity.
+- OTP values are HMAC-protected in Redis with TTL, attempt, resend, phone, and IP limits; the deterministic mock is forbidden in production.
+- Checkout uses scoped idempotency, signed quote fingerprints, row locks, and server-only integer-poisha recomputation.
 
 ## Pending Feature Reviews
 

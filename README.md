@@ -23,6 +23,10 @@ The API container applies migrations and seeds idempotently on startup. Open:
 - English storefront: <http://localhost:3000/en>
 - API documentation: <http://localhost:8000/docs>
 - API health: <http://localhost:8000/health>
+- Cart: <http://localhost:3000/en/cart>
+- Checkout: <http://localhost:3000/en/checkout>
+- Account login: <http://localhost:3000/en/account>
+- Order tracking: <http://localhost:3000/en/track-order>
 
 ## Local Development
 
@@ -47,9 +51,21 @@ The default local database URL expects PostgreSQL at `localhost:5432` with datab
 pnpm lint
 pnpm format:check
 pnpm typecheck
-pnpm test
+DATABASE_URL=postgresql+asyncpg://bojro:local-only-change-me@localhost:5432/bojro \
+REDIS_URL=redis://localhost:6379/15 pnpm test
 pnpm build
 ```
+
+The database URL is required for the inventory, idempotency, coupon, migration-preflight, and no-overselling tests; skipping PostgreSQL intentionally cannot satisfy the enforced 85% backend coverage gate.
+
+With the full Docker stack running, execute the browser golden path with:
+
+```bash
+pnpm exec playwright install chromium
+PLAYWRIGHT_BASE_URL=http://localhost:3000 PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm test:e2e
+```
+
+The example stack uses the explicit development-only mock OTP code from `infra/.env`. Production rejects the mock provider and requires an approved notification adapter.
 
 Install local Git hooks with `uv tool install pre-commit && pre-commit install`.
 

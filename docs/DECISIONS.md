@@ -53,3 +53,21 @@
 **Decision:** Network response types come directly from `schema.d.ts`, then one centralized adapter maps API DTOs into frontend presentation models.
 
 **Reason:** The API uses reusable normalized shapes such as nested price/stock models while components need view-specific shapes. One adapter preserves OpenAPI as the source of truth without leaking transport details or scattering handwritten fetches.
+
+## 2026-11-06: Same-site API domain for auth
+
+**Decision:** Production uses host-only secure cookies from `api.bojro.com.bd` while the storefront runs at `bojro.com.bd`; staging uses an equivalent pair of custom subdomains.
+
+**Reason:** Vercel and Railway provider domains are cross-site, so browsers will not send SameSite=Lax cookies on credentialed storefront fetches. Same-site custom domains preserve CSRF defenses without weakening cookies to SameSite=None.
+
+## 2026-11-06: Synchronizer CSRF token
+
+**Decision:** Bind a random CSRF value into signed guest/access claims, return it through session/cart JSON, retain it only in frontend memory, and require it plus an exact Origin on unsafe requests.
+
+**Reason:** This avoids a frontend-readable domain cookie that would expose CSRF material to every subdomain while still supporting separate same-site frontend/API origins.
+
+## 2026-11-06: PostgreSQL-authoritative checkout
+
+**Decision:** Redis supports OTPs and rate limits, but PostgreSQL row locks, scoped idempotency records, source-cart uniqueness, coupon ledgers, and order counters exclusively control order and inventory correctness.
+
+**Reason:** Cache loss or duplicate requests must never oversell inventory, double-use a coupon, allocate duplicate order numbers, or create multiple orders from one cart.

@@ -34,3 +34,14 @@ All money is integer poisha. Cursors are opaque and malformed values return `422
 ## ISR Revalidation
 
 The frontend exposes `POST /api/revalidate` for trusted admin events. Send `X-Revalidation-Secret` and a bounded JSON event containing `entity`, `event`, optional `slug`, and optional `locale`. The route uses constant-time secret comparison and an allowlisted entity-to-tag mapping; it is not a public webhook.
+
+## Auth And Commerce
+
+- `GET /api/v1/auth/session`, `POST /auth/refresh`, and `POST /auth/logout` manage guest/access/rotating-refresh cookies.
+- `POST /api/v1/auth/otp/request`, `/auth/otp/verify`, and `/auth/email/login` provide phone-first and existing-account login.
+- `GET /api/v1/cart` plus item, coupon, and shipping-estimate mutations operate on the current guest/user cart.
+- `GET /api/v1/geo/divisions`, `/districts`, and `/upazilas` provide validated checkout hierarchy options.
+- `POST /api/v1/checkout/quote` returns a short-lived authoritative quote; `POST /checkout/orders` requires CSRF and `Idempotency-Key` and accepts COD only in Phase 3.
+- `GET /api/v1/orders/{number}` returns an authorized receipt; `POST /orders/track` returns a rate-limited redacted public status.
+
+Unsafe cookie-authenticated requests require an exact allowed `Origin`, JSON content where a body exists, and `X-CSRF-Token`. Commerce responses use `Cache-Control: no-store`. Clients never send prices or totals; the API recomputes integer-poisha values under PostgreSQL row locks.
