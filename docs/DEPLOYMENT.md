@@ -22,3 +22,5 @@ Build with `infra/backend.Dockerfile` from repository root. Attach PostgreSQL an
 Production payment, courier, notification, storage, analytics, and LLM credentials are intentionally absent in Phase 1. Later provider phases must use official sandbox credentials before production activation.
 
 Vercel preview domains cannot validate production cookie auth against Railway. Use paired custom staging domains such as `staging.bojro.com.bd` and `api-staging.bojro.com.bd`, or a same-origin BFF. Set four independent 32+ character secrets for JWT, guest identity, checkout quotes, and OTP HMAC; never reuse `APP_SECRET_KEY` for them. The mock OTP provider is development/test-only and production startup rejects it.
+
+`STORAGE_PROVIDER=mock` and `NEXT_PUBLIC_E2E_STORAGE_MOCK=true` are limited to local development and CI. Production must omit the public E2E flag and will fail closed until the Cloudinary provider credentials and verification adapter are delivered in the provider-integration phase.

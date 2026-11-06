@@ -13,6 +13,10 @@
 - Unsafe commerce/auth mutations require exact-Origin validation and an in-memory synchronizer CSRF token bound to the signed identity.
 - OTP values are HMAC-protected in Redis with TTL, attempt, resend, phone, and IP limits; the deterministic mock is forbidden in production.
 - Checkout uses scoped idempotency, signed quote fingerprints, row locks, and server-only integer-poisha recomputation.
+- Account resources require a live access session and scope ownership in SQL; UUID unpredictability is never authorization.
+- Revisioned customer resources use strong ETags, mandatory If-Match, and idempotency keys for ambiguous creates/messages.
+- Review photos use server-issued owned upload IDs and verified provider metadata; arbitrary final URLs are rejected.
+- Customer support queries exclude internal messages and internal activity metadata.
 
 ## Pending Feature Reviews
 

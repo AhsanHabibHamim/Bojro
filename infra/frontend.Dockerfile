@@ -12,7 +12,9 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/frontend/node_modules ./frontend/node_modules
 COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_E2E_STORAGE_MOCK=false
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_E2E_STORAGE_MOCK=$NEXT_PUBLIC_E2E_STORAGE_MOCK
 RUN pnpm --filter @bojro/frontend build
 
 FROM node:24-alpine AS runtime

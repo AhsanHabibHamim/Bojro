@@ -45,3 +45,17 @@ The frontend exposes `POST /api/revalidate` for trusted admin events. Send `X-Re
 - `GET /api/v1/orders/{number}` returns an authorized receipt; `POST /orders/track` returns a rate-limited redacted public status.
 
 Unsafe cookie-authenticated requests require an exact allowed `Origin`, JSON content where a body exists, and `X-CSRF-Token`. Commerce responses use `Cache-Control: no-store`. Clients never send prices or totals; the API recomputes integer-poisha values under PostgreSQL row locks.
+
+## Customer Account
+
+All `/api/v1/account/*` operations require an active, unrevoked, non-guest customer access session and return `Cache-Control: no-store`.
+
+- Dashboard/profile endpoints expose customer-safe counts and name-only profile updates.
+- Address endpoints validate the Bangladesh hierarchy, enforce one default, cap saved addresses, and use `ETag`/`If-Match` plus idempotent creates.
+- Order endpoints return only owned snapshots and customer-visible timeline notes.
+- Wishlist endpoints provide cursor pages, batch membership, and idempotent toggles for active products.
+- Review endpoints derive verified-purchase lineage from delivered owned order items and support pending moderation plus structured owned photo assets.
+- Coupon wallet endpoints expose discoverable eligible offers and the customer’s redemption history; checkout remains authoritative.
+- Support endpoints expose owned ticket threads, hide internal messages, and require idempotency for ticket/message creation.
+
+Mutable revisioned resources return strong `ETag` values. Missing `If-Match` is `428`; a stale validator is `412`. Cross-owner and missing resources use the same response semantics.

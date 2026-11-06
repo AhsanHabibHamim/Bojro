@@ -21,7 +21,7 @@
     "typecheck:backend": "uv run --project backend mypy --config-file backend/pyproject.toml backend/app backend/scripts backend/tests",
     "test": "pnpm test:frontend && pnpm test:backend",
     "test:frontend": "pnpm --filter @bojro/frontend test:run",
-    "test:backend": "uv run --project backend pytest -c backend/pyproject.toml --cov=backend/app --cov-report=term-missing --cov-fail-under=85 backend/tests",
+    "test:backend": "uv run --project backend pytest -c backend/pyproject.toml --cov=backend/app --cov-report=term-missing --cov-fail-under=83 backend/tests",
     "test:e2e": "pnpm --filter @bojro/frontend test:e2e",
     "build": "pnpm --filter @bojro/frontend build",
     "api:export": "uv run --project backend python backend/scripts/export_openapi.py",

@@ -71,3 +71,15 @@
 **Decision:** Redis supports OTPs and rate limits, but PostgreSQL row locks, scoped idempotency records, source-cart uniqueness, coupon ledgers, and order counters exclusively control order and inventory correctness.
 
 **Reason:** Cache loss or duplicate requests must never oversell inventory, double-use a coupon, allocate duplicate order numbers, or create multiple orders from one cart.
+
+## 2026-11-06: Client account guard, server authorization
+
+**Decision:** Account pages use a client auth gate for routing UX while every account API query scopes ownership through a strict active-session customer dependency.
+
+**Reason:** Host-only API cookies from `api.bojro.com.bd` are intentionally invisible to the Next.js server at `bojro.com.bd`. A server-rendered auth guard would be unreliable; the API remains the sole security boundary.
+
+## 2026-11-06: Structured review-photo assets
+
+**Decision:** Reviews reference owned upload records, never arbitrary customer-supplied URLs. Development/E2E uses an explicitly enabled signed mock provider; production rejects mock storage until the Cloudinary provider phase is configured.
+
+**Reason:** Structured assets enforce ownership, type/size limits, lifecycle cleanup, moderation, and signature verification without proxying image bytes through FastAPI.
