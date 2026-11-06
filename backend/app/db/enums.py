@@ -1,0 +1,127 @@
+"""Database-backed domain enumerations."""
+
+from enum import StrEnum
+
+
+class UserRole(StrEnum):
+    CUSTOMER = "customer"
+    ADMIN = "admin"
+
+
+class ProductStatus(StrEnum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class CartStatus(StrEnum):
+    ACTIVE = "active"
+    CONVERTED = "converted"
+    ABANDONED = "abandoned"
+
+
+class CouponType(StrEnum):
+    PERCENT = "percent"
+    FIXED = "fixed"
+    FREE_SHIPPING = "free_shipping"
+
+
+class OrderStatus(StrEnum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    PROCESSING = "processing"
+    SHIPPED = "shipped"
+    DELIVERED = "delivered"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    RETURNED = "returned"
+    REFUNDED = "refunded"
+
+
+class PaymentStatus(StrEnum):
+    PENDING = "pending"
+    AUTHORIZED = "authorized"
+    PAID = "paid"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    REFUNDED = "refunded"
+    PARTIALLY_REFUNDED = "partially_refunded"
+
+
+class PaymentMethod(StrEnum):
+    COD = "cod"
+    BKASH = "bkash"
+    NAGAD = "nagad"
+    SSLCOMMERZ = "sslcommerz"
+
+
+class PaymentRecordStatus(StrEnum):
+    PENDING = "pending"
+    INITIATED = "initiated"
+    AUTHORIZED = "authorized"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    REFUNDED = "refunded"
+
+
+class CourierProvider(StrEnum):
+    PATHAO = "pathao"
+    STEADFAST = "steadfast"
+    REDX = "redx"
+    MANUAL = "manual"
+
+
+class ShipmentStatus(StrEnum):
+    PENDING = "pending"
+    READY = "ready"
+    BOOKED = "booked"
+    PICKED_UP = "picked_up"
+    IN_TRANSIT = "in_transit"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    RETURNED = "returned"
+    CANCELLED = "cancelled"
+
+
+class ReviewStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class TicketStatus(StrEnum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+
+
+class TicketPriority(StrEnum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
+
+
+class MessageAuthor(StrEnum):
+    CUSTOMER = "customer"
+    ADMIN = "admin"
+
+
+class HomepageSectionType(StrEnum):
+    HERO = "hero"
+    MARQUEE = "marquee"
+    PROMO_CHIPS = "promo_chips"
+    FLASH_SALE = "flash_sale"
+    BEST_SELLER_CATEGORIES = "best_seller_categories"
+    BEST_SELLING = "best_selling"
+    FEATURE_BANDS = "feature_bands"
+    FEATURED_CATEGORY_BAND = "featured_category_band"
+    COMPARISON = "comparison"
+    SOCIAL_PROOF = "social_proof"
+    SHIPPING_OFFER = "shipping_offer"
+    BRAND_STORY = "brand_story"
+    REVIEWS = "reviews"
+    DEALS = "deals"
+    FOOTER = "footer"
