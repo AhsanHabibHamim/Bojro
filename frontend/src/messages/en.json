@@ -32,8 +32,6 @@
     "cartCount": "{count} items in cart",
     "languageShort": "বাংলা",
     "languageLabel": "Switch language to Bangla",
-    "phase3Unavailable": "Cart and account features are coming soon",
-    "cartPhase3": "Cart is not enabled yet",
     "browseCategories": "Browse categories",
     "viewAll": "View all",
     "categoriesFallback": "Open the complete category directory",
@@ -53,8 +51,7 @@
     "cart": "Cart",
     "account": "Account",
     "cartCount": "{count} items in cart",
-    "cartPhase3": "Cart is not enabled yet",
-    "phaseUnavailable": "This feature is coming soon"
+    "active": "Current page"
   },
   "marquee": {
     "label": "Bojro shopping benefits",
@@ -76,7 +73,7 @@
     "benefitDelivery": "Fast delivery with clear order updates",
     "benefitReturn": "Straightforward, human return support",
     "previewLabel": "Bojro brand preview",
-    "previewKicker": "Phase 1 · Brand foundation",
+    "previewKicker": "The Bojro standard",
     "previewTitle": "Built in Bangla, for Bangladesh",
     "previewDescription": "Trust · Speed · Care",
     "previewChipOne": "Bangla-first",
@@ -86,7 +83,7 @@
   "trust": {
     "eyebrow": "The Bojro promise",
     "title": "Shopping that feels clear, easy, and quick",
-    "description": "Phase 1 establishes that foundation: familiar language, effortless navigation, and confidence on every screen.",
+    "description": "Familiar language, effortless navigation, and confidence on every screen shape the Bojro experience.",
     "authenticTitle": "Authenticity first",
     "authenticDescription": "Quality and source verification will always come before everything else.",
     "codTitle": "Cash on delivery",
@@ -128,7 +125,6 @@
     "whatsapp": "WhatsApp",
     "socialUnavailable": "This link will be added soon",
     "paymentTitle": "Payment options",
-    "paymentUnavailable": "Payment methods are not enabled yet",
     "cod": "Cash on delivery",
     "bkash": "bKash",
     "nagad": "Nagad",
@@ -186,7 +182,12 @@
       "inStock": "In stock",
       "lowStock": "Low stock",
       "outOfStock": "Out of stock",
-      "discount": "{percent}% off"
+      "discount": "{percent}% off",
+      "quickAdd": "Quick add",
+      "adding": "Adding…",
+      "added": "Added",
+      "addError": "Could not add this item. Try again.",
+      "chooseOptions": "Choose options"
     },
     "filters": {
       "title": "Filters",
@@ -256,8 +257,12 @@
       "lowStock": "Only a few left",
       "outOfStock": "Currently out of stock",
       "quantity": "Quantity",
-      "phase3Unavailable": "Online cart and checkout are not enabled yet. No order will be created from this screen.",
-      "phase3Short": "Cart coming soon",
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity",
+      "addToCart": "Add to cart",
+      "adding": "Adding…",
+      "added": "Added to your cart",
+      "addError": "Could not add this item. Please try again.",
       "discount": "Save {percent}%"
     },
     "delivery": {
@@ -281,12 +286,280 @@
     "questions": {
       "title": "Questions & answers",
       "emptyTitle": "No questions have been asked",
-      "emptyDescription": "Product questions and store answers will appear here when the Q&A service launches.",
-      "phaseLabel": "Clearly scheduled for a later phase"
+      "emptyDescription": "Product questions and store answers will appear here when the Q&A service launches."
     },
     "related": {
       "title": "You may also like",
       "description": "More authentic picks selected from the same part of our catalog."
+    }
+  },
+  "cart": {
+    "metaTitle": "Your cart | Bojro",
+    "metaDescription": "Review your Bojro cart, offers, delivery estimate, and server-verified total.",
+    "eyebrow": "Bojro cart",
+    "title": "Your cart",
+    "subtitle": "Every price, offer, and delivery fee is verified before checkout.",
+    "loading": "Loading your cart…",
+    "errorTitle": "Your cart could not load",
+    "actionError": "That cart update could not be completed. Please try again.",
+    "retry": "Try again",
+    "checkout": "Continue to checkout",
+    "continueShopping": "Continue shopping",
+    "secureNote": "Your final total is always recalculated securely by Bojro.",
+    "drawer": {
+      "title": "Your cart",
+      "close": "Close cart",
+      "backdrop": "Close cart drawer",
+      "viewCart": "View cart"
+    },
+    "empty": {
+      "title": "Your cart is ready for something good",
+      "description": "Explore the collection and add a product when you find the right one.",
+      "browse": "Browse products"
+    },
+    "line": {
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity",
+      "remove": "Remove item",
+      "quantity": "Quantity",
+      "unavailable": "The requested quantity is no longer available."
+    },
+    "totals": {
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "shipping": "Delivery",
+      "shippingPending": "Select a district",
+      "total": "Total"
+    },
+    "coupon": {
+      "title": "Have an offer code?",
+      "label": "Coupon code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "remove": "Remove",
+      "applied": "{code} is applied"
+    },
+    "shipping": {
+      "title": "Estimate delivery",
+      "division": "Division",
+      "district": "District",
+      "selectDivision": "Select a division",
+      "selectDistrict": "Select a district",
+      "loading": "Loading locations…",
+      "days": "Estimated in {minimum}–{maximum} business days",
+      "weight": "Package weight: {weight} g"
+    },
+    "warningsTitle": "Please review these updates",
+    "warnings": {
+      "itemUnavailable": "An item is no longer available and must be removed.",
+      "insufficientStock": "An item quantity is higher than current stock.",
+      "couponIneligible": "The selected offer no longer applies to this cart."
+    }
+  },
+  "checkout": {
+    "metaTitle": "Secure checkout | Bojro",
+    "metaDescription": "Place a server-verified cash-on-delivery order with Bojro.",
+    "title": "Checkout with confidence",
+    "eyebrow": "Secure checkout",
+    "subtitle": "Guest checkout is welcome. We verify stock, offers, delivery, and the final total before creating your order.",
+    "loading": "Preparing secure checkout…",
+    "empty": {
+      "title": "Your cart is empty",
+      "description": "Add at least one product before starting checkout.",
+      "backToCart": "Return to cart"
+    },
+    "account": {
+      "title": "Checkout preference",
+      "guest": "Continue as a guest, or sign in to use your verified account.",
+      "signedIn": "Signed in as {name}",
+      "signIn": "Sign in"
+    },
+    "contact": {
+      "title": "Contact details",
+      "name": "Your name",
+      "phone": "Mobile number",
+      "email": "Email",
+      "emailOptional": "optional"
+    },
+    "address": {
+      "title": "Delivery address",
+      "recipient": "Recipient name",
+      "phone": "Recipient phone",
+      "division": "Division",
+      "district": "District",
+      "upazila": "Upazila",
+      "line": "Full address",
+      "linePlaceholder": "House, road, area, and a nearby landmark",
+      "notes": "Order notes",
+      "notesOptional": "optional",
+      "selectDivision": "Select division",
+      "selectDistrict": "Select district",
+      "selectUpazila": "Select upazila",
+      "loading": "Loading locations…",
+      "error": "Locations could not load. Check your connection and try again."
+    },
+    "payment": {
+      "title": "Payment method",
+      "cod": "Cash on delivery",
+      "codDescription": "Pay in cash when your order arrives.",
+      "onlyCod": "Cash on delivery is the available payment method for this checkout."
+    },
+    "review": {
+      "title": "Order review",
+      "quote": "Verify total",
+      "quoting": "Verifying…",
+      "expires": "Your server-verified total is ready.",
+      "expiresIn": "This total expires in {seconds}s.",
+      "place": "Place COD order",
+      "placing": "Placing order…",
+      "editNotice": "Editing any field will require a fresh verified total.",
+      "itemCount": "Quantity: {count}"
+    },
+    "validation": {
+      "required": "This field is required.",
+      "nameLength": "Enter at least 2 characters.",
+      "addressLength": "Enter at least 5 characters for the address.",
+      "notesLength": "Notes must be 500 characters or fewer.",
+      "phone": "Enter a valid Bangladesh number: 01XXXXXXXXX.",
+      "email": "Enter a valid email address.",
+      "invalid": "Review this field and choose a valid value."
+    },
+    "conflict": {
+      "title": "We need you to review one detail",
+      "stock": "Stock changed before the order could be placed. Review your cart and verify the total again.",
+      "quote": "Prices or delivery details changed. Verify the latest total before placing the order.",
+      "codRisk": "Cash on delivery is not available for this number. No order was created.",
+      "authRequired": "This phone belongs to an existing Bojro account. Sign in with a phone code before placing the order.",
+      "generic": "Checkout could not be completed. Review the details and try again.",
+      "unknown": "The connection ended before Bojro could confirm the result. Retry without editing to safely use the same order reference.",
+      "quoteExpired": "The verified total expired. Verify the latest total before placing the order.",
+      "retryQuote": "Review the form, then verify the total again."
+    },
+    "secure": "Your idempotency key protects network retries from creating a duplicate order. Prices and stock are never trusted from the browser.",
+    "serverVerified": "Server verified"
+  },
+  "auth": {
+    "metaTitle": "Account sign in | Bojro",
+    "metaDescription": "Sign in to Bojro securely with a phone OTP or your existing email and password.",
+    "title": "Your Bojro account",
+    "subtitle": "Use a phone code for a quick sign-in, or use the email and password already linked to your account.",
+    "loading": "Checking your secure session…",
+    "signedIn": {
+      "title": "You are signed in",
+      "description": "Your current session is active on this device.",
+      "phone": "Phone",
+      "email": "Email",
+      "cartAdjusted": "Your guest cart was merged with this account. One or more quantities were adjusted to current stock.",
+      "logout": "Sign out",
+      "loggingOut": "Signing out…"
+    },
+    "available": {
+      "title": "What is available here",
+      "description": "This page currently supports secure sign-in, session details, and sign-out. Saved addresses, order history, wishlists, reviews, coupons, and support conversations are not available here yet."
+    },
+    "otp": {
+      "tab": "Phone code",
+      "title": "Sign in with your phone",
+      "description": "Enter a Bangladesh mobile number to request a one-time verification code.",
+      "phone": "Mobile number",
+      "name": "Name",
+      "nameOptional": "optional for returning customers",
+      "request": "Request code",
+      "requesting": "Requesting…",
+      "requestSuccess": "Your code request was accepted. Check your phone and enter the code below.",
+      "code": "6-digit verification code",
+      "devCode": "Development mock code",
+      "verify": "Verify and sign in",
+      "verifying": "Verifying…",
+      "resend": "Request another code",
+      "resendIn": "Resend in {seconds}s",
+      "expiresIn": "Expires in {seconds}s",
+      "invalidPhone": "Enter a valid Bangladesh number: 01XXXXXXXXX.",
+      "retryAfter": "Try again in {seconds}s"
+    },
+    "email": {
+      "tab": "Email",
+      "title": "Sign in with email",
+      "description": "Use the email and password already connected to your Bojro account.",
+      "address": "Email address",
+      "password": "Password",
+      "login": "Sign in",
+      "loggingIn": "Signing in…"
+    },
+    "security": "Passwords and verification codes are sent only to the secure Bojro API. They are never saved in browser storage.",
+    "genericError": "This account action could not be completed. Please try again."
+  },
+  "order": {
+    "metaTitle": "Order {number} | Bojro",
+    "metaDescription": "Your private Bojro order receipt and delivery timeline.",
+    "loading": "Loading your secure receipt…",
+    "error": {
+      "title": "This receipt is not available",
+      "description": "Use the same browser or signed-in account that placed the order, then try again.",
+      "retry": "Try again"
+    },
+    "eyebrow": "Order confirmed",
+    "title": "Thank you for choosing Bojro",
+    "description": "Your cash-on-delivery order is safely recorded. Keep the order number for delivery updates.",
+    "number": "Order number",
+    "payment": "Payment",
+    "paymentStatus": "Payment status",
+    "cod": "Cash on delivery",
+    "items": "Order items",
+    "address": "Delivery address",
+    "timeline": "Order timeline",
+    "track": "Track this order",
+    "continueShopping": "Continue shopping",
+    "quantity": "Quantity",
+    "statuses": {
+      "pending": "Order placed",
+      "confirmed": "Confirmed",
+      "processing": "Preparing your order",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "returned": "Returned",
+      "refunded": "Refunded"
+    },
+    "paymentStatuses": {
+      "pending": "Pay on delivery",
+      "authorized": "Authorized",
+      "paid": "Paid",
+      "failed": "Payment failed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded",
+      "partiallyRefunded": "Partially refunded"
+    }
+  },
+  "tracking": {
+    "metaTitle": "Track your order | Bojro",
+    "metaDescription": "Track a Bojro order privately with its order number and delivery phone.",
+    "title": "Track your order",
+    "subtitle": "Enter the order number and delivery phone. Your phone stays in the secure request and never appears in the page URL.",
+    "number": "Order number",
+    "numberPlaceholder": "BJ-2026-000123",
+    "phone": "Delivery phone",
+    "submit": "Show tracking",
+    "submitting": "Checking…",
+    "phoneError": "Enter a valid Bangladesh number: 01XXXXXXXXX.",
+    "required": "Enter your order number.",
+    "invalidNumber": "Enter an order number like BJ-2026-000123.",
+    "notFound": "We could not match those details. Check both fields and try again.",
+    "genericError": "Tracking is temporarily unavailable. Please try again shortly.",
+    "retryAfter": "Too many tracking attempts. Try again in {seconds}s.",
+    "privacy": "For privacy, the result shows only redacted contact and location details.",
+    "result": {
+      "title": "Tracking result",
+      "status": "Status",
+      "payment": "Payment",
+      "cod": "Cash on delivery",
+      "items": "Item count",
+      "phone": "Phone",
+      "area": "Delivery area",
+      "estimated": "Estimated delivery",
+      "estimatedDays": "{minimum}–{maximum} business days",
+      "timeline": "Latest updates"
     }
   },
   "errors": {

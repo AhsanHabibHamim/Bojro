@@ -11,6 +11,7 @@ import {
   Question,
   ShieldCheck,
   Storefront,
+  Truck,
   WhatsappLogo,
 } from "@phosphor-icons/react/dist/ssr";
 import { getTranslations } from "next-intl/server";
@@ -159,6 +160,15 @@ export async function Footer({
           <div>
             <h2 className="text-lg font-bold text-white">{t("quickTitle")}</h2>
             <ul className="mt-4 space-y-3 text-sm text-white/75">
+              <li>
+                <a
+                  className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                  href={`/${locale}/track-order`}
+                >
+                  <Truck aria-hidden className="text-soft-lavender" size={18} weight="duotone" />
+                  {t("trackOrder")}
+                </a>
+              </li>
               {quickLinks
                 ? quickLinks.map((link) => (
                     <li key={link.id}>
@@ -257,7 +267,9 @@ export async function Footer({
                     </span>
                   ))
                 ) : (
-                  <span className="text-xs text-white/70">{t("paymentUnavailable")}</span>
+                  <span className="rounded-md border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-bold text-white/90">
+                    {t("cod")}
+                  </span>
                 )}
               </div>
             </div>

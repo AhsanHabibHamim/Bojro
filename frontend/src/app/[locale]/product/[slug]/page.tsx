@@ -4,9 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/catalog/breadcrumbs";
 import { ProductGrid } from "@/components/catalog/product-grid";
-import { DeliveryEstimate } from "@/components/product/delivery-estimate";
-import { ProductGallery } from "@/components/product/product-gallery";
-import { ProductPurchasePanel } from "@/components/product/product-purchase-panel";
+import { ProductExperience } from "@/components/product/product-experience";
 import { ProductReviews } from "@/components/product/product-reviews";
 import { SectionHeading } from "@/components/shared/section-heading";
 import type { AppLocale } from "@/i18n/routing";
@@ -165,44 +163,36 @@ export default async function ProductPage({ params }: ProductPageProps) {
           items={breadcrumbItems}
           locale={locale}
         />
-        <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)] lg:gap-12">
-          <ProductGallery
-            images={product.images}
-            productName={product.name}
-            zoomLabel={t("gallery.zoom")}
-          />
-          <div>
-            <ProductPurchasePanel
-              labels={{
-                reviews: t("purchase.reviews"),
-                sku: t("purchase.sku"),
-                choose: t("purchase.choose"),
-                inStock: t("purchase.inStock"),
-                lowStock: t("purchase.lowStock"),
-                outOfStock: t("purchase.outOfStock"),
-                quantity: t("purchase.quantity"),
-                phase3Unavailable: t("purchase.phase3Unavailable"),
-                phase3Short: t("purchase.phase3Short"),
-                discount: t("purchase.discount", { percent: "{percent}" }),
-              }}
-              locale={locale}
-              product={product}
-            />
-            <DeliveryEstimate
-              districts={shell?.districts ?? []}
-              labels={{
-                title: t("delivery.title"),
-                select: t("delivery.select"),
-                loading: t("delivery.loading"),
-                error: t("delivery.error"),
-                days: t("delivery.days"),
-                fee: t("delivery.fee"),
-              }}
-              locale={locale}
-              variantId={activeVariants[0]?.id ?? product.variants[0]?.id ?? ""}
-            />
-          </div>
-        </div>
+        <ProductExperience
+          deliveryLabels={{
+            title: t("delivery.title"),
+            select: t("delivery.select"),
+            loading: t("delivery.loading"),
+            error: t("delivery.error"),
+            days: t("delivery.days"),
+            fee: t("delivery.fee"),
+          }}
+          districts={shell?.districts ?? []}
+          locale={locale}
+          product={product}
+          purchaseLabels={{
+            reviews: t("purchase.reviews"),
+            sku: t("purchase.sku"),
+            choose: t("purchase.choose"),
+            inStock: t("purchase.inStock"),
+            lowStock: t("purchase.lowStock"),
+            outOfStock: t("purchase.outOfStock"),
+            quantity: t("purchase.quantity"),
+            decrease: t("purchase.decrease"),
+            increase: t("purchase.increase"),
+            addToCart: t("purchase.addToCart"),
+            adding: t("purchase.adding"),
+            added: t("purchase.added"),
+            addError: t("purchase.addError"),
+            discount: t("purchase.discount", { percent: "{percent}" }),
+          }}
+          zoomLabel={t("gallery.zoom")}
+        />
 
         <section className="mt-14 border-t border-brand-purple/10 pt-12">
           <h2 className="text-3xl font-extrabold">{t("description.title")}</h2>

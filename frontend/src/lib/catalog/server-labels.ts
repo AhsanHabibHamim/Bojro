@@ -15,5 +15,10 @@ export async function getProductCardLabels(locale: AppLocale): Promise<ProductCa
     lowStock: t("lowStock"),
     outOfStock: t("outOfStock"),
     discount: t("discount", { percent: "{percent}" }),
+    quickAdd: t("quickAdd"),
+    adding: t("adding"),
+    added: t("added"),
+    addError: t("addError"),
+    chooseOptions: t("chooseOptions"),
   };
 }

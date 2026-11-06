@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { AppLocale } from "@/i18n/routing";
 import { browserCatalogApi } from "@/lib/api/browser";
 import type { DeliveryEstimate as DeliveryEstimateDto, DistrictOption } from "@/lib/catalog/types";
+import { formatNumber } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
 
 export function DeliveryEstimate({
@@ -27,8 +28,15 @@ export function DeliveryEstimate({
   };
 }) {
   const [district, setDistrict] = useState("");
-  const [estimate, setEstimate] = useState<DeliveryEstimateDto | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [result, setResult] = useState<{
+    key: string;
+    status: "idle" | "error";
+    estimate: DeliveryEstimateDto | null;
+  } | null>(null);
+  const requestKey = `${variantId}:${district}`;
+  const currentResult = result?.key === requestKey ? result : null;
+  const status = !district ? "idle" : (currentResult?.status ?? "loading");
+  const estimate = currentResult?.estimate ?? null;
 
   useEffect(() => {
     if (!district) return;
@@ -38,14 +46,15 @@ export function DeliveryEstimate({
     browserCatalogApi
       .deliveryEstimate(variantId, selectedDistrict, locale, controller.signal)
       .then((response) => {
-        setEstimate(response);
-        setStatus("idle");
+        setResult({ key: requestKey, status: "idle", estimate: response });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setStatus("error");
+        if (!controller.signal.aborted) {
+          setResult({ key: requestKey, status: "error", estimate: null });
+        }
       });
     return () => controller.abort();
-  }, [district, districts, locale, variantId]);
+  }, [district, districts, locale, requestKey, variantId]);
 
   return (
     <section className="mt-5 rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm">
@@ -61,8 +70,6 @@ export function DeliveryEstimate({
           onChange={(event) => {
             const value = event.target.value;
             setDistrict(value);
-            setEstimate(null);
-            setStatus(value ? "loading" : "idle");
           }}
           value={district}
         >
@@ -80,7 +87,8 @@ export function DeliveryEstimate({
         {estimate ? (
           <p className="rounded-xl bg-soft-lavender p-3">
             <strong className="text-deep-indigo">
-              {estimate.minimum_days}–{estimate.maximum_days} {labels.days}
+              {formatNumber(estimate.minimum_days, locale)}–
+              {formatNumber(estimate.maximum_days, locale)} {labels.days}
             </strong>
             <span className="mx-2">·</span>
             {labels.fee}:{" "}

@@ -39,6 +39,7 @@ describe("generated catalog contract adapters", () => {
       discount_percent: 16,
       rating_avg: 4.5,
       stock_status: "in_stock",
+      default_variant_id: "variant",
     });
   });
 

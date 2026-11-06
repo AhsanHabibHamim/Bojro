@@ -2,9 +2,11 @@ import { Eye, Heart, Star } from "@phosphor-icons/react/dist/ssr";
 
 import type { AppLocale } from "@/i18n/routing";
 import type { ProductCard as ProductCardDto } from "@/lib/catalog/types";
+import { formatNumber, formatOneDecimal } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
 
 import { CatalogImage } from "./catalog-image";
+import { QuickAddButton } from "./quick-add-button";
 
 export type ProductCardLabels = {
   viewProduct: string;
@@ -14,6 +16,11 @@ export type ProductCardLabels = {
   lowStock: string;
   outOfStock: string;
   discount: string;
+  quickAdd: string;
+  adding: string;
+  added: string;
+  addError: string;
+  chooseOptions: string;
 };
 
 type ProductCardProps = {
@@ -63,7 +70,7 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
         />
         {discount ? (
           <span className="absolute top-3 left-3 rounded-full bg-sale-amber px-2.5 py-1 text-xs font-extrabold text-deep-indigo shadow-sm">
-            {labels.discount.replace("{percent}", String(discount))}
+            {labels.discount.replace("{percent}", formatNumber(discount, locale))}
           </span>
         ) : null}
         {product.badges?.[0] ? (
@@ -122,13 +129,13 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
         </div>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
           <span
-            aria-label={`${product.rating_avg} / 5, ${product.rating_count} ${labels.reviews}`}
+            aria-label={`${formatOneDecimal(product.rating_avg, locale)} / ${formatNumber(5, locale)}, ${formatNumber(product.rating_count, locale)} ${labels.reviews}`}
             className="inline-flex items-center gap-1 font-bold text-muted"
             role="img"
           >
             <Star aria-hidden className="text-sale-amber" size={16} weight="fill" />
-            {product.rating_avg.toFixed(1)}
-            <span className="font-normal">({product.rating_count})</span>
+            {formatOneDecimal(product.rating_avg, locale)}
+            <span className="font-normal">({formatNumber(product.rating_count, locale)})</span>
           </span>
           <span
             className={`font-bold ${
@@ -142,6 +149,18 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
             {stockLabel}
           </span>
         </div>
+        <QuickAddButton
+          disabled={product.stock_status === "out_of_stock"}
+          labels={{
+            quickAdd: labels.quickAdd,
+            adding: labels.adding,
+            added: labels.added,
+            error: labels.addError,
+            chooseOptions: labels.chooseOptions,
+          }}
+          productHref={productHref}
+          variantId={product.default_variant_id ?? null}
+        />
       </div>
     </article>
   );

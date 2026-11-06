@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "./route";
 
-vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
-
 const endpoint = "http://localhost:3000/api/revalidate";
 
 describe("catalog revalidation endpoint", () => {

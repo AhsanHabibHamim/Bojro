@@ -84,6 +84,7 @@ export function mapCategoryDetail(raw: ApiCategoryDetail): CategorySummary {
 }
 
 export function mapProductCard(raw: ApiProductCard): ProductCard {
+  const commerceCard = raw as ApiProductCard & { default_variant_id?: string | null };
   return {
     id: raw.id,
     slug: raw.slug,
@@ -99,6 +100,7 @@ export function mapProductCard(raw: ApiProductCard): ProductCard {
     rating_count: raw.rating.count,
     stock_status: raw.in_stock ? "in_stock" : "out_of_stock",
     sold_count: raw.sold_count,
+    default_variant_id: raw.price.default_variant_id ?? commerceCard.default_variant_id ?? null,
   };
 }
 

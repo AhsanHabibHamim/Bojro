@@ -1,11 +1,6 @@
-import {
-  CaretDown,
-  Lightning,
-  ShoppingCart,
-  Sparkle,
-  UserCircle,
-} from "@phosphor-icons/react/dist/ssr";
+import { CaretDown, Lightning, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import type { AppLocale } from "@/i18n/routing";
@@ -13,6 +8,8 @@ import { localizeStorefrontHref } from "@/lib/catalog/hrefs";
 import type { StorefrontShell } from "@/lib/catalog/types";
 
 import { DeferredSearchAutocomplete } from "./deferred-search-autocomplete";
+import { HeaderCommerce } from "./header-commerce";
+import { LocaleSwitch } from "./locale-switch";
 import type { SearchAutocompleteLabels } from "./search-autocomplete";
 
 type HeaderProps = {
@@ -23,6 +20,7 @@ type HeaderProps = {
 export async function Header({ locale, shell }: HeaderProps) {
   const t = await getTranslations({ locale, namespace: "header" });
   const tBrand = await getTranslations({ locale, namespace: "brand" });
+  const tCart = await getTranslations({ locale, namespace: "cart" });
   const homeHref = `/${locale}`;
   const searchLabels: SearchAutocompleteLabels = {
     label: t("searchLabel"),
@@ -58,36 +56,59 @@ export async function Header({ locale, shell }: HeaderProps) {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-          <a
-            aria-label={t("languageLabel")}
-            className="inline-flex h-11 items-center gap-1.5 rounded-full px-2.5 text-sm font-bold text-deep-indigo transition-colors hover:bg-soft-lavender sm:px-3"
-            href={locale === "bn" ? "/en" : "/bn"}
+          <Suspense
+            fallback={
+              <a
+                aria-label={t("languageLabel")}
+                className="inline-flex h-11 items-center rounded-full px-3 text-sm font-bold text-deep-indigo"
+                href={locale === "bn" ? "/en" : "/bn"}
+              >
+                {t("languageShort")}
+              </a>
+            }
           >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="size-5 fill-none stroke-current stroke-[1.8]"
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" />
-            </svg>
-            <span lang={locale === "bn" ? "en" : "bn"}>{t("languageShort")}</span>
-          </a>
-          <span
-            className="hidden h-11 cursor-not-allowed items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted opacity-75 sm:inline-flex"
-            title={t("phase3Unavailable")}
-          >
-            <UserCircle aria-hidden size={23} weight="duotone" />
-            <span className="hidden xl:inline">{t("account")}</span>
-          </span>
-          <span
-            className="relative inline-flex h-11 cursor-not-allowed items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-muted opacity-75 sm:px-3"
-            title={t("phase3Unavailable")}
-          >
-            <ShoppingCart aria-hidden size={23} weight="duotone" />
-            <span className="sr-only xl:hidden">{t("cartPhase3")}</span>
-            <span className="hidden xl:inline">{t("cart")}</span>
-          </span>
+            <LocaleSwitch
+              label={t("languageLabel")}
+              locale={locale}
+              shortLabel={t("languageShort")}
+            />
+          </Suspense>
+          <HeaderCommerce
+            drawerLabels={{
+              title: tCart("drawer.title"),
+              close: tCart("drawer.close"),
+              loading: tCart("loading"),
+              errorTitle: tCart("errorTitle"),
+              actionError: tCart("actionError"),
+              retry: tCart("retry"),
+              emptyTitle: tCart("empty.title"),
+              emptyDescription: tCart("empty.description"),
+              browse: tCart("empty.browse"),
+              viewCart: tCart("drawer.viewCart"),
+              checkout: tCart("checkout"),
+              backdrop: tCart("drawer.backdrop"),
+              line: {
+                decrease: tCart("line.decrease"),
+                increase: tCart("line.increase"),
+                remove: tCart("line.remove"),
+                quantity: tCart("line.quantity"),
+                unavailable: tCart("line.unavailable"),
+              },
+              totals: {
+                subtotal: tCart("totals.subtotal"),
+                discount: tCart("totals.discount"),
+                shipping: tCart("totals.shipping"),
+                shippingPending: tCart("totals.shippingPending"),
+                total: tCart("totals.total"),
+              },
+            }}
+            labels={{
+              account: t("account"),
+              cart: t("cart"),
+              cartCount: t("cartCount", { count: "{count}" }),
+            }}
+            locale={locale}
+          />
         </div>
       </div>
 

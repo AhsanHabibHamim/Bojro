@@ -1,7 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { ProductCard as ProductCardDto } from "@/lib/catalog/types";
+import { createFakeCommerceApi, renderWithCommerce } from "@/test/render-commerce";
 
 import { ProductCard, type ProductCardLabels } from "./product-card";
 
@@ -28,6 +30,11 @@ const labels: ProductCardLabels = {
   lowStock: "Low stock",
   outOfStock: "Out of stock",
   discount: "{percent}% off",
+  quickAdd: "Quick add",
+  adding: "Adding",
+  added: "Added",
+  addError: "Error",
+  chooseOptions: "Choose options",
 };
 
 describe("ProductCard", () => {
@@ -43,5 +50,25 @@ describe("ProductCard", () => {
   it("formats the same integer poisha with Bangla numerals", () => {
     render(<ProductCard labels={labels} locale="bn" product={product} />);
     expect(screen.getByText("৳১,২৫০.৫")).toBeVisible();
+  });
+
+  it("quick-adds the API default variant instead of inventing a selection", async () => {
+    const user = userEvent.setup();
+    const api = createFakeCommerceApi();
+    renderWithCommerce(
+      <ProductCard
+        labels={labels}
+        locale="en"
+        product={{ ...product, default_variant_id: "variant-default" }}
+      />,
+      { api },
+    );
+
+    await user.click(screen.getByRole("button", { name: "Quick add" }));
+    expect(api.addCartItem).toHaveBeenCalledWith(
+      { variant_id: "variant-default", quantity: 1 },
+      "en",
+    );
+    expect(await screen.findByRole("button", { name: "Added" })).toBeVisible();
   });
 });

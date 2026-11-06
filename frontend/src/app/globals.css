@@ -185,6 +185,44 @@ summary {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+.cart-success-bolt,
+.order-success-check {
+  animation: success-pop 550ms cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+.cart-empty-bolt {
+  animation: empty-cart-float 2.6s ease-in-out infinite;
+}
+
+.order-confetti {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.order-confetti span {
+  --confetti-color: var(--brand-sale-amber);
+  position: absolute;
+  top: -1rem;
+  left: var(--confetti-left);
+  width: 0.45rem;
+  height: 0.9rem;
+  border-radius: 0.2rem;
+  background: var(--confetti-color);
+  opacity: 0;
+  animation: confetti-fall 1.8s var(--confetti-delay) ease-out both;
+}
+
+.order-confetti span:nth-child(3n + 2) {
+  --confetti-color: var(--brand-electric-violet);
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.order-confetti span:nth-child(3n) {
+  --confetti-color: var(--brand-soft-lavender);
+}
+
 img {
   max-width: 100%;
 }
@@ -219,6 +257,40 @@ img {
   50% {
     filter: drop-shadow(0 0 5px rgb(255 180 0 / 55%));
     transform: translateY(-1px) scale(1.08);
+  }
+}
+
+@keyframes success-pop {
+  0% {
+    transform: scale(0.55) rotate(-12deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+@keyframes empty-cart-float {
+  50% {
+    transform: translateY(-0.45rem) rotate(3deg);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-1rem) rotate(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(24rem) rotate(620deg);
+    opacity: 0;
   }
 }
 

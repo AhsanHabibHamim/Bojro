@@ -47,6 +47,7 @@ export type ProductCard = {
   stock_quantity?: number | null;
   sold_count?: number;
   badges?: string[];
+  default_variant_id?: string | null;
 };
 
 export type CursorPage<T> = {

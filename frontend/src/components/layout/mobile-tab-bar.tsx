@@ -1,4 +1,11 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { useCommerce } from "@/components/commerce/commerce-provider";
 import type { AppLocale } from "@/i18n/routing";
+import { formatNumber } from "@/lib/format-number";
 
 type TabKey = "home" | "categories" | "cart" | "account";
 
@@ -18,18 +25,21 @@ function TabIcon({ tab }: { tab: TabKey }) {
 
 export type MobileTabLabels = Record<TabKey, string> & {
   label: string;
-  phaseUnavailable: string;
+  cartCount: string;
 };
 
 export function MobileTabBar({ locale, labels }: { locale: AppLocale; labels: MobileTabLabels }) {
+  const pathname = usePathname();
+  const { count } = useCommerce();
+  const formattedCount = formatNumber(count, locale);
   const tabs = [
     { key: "home", href: `/${locale}` },
     {
       key: "categories",
       href: `/${locale}/categories`,
     },
-    { key: "cart", href: `/${locale}/shop` },
-    { key: "account", href: `/${locale}/#footer` },
+    { key: "cart", href: `/${locale}/cart` },
+    { key: "account", href: `/${locale}/account` },
   ] as const;
 
   return (
@@ -39,23 +49,30 @@ export function MobileTabBar({ locale, labels }: { locale: AppLocale; labels: Mo
     >
       <div className="mx-auto grid max-w-lg grid-cols-4">
         {tabs.map(({ key, href }) => {
-          const unavailable = key === "cart" || key === "account";
-          const className = `relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-xl text-[0.72rem] font-semibold text-muted transition-colors ${unavailable ? "cursor-not-allowed" : "hover:bg-soft-lavender hover:text-brand-purple"}`;
-          const content = (
-            <>
+          const active = pathname === href || (key !== "home" && pathname.startsWith(`${href}/`));
+          return (
+            <Link
+              key={key}
+              aria-current={active ? "page" : undefined}
+              aria-label={
+                key === "cart" && count
+                  ? labels.cartCount.replace("{count}", formattedCount)
+                  : labels[key]
+              }
+              className={`relative flex min-h-13 flex-col items-center justify-center gap-0.5 rounded-xl text-[0.72rem] font-semibold transition-colors hover:bg-soft-lavender hover:text-brand-purple ${active ? "bg-soft-lavender text-brand-purple" : "text-muted"}`}
+              href={href}
+            >
               <TabIcon tab={key} />
               <span>{labels[key]}</span>
-            </>
-          );
-
-          return unavailable ? (
-            <span key={key} className={className} title={labels.phaseUnavailable}>
-              {content}
-            </span>
-          ) : (
-            <a key={key} className={className} href={href}>
-              {content}
-            </a>
+              {key === "cart" && count > 0 ? (
+                <span
+                  aria-hidden
+                  className="absolute top-0.5 left-1/2 ml-2 inline-grid min-h-5 min-w-5 place-items-center rounded-full bg-sale-amber px-1 text-[0.62rem] font-black text-deep-indigo"
+                >
+                  {count > 99 ? `${formatNumber(99, locale)}+` : formattedCount}
+                </span>
+              ) : null}
+            </Link>
           );
         })}
       </div>
