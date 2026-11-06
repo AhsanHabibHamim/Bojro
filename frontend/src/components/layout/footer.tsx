@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ArrowCounterClockwise,
   BookOpenText,
@@ -12,50 +10,55 @@ import {
   Phone,
   Question,
   ShieldCheck,
-  Sparkle,
   Storefront,
-  Tag,
   WhatsappLogo,
-} from "@phosphor-icons/react";
-import { useLocale, useTranslations } from "next-intl";
+} from "@phosphor-icons/react/dist/ssr";
+import { getTranslations } from "next-intl/server";
 
 import { Logo } from "@/components/brand/logo";
 import type { AppLocale } from "@/i18n/routing";
+import { localizeStorefrontHref } from "@/lib/catalog/hrefs";
+import type { StorefrontShell } from "@/lib/catalog/types";
 
-const shopLinks = [
-  { key: "shopAll", hash: "brand-preview", Icon: Storefront },
-  { key: "newArrivals", hash: "home", Icon: Sparkle },
-  { key: "offers", hash: "announcement", Icon: Tag },
-  { key: "trackOrder", hash: "trust", Icon: Package },
+const fallbackShopLinks = [
+  { id: "shop", labelKey: "shopAll", href: "/shop", Icon: Storefront },
+  { id: "new", labelKey: "newArrivals", href: "/shop?sort=newest", Icon: Package },
+  { id: "offers", labelKey: "offers", href: "/shop?sort=discount", Icon: CreditCard },
 ] as const;
 
-const quickLinks = [
-  { key: "story", hash: "trust", Icon: BookOpenText },
-  { key: "faq", hash: "trust", Icon: Question },
-  { key: "privacy", hash: "footer", Icon: ShieldCheck },
-  { key: "returns", hash: "trust", Icon: ArrowCounterClockwise },
+const fallbackQuickLinks = [
+  { id: "story", labelKey: "story", href: "/#brand-story", Icon: BookOpenText },
+  { id: "faq", labelKey: "faq", href: "/#footer", Icon: Question },
+  { id: "privacy", labelKey: "privacy", href: "/#footer", Icon: ShieldCheck },
+  { id: "returns", labelKey: "returns", href: "/#footer", Icon: ArrowCounterClockwise },
 ] as const;
 
-const socialItems = [
-  { key: "facebook", Icon: FacebookLogo, href: process.env.NEXT_PUBLIC_FACEBOOK_URL },
-  { key: "instagram", Icon: InstagramLogo, href: process.env.NEXT_PUBLIC_INSTAGRAM_URL },
-  { key: "whatsapp", Icon: WhatsappLogo, href: process.env.NEXT_PUBLIC_WHATSAPP_URL },
-] as const;
+function socialIcon(platform: string) {
+  const normalized = platform.toLowerCase();
+  if (normalized.includes("facebook")) return FacebookLogo;
+  if (normalized.includes("instagram")) return InstagramLogo;
+  return WhatsappLogo;
+}
 
-const paymentItems = ["cod", "bkash", "nagad", "cards", "sslcommerz"] as const;
-
-export function Footer() {
-  const t = useTranslations("footer");
-  const tBrand = useTranslations("brand");
-  const locale = useLocale() as AppLocale;
-  const href = (hash: string) => `/${locale}#${hash}`;
+export async function Footer({
+  locale,
+  shell,
+}: {
+  locale: AppLocale;
+  shell: StorefrontShell | null;
+}) {
+  const t = await getTranslations({ locale, namespace: "footer" });
+  const tBrand = await getTranslations({ locale, namespace: "brand" });
   const year = new Date().getFullYear();
+  const footer = shell?.footer;
+  const shopLinks = footer?.shop_links.length ? footer.shop_links : null;
+  const quickLinks = footer?.quick_links.length ? footer.quick_links : null;
 
   return (
     <footer
       id="footer"
       aria-label={t("label")}
-      className="relative overflow-hidden bg-deep-indigo text-white"
+      className="content-auto-section relative overflow-hidden bg-deep-indigo text-white"
     >
       <div aria-hidden className="bolt-grid absolute inset-0 opacity-60" />
       <div
@@ -70,16 +73,14 @@ export function Footer() {
               <Logo className="w-36" label={tBrand("logoAlt")} />
             </div>
             <p className="mt-5 max-w-sm text-[0.98rem] leading-7 text-white/75">
-              {t("description")}
+              {footer?.description ?? t("description")}
             </p>
-
             <h2 className="mt-7 text-lg font-bold text-white">{t("contactTitle")}</h2>
             <ul className="mt-3 space-y-2.5 text-sm text-white/80">
               <li>
                 <a
-                  aria-label={`${t("phoneLabel")}: ${t("phone")}`}
                   className="inline-flex items-start gap-2.5 rounded-md transition-colors hover:text-white"
-                  href="tel:+8809612123456"
+                  href={`tel:${(footer?.phone ?? t("phone")).replace(/[^+\d]/g, "")}`}
                 >
                   <Phone
                     aria-hidden
@@ -87,14 +88,13 @@ export function Footer() {
                     size={19}
                     weight="duotone"
                   />
-                  {t("phone")}
+                  {footer?.phone ?? t("phone")}
                 </a>
               </li>
               <li>
                 <a
-                  aria-label={`${t("emailLabel")}: ${t("email")}`}
                   className="inline-flex items-start gap-2.5 rounded-md transition-colors hover:text-white"
-                  href="mailto:hello@bojro.com.bd"
+                  href={`mailto:${footer?.email ?? t("email")}`}
                 >
                   <EnvelopeSimple
                     aria-hidden
@@ -102,7 +102,7 @@ export function Footer() {
                     size={19}
                     weight="duotone"
                   />
-                  {t("email")}
+                  {footer?.email ?? t("email")}
                 </a>
               </li>
               <li className="flex items-start gap-2.5">
@@ -112,10 +112,7 @@ export function Footer() {
                   size={19}
                   weight="duotone"
                 />
-                <span>
-                  <span className="sr-only">{t("addressLabel")}: </span>
-                  {t("address")}
-                </span>
+                <span>{footer?.address ?? t("address")}</span>
               </li>
             </ul>
           </div>
@@ -123,108 +120,121 @@ export function Footer() {
           <div>
             <h2 className="text-lg font-bold text-white">{t("shopTitle")}</h2>
             <ul className="mt-4 space-y-3 text-sm text-white/75">
-              {shopLinks.map(({ key, hash, Icon }) => (
-                <li key={key}>
-                  <a
-                    className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
-                    href={href(hash)}
-                  >
-                    <Icon aria-hidden className="text-soft-lavender" size={18} weight="duotone" />
-                    {t(key)}
-                  </a>
-                </li>
-              ))}
+              {shopLinks
+                ? shopLinks.map((link) => (
+                    <li key={link.id}>
+                      <a
+                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        href={localizeStorefrontHref(link.href, locale)}
+                      >
+                        <Storefront
+                          aria-hidden
+                          className="text-soft-lavender"
+                          size={18}
+                          weight="duotone"
+                        />
+                        {link.label}
+                      </a>
+                    </li>
+                  ))
+                : fallbackShopLinks.map(({ id, labelKey, href, Icon }) => (
+                    <li key={id}>
+                      <a
+                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        href={localizeStorefrontHref(href, locale)}
+                      >
+                        <Icon
+                          aria-hidden
+                          className="text-soft-lavender"
+                          size={18}
+                          weight="duotone"
+                        />
+                        {t(labelKey)}
+                      </a>
+                    </li>
+                  ))}
             </ul>
           </div>
 
           <div>
             <h2 className="text-lg font-bold text-white">{t("quickTitle")}</h2>
             <ul className="mt-4 space-y-3 text-sm text-white/75">
-              {quickLinks.map(({ key, hash, Icon }) => (
-                <li key={key}>
-                  <a
-                    className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
-                    href={href(hash)}
-                  >
-                    <Icon aria-hidden className="text-soft-lavender" size={18} weight="duotone" />
-                    {t(key)}
-                  </a>
-                </li>
-              ))}
+              {quickLinks
+                ? quickLinks.map((link) => (
+                    <li key={link.id}>
+                      <a
+                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        href={localizeStorefrontHref(link.href, locale)}
+                      >
+                        <BookOpenText
+                          aria-hidden
+                          className="text-soft-lavender"
+                          size={18}
+                          weight="duotone"
+                        />
+                        {link.label}
+                      </a>
+                    </li>
+                  ))
+                : fallbackQuickLinks.map(({ id, labelKey, href, Icon }) => (
+                    <li key={id}>
+                      <a
+                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        href={localizeStorefrontHref(href, locale)}
+                      >
+                        <Icon
+                          aria-hidden
+                          className="text-soft-lavender"
+                          size={18}
+                          weight="duotone"
+                        />
+                        {t(labelKey)}
+                      </a>
+                    </li>
+                  ))}
             </ul>
           </div>
 
           <div>
             <h2 className="text-lg font-bold text-white">{t("newsletterTitle")}</h2>
             <p className="mt-3 text-sm leading-6 text-white/85">{t("newsletterDescription")}</p>
-            <form aria-describedby="newsletter-unavailable" className="mt-5">
-              <label className="sr-only" htmlFor="footer-email">
-                {t("emailInputLabel")}
-              </label>
-              <div className="flex rounded-full bg-white p-1.5 shadow-lg focus-within:ring-3 focus-within:ring-electric-violet">
-                <EnvelopeSimple
-                  aria-hidden
-                  className="my-auto ml-3 shrink-0 text-brand-purple"
-                  size={20}
-                  weight="duotone"
-                />
-                <input
-                  autoComplete="email"
-                  className="min-w-0 flex-1 bg-transparent px-2 text-sm text-ink placeholder:text-muted focus:outline-none disabled:cursor-not-allowed"
-                  disabled
-                  id="footer-email"
-                  name="email"
-                  placeholder={t("emailPlaceholder")}
-                  required
-                  type="email"
-                />
-                <button
-                  aria-disabled="true"
-                  className="signature-gradient cursor-not-allowed rounded-full px-4 py-2 text-sm font-bold text-white opacity-70"
-                  disabled
-                  type="submit"
-                >
-                  {t("subscribe")}
-                </button>
-              </div>
-            </form>
-            <p id="newsletter-unavailable" className="mt-2 text-xs text-white/80">
-              {t("newsletterUnavailable")}
-            </p>
+            <div className="mt-5 flex rounded-full bg-white p-1.5 shadow-lg">
+              <EnvelopeSimple
+                aria-hidden
+                className="my-auto ml-3 shrink-0 text-brand-purple"
+                size={20}
+                weight="duotone"
+              />
+              <span className="min-w-0 flex-1 px-2 py-2 text-sm text-muted">
+                {t("emailPlaceholder")}
+              </span>
+              <span className="signature-gradient rounded-full px-4 py-2 text-sm font-bold text-white opacity-70">
+                {t("subscribe")}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-white/70">{t("newsletterUnavailable")}</p>
 
             <h2 className="mt-7 text-sm font-bold tracking-wide text-white">{t("socialTitle")}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
-              {socialItems.map(({ key, Icon, href: socialHref }) => {
-                const content = (
-                  <>
-                    <Icon aria-hidden size={17} weight="duotone" />
-                    {t(key)}
-                  </>
-                );
-                const className =
-                  "inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/85";
-
-                return socialHref ? (
-                  <a
-                    key={key}
-                    className={`${className} transition-colors hover:bg-white/10 hover:text-white`}
-                    href={socialHref}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {content}
-                  </a>
-                ) : (
-                  <span
-                    key={key}
-                    aria-disabled="true"
-                    className={`${className} cursor-not-allowed opacity-75`}
-                    title={t("socialUnavailable")}
-                  >
-                    {content}
-                  </span>
-                );
-              })}
+              {footer?.social_links.length ? (
+                footer.social_links.map((social) => {
+                  const Icon = socialIcon(social.platform);
+                  return (
+                    <a
+                      key={social.id}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                      href={/^https:\/\//i.test(social.href) ? social.href : "#footer"}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <Icon aria-hidden size={17} weight="duotone" />
+                      {social.label}
+                    </a>
+                  );
+                })
+              ) : (
+                <span className="text-xs text-white/65">{t("socialUnavailable")}</span>
+              )}
             </div>
           </div>
         </div>
@@ -237,16 +247,18 @@ export function Footer() {
                 {t("paymentTitle")}
               </h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                {paymentItems.map((item) => (
-                  <span
-                    key={item}
-                    aria-label={t(item)}
-                    className="rounded-md border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-bold text-white/90"
-                    role="img"
-                  >
-                    {t(item)}
-                  </span>
-                ))}
+                {footer?.payment_methods.length ? (
+                  footer.payment_methods.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-md border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-bold text-white/90"
+                    >
+                      {item}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-white/70">{t("paymentUnavailable")}</span>
+                )}
               </div>
             </div>
             <div className="text-sm text-white/60 lg:text-right">

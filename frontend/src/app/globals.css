@@ -91,13 +91,16 @@ html[lang="en"] h4 {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
 a,
 button,
 input,
+select,
 summary {
   -webkit-tap-highlight-color: transparent;
 }
@@ -165,8 +168,32 @@ summary {
   animation: soft-pulse 1.8s ease-in-out infinite;
 }
 
+.content-auto-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+}
+
+.review-star {
+  animation: star-glow 2.4s ease-in-out infinite;
+}
+
+.review-auto-track {
+  animation: review-scroll 36s linear infinite;
+}
+
 .mobile-safe-area {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+img {
+  max-width: 100%;
+}
+
+@supports (content-visibility: auto) {
+  main > section:not(:first-child) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 700px;
+  }
 }
 
 @keyframes marquee-scroll {
@@ -179,6 +206,19 @@ summary {
   50% {
     transform: scale(1.08);
     opacity: 0.82;
+  }
+}
+
+@keyframes review-scroll {
+  to {
+    transform: translateX(calc(-50% - 0.625rem));
+  }
+}
+
+@keyframes star-glow {
+  50% {
+    filter: drop-shadow(0 0 5px rgb(255 180 0 / 55%));
+    transform: translateY(-1px) scale(1.08);
   }
 }
 

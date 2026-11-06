@@ -31,7 +31,20 @@
     "cart": "Cart",
     "cartCount": "{count} items in cart",
     "languageShort": "বাংলা",
-    "languageLabel": "Switch language to Bangla"
+    "languageLabel": "Switch language to Bangla",
+    "phase3Unavailable": "Cart and account features are coming soon",
+    "cartPhase3": "Cart is not enabled yet",
+    "browseCategories": "Browse categories",
+    "viewAll": "View all",
+    "categoriesFallback": "Open the complete category directory",
+    "clearSearch": "Clear search",
+    "searching": "Finding products…",
+    "recentSearches": "Recent searches",
+    "suggestionType": {
+      "product": "Product",
+      "category": "Category",
+      "query": "Suggested search"
+    }
   },
   "mobileNav": {
     "label": "Mobile navigation",
@@ -39,7 +52,9 @@
     "categories": "Categories",
     "cart": "Cart",
     "account": "Account",
-    "cartCount": "{count} items in cart"
+    "cartCount": "{count} items in cart",
+    "cartPhase3": "Cart is not enabled yet",
+    "phaseUnavailable": "This feature is coming soon"
   },
   "marquee": {
     "label": "Bojro shopping benefits",
@@ -113,6 +128,7 @@
     "whatsapp": "WhatsApp",
     "socialUnavailable": "This link will be added soon",
     "paymentTitle": "Payment options",
+    "paymentUnavailable": "Payment methods are not enabled yet",
     "cod": "Cash on delivery",
     "bkash": "bKash",
     "nagad": "Nagad",
@@ -120,5 +136,175 @@
     "sslcommerz": "SSLCommerz",
     "copyright": "© {year} Bojro. All rights reserved.",
     "madeFor": "Made with care for the people of Bangladesh."
+  },
+  "home": {
+    "customerCount": "{count}+ happy customers",
+    "products": "products",
+    "categoryProducts": "{count} products",
+    "hero": {
+      "previous": "Previous banner",
+      "next": "Next banner",
+      "slide": "Banner"
+    },
+    "countdown": {
+      "days": "Days",
+      "hours": "Hours",
+      "minutes": "Mins",
+      "seconds": "Secs",
+      "ended": "This flash sale has ended"
+    },
+    "comparison": {
+      "bojro": "The Bojro standard",
+      "others": "The usual experience"
+    },
+    "reviews": {
+      "previous": "Previous review",
+      "next": "Next review",
+      "pause": "Pause review autoplay",
+      "resume": "Resume review autoplay",
+      "verified": "Verified purchase"
+    },
+    "deals": {
+      "loadMore": "Load more deals",
+      "loading": "Loading deals…",
+      "error": "Could not load. Try again"
+    }
+  },
+  "catalog": {
+    "breadcrumbs": {
+      "home": "Home",
+      "categories": "Categories"
+    },
+    "results": "{count} products",
+    "loadMore": "Load more products",
+    "loadingMore": "Loading products…",
+    "loadError": "Could not load. Try again",
+    "card": {
+      "viewProduct": "View product",
+      "wishlistUnavailable": "Wishlist is not enabled yet",
+      "reviews": "reviews",
+      "inStock": "In stock",
+      "lowStock": "Low stock",
+      "outOfStock": "Out of stock",
+      "discount": "{percent}% off"
+    },
+    "filters": {
+      "title": "Filters",
+      "close": "Close filters",
+      "clearAll": "Clear all",
+      "price": "Price",
+      "minimumPrice": "Minimum (৳)",
+      "maximumPrice": "Maximum (৳)",
+      "apply": "Apply price",
+      "brands": "Brands",
+      "rating": "Rating",
+      "andUp": "and up",
+      "discount": "Discount",
+      "orMore": "or more",
+      "availability": "Availability",
+      "inStockOnly": "In-stock products only"
+    },
+    "sort": {
+      "title": "Sort by",
+      "featured": "Featured",
+      "newest": "Newest first",
+      "priceAsc": "Price: low to high",
+      "priceDesc": "Price: high to low",
+      "rating": "Highest rated",
+      "bestSelling": "Best selling",
+      "discount": "Biggest discount"
+    },
+    "view": {
+      "grid": "Grid view",
+      "list": "List view"
+    },
+    "empty": {
+      "title": "No products match these choices",
+      "description": "Try clearing one or two filters, or search with a broader phrase.",
+      "clear": "Browse all products"
+    },
+    "shop": {
+      "title": "Shop all",
+      "metaTitle": "Shop all products | Bojro",
+      "description": "Explore authentic everyday essentials, thoughtful finds, and the latest Bojro offers."
+    },
+    "categories": {
+      "title": "Shop by category",
+      "metaTitle": "Product categories | Bojro",
+      "description": "Find the right product faster through Bojro's carefully organized collections.",
+      "productCount": "{count, plural, =0 {No products} =1 {1 product} other {# products}}",
+      "emptyTitle": "Categories are being prepared",
+      "emptyDescription": "Our catalog team is organizing the collections. Please check again shortly."
+    },
+    "search": {
+      "title": "Search Bojro",
+      "metaTitle": "Search results for “{query}” | Bojro",
+      "description": "Search Bojro's catalog by product, category, or brand.",
+      "resultsTitle": "Results for “{query}”",
+      "resultsDescription": "Products and collections matching “{query}”."
+    }
+  },
+  "product": {
+    "gallery": {
+      "zoom": "Toggle product image zoom"
+    },
+    "purchase": {
+      "reviews": "reviews",
+      "sku": "SKU",
+      "choose": "Choose",
+      "inStock": "Ready to dispatch",
+      "lowStock": "Only a few left",
+      "outOfStock": "Currently out of stock",
+      "quantity": "Quantity",
+      "phase3Unavailable": "Online cart and checkout are not enabled yet. No order will be created from this screen.",
+      "phase3Short": "Cart coming soon",
+      "discount": "Save {percent}%"
+    },
+    "delivery": {
+      "title": "Delivery estimate",
+      "select": "Select your district",
+      "loading": "Checking delivery time…",
+      "error": "The estimate is unavailable right now. Try another district or retry shortly.",
+      "days": "business days",
+      "fee": "Delivery fee"
+    },
+    "description": {
+      "title": "Product details"
+    },
+    "reviews": {
+      "title": "Customer reviews",
+      "basedOn": "Based on {count} reviews",
+      "verified": "Verified purchase",
+      "emptyTitle": "No reviews yet",
+      "emptyDescription": "Verified buyers will be able to share their experience here."
+    },
+    "questions": {
+      "title": "Questions & answers",
+      "emptyTitle": "No questions have been asked",
+      "emptyDescription": "Product questions and store answers will appear here when the Q&A service launches.",
+      "phaseLabel": "Clearly scheduled for a later phase"
+    },
+    "related": {
+      "title": "You may also like",
+      "description": "More authentic picks selected from the same part of our catalog."
+    }
+  },
+  "errors": {
+    "apiTitle": "The storefront could not load",
+    "catalogTitle": "The catalog could not load",
+    "productTitle": "This product could not load",
+    "apiDescription": "Bojro's data service is temporarily unavailable. Your device is fine; retry in a moment.",
+    "retry": "Try again",
+    "browseCatalog": "Browse the catalog",
+    "homeEmptyTitle": "The storefront is being arranged",
+    "homeEmptyDescription": "There are no visible homepage sections yet, but the catalog may still be available.",
+    "unexpectedTitle": "Something interrupted this page",
+    "unexpectedDescription": "The issue has been contained. Retry the page without losing your place.",
+    "shellFallback": "The shell API is unavailable. Safe fallback navigation is active."
+  },
+  "notFound": {
+    "title": "This page moved at lightning speed",
+    "description": "The address may be outdated, or this catalog item is no longer visible.",
+    "home": "Return home"
   }
 }

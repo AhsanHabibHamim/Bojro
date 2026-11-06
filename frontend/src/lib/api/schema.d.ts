@@ -4,6 +4,142 @@
  */
 
 export interface paths {
+    "/api/v1/catalog/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Categories */
+        get: operations["categories_api_v1_catalog_categories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/categories/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Category Detail */
+        get: operations["category_detail_api_v1_catalog_categories__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/delivery-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Delivery Estimate */
+        get: operations["delivery_estimate_api_v1_catalog_delivery_estimate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Filters */
+        get: operations["filters_api_v1_catalog_filters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Products */
+        get: operations["products_api_v1_catalog_products_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/products/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product Detail */
+        get: operations["product_detail_api_v1_catalog_products__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/products/{slug}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product Reviews */
+        get: operations["product_reviews_api_v1_catalog_products__slug__reviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalog/search/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Suggestions */
+        get: operations["search_suggestions_api_v1_catalog_search_suggestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -13,6 +149,40 @@ export interface paths {
         };
         /** Health */
         get: operations["health_api_v1_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storefront/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Home */
+        get: operations["home_api_v1_storefront_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/storefront/shell": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shell */
+        get: operations["shell_api_v1_storefront_shell_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -59,6 +229,138 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Announcement */
+        Announcement: {
+            /** Enabled */
+            enabled: boolean;
+            /** Text */
+            text: string;
+        };
+        /** AppliedFilters */
+        AppliedFilters: {
+            /** Brands */
+            brands: string[];
+            /** Categories */
+            categories: string[];
+            /** Collection */
+            collection: ("featured" | "best_selling" | "deals") | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "bn" | "en";
+            /** Max Price Poisha */
+            max_price_poisha: number | null;
+            /** Min Discount Percent */
+            min_discount_percent: number | null;
+            /** Min Price Poisha */
+            min_price_poisha: number | null;
+            /** Min Rating */
+            min_rating: number | null;
+            /** Q */
+            q: string | null;
+            /**
+             * Sort
+             * @enum {string}
+             */
+            sort: "relevance" | "newest" | "price_asc" | "price_desc" | "rating_desc" | "best_selling" | "discount_desc";
+            /**
+             * Stock
+             * @enum {string}
+             */
+            stock: "all" | "in_stock" | "out_of_stock";
+        };
+        /** BrandFacet */
+        BrandFacet: {
+            /** Count */
+            count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Selected */
+            selected: boolean;
+            /** Slug */
+            slug: string;
+        };
+        /** BrandRef */
+        BrandRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /** CategoryDetailResponse */
+        CategoryDetailResponse: {
+            /** Breadcrumb */
+            breadcrumb: components["schemas"]["CategoryRef"][];
+            category: components["schemas"]["CategoryRef"];
+            /** Children */
+            children: components["schemas"]["CategoryItem"][];
+            /** Product Count */
+            product_count: number;
+        };
+        /** CategoryFacet */
+        CategoryFacet: {
+            /** Count */
+            count: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Selected */
+            selected: boolean;
+            /** Slug */
+            slug: string;
+        };
+        /** CategoryItem */
+        CategoryItem: {
+            /** Children */
+            children?: components["schemas"]["CategoryItem"][];
+            /** Icon */
+            icon: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Image */
+            image: string | null;
+            /** Name */
+            name: string;
+            /** Product Count */
+            product_count: number;
+            /** Slug */
+            slug: string;
+        };
+        /** CategoryListResponse */
+        CategoryListResponse: {
+            /** Items */
+            items: components["schemas"]["CategoryItem"][];
+        };
+        /** CategoryRef */
+        CategoryRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
         /** ComponentHealth */
         ComponentHealth: {
             /** Detail */
@@ -72,6 +374,68 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "degraded" | "unavailable";
+        };
+        /** DeliveryEstimateResponse */
+        DeliveryEstimateResponse: {
+            /** Charge Poisha */
+            charge_poisha: number;
+            /**
+             * Earliest
+             * Format: date
+             */
+            earliest: string;
+            /**
+             * Latest
+             * Format: date
+             */
+            latest: string;
+            /** Message */
+            message: string;
+            /**
+             * Zone
+             * @enum {string}
+             */
+            zone: "inside_dhaka" | "outside_dhaka";
+        };
+        /** DiscountFacet */
+        DiscountFacet: {
+            /** Count */
+            count: number;
+            /** Minimum Percent */
+            minimum_percent: number;
+            /** Selected */
+            selected: boolean;
+        };
+        /** DistrictOption */
+        DistrictOption: {
+            /** Code */
+            code: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** FilterMetadataResponse */
+        FilterMetadataResponse: {
+            /** Brands */
+            brands: components["schemas"]["BrandFacet"][];
+            /** Categories */
+            categories: components["schemas"]["CategoryFacet"][];
+            /** Discounts */
+            discounts: components["schemas"]["DiscountFacet"][];
+            price: components["schemas"]["PriceFacet"];
+            /** Ratings */
+            ratings: components["schemas"]["RatingFacet"][];
+            /** Stock */
+            stock: components["schemas"]["StockFacet"][];
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
         };
         /** HealthResponse */
         HealthResponse: {
@@ -90,6 +454,228 @@ export interface components {
             timestamp: string;
             /** Version */
             version: string;
+        };
+        JsonValue: unknown;
+        /** PageInfo */
+        PageInfo: {
+            /** Has Next */
+            has_next: boolean;
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Total Count */
+            total_count: number;
+        };
+        /** PriceFacet */
+        PriceFacet: {
+            /** Max Poisha */
+            max_poisha?: number | null;
+            /** Min Poisha */
+            min_poisha?: number | null;
+        };
+        /** ProductCard */
+        ProductCard: {
+            brand: components["schemas"]["BrandRef"] | null;
+            category: components["schemas"]["CategoryRef"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** In Stock */
+            in_stock: boolean;
+            /** Is Featured */
+            is_featured: boolean;
+            /** Name */
+            name: string;
+            price: components["schemas"]["ProductPrice"];
+            rating: components["schemas"]["ProductRating"];
+            /** Slug */
+            slug: string;
+            /** Sold Count */
+            sold_count: number;
+            thumbnail: components["schemas"]["ProductImage"] | null;
+        };
+        /** ProductDetailResponse */
+        ProductDetailResponse: {
+            brand: components["schemas"]["BrandRef"] | null;
+            /** Breadcrumb */
+            breadcrumb: components["schemas"]["CategoryRef"][];
+            category: components["schemas"]["CategoryRef"];
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Images */
+            images: components["schemas"]["ProductImage"][];
+            /** Name */
+            name: string;
+            /** Option Groups */
+            option_groups: components["schemas"]["ProductOptionGroup"][];
+            /** Question Preview */
+            question_preview?: components["schemas"]["QuestionPreviewItem"][];
+            rating: components["schemas"]["ProductRatingDetail"];
+            /** Related Products */
+            related_products: components["schemas"]["ProductCard"][];
+            seo: components["schemas"]["ProductSEO"];
+            /** Slug */
+            slug: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Variants */
+            variants: components["schemas"]["ProductVariantDetail"][];
+        };
+        /** ProductImage */
+        ProductImage: {
+            /** Alt */
+            alt: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            /** Variant Id */
+            variant_id: string | null;
+        };
+        /** ProductListResponse */
+        ProductListResponse: {
+            applied_filters: components["schemas"]["AppliedFilters"];
+            /** Items */
+            items: components["schemas"]["ProductCard"][];
+            page_info: components["schemas"]["PageInfo"];
+        };
+        /** ProductOptionGroup */
+        ProductOptionGroup: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Values */
+            values: string[];
+        };
+        /** ProductPrice */
+        ProductPrice: {
+            /** Compare At Poisha */
+            compare_at_poisha?: number | null;
+            /**
+             * Currency
+             * @default BDT
+             * @constant
+             */
+            currency: "BDT";
+            /** Current Poisha */
+            current_poisha: number;
+            /**
+             * Default Variant Id
+             * Format: uuid
+             */
+            default_variant_id: string;
+            /** Discount Percent */
+            discount_percent: number;
+            /** Max Poisha */
+            max_poisha: number;
+            /** Min Poisha */
+            min_poisha: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "regular" | "flash_sale";
+        };
+        /** ProductRating */
+        ProductRating: {
+            /** Average */
+            average: number;
+            /** Count */
+            count: number;
+        };
+        /** ProductRatingDetail */
+        ProductRatingDetail: {
+            /** Average */
+            average: number;
+            /** Count */
+            count: number;
+            /** Histogram */
+            histogram: components["schemas"]["RatingBucket"][];
+            /** Review Preview */
+            review_preview: components["schemas"]["ReviewItem"][];
+        };
+        /** ProductRef */
+        ProductRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /** ProductReviewsResponse */
+        ProductReviewsResponse: {
+            /** Items */
+            items: components["schemas"]["ReviewItem"][];
+            page_info: components["schemas"]["PageInfo"];
+            product: components["schemas"]["ProductRef"];
+            rating: components["schemas"]["ProductRating"];
+        };
+        /** ProductSEO */
+        ProductSEO: {
+            /** Description */
+            description: string;
+            /** Title */
+            title: string;
+        };
+        /** ProductVariantDetail */
+        ProductVariantDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Options */
+            options: {
+                [key: string]: string;
+            };
+            price: components["schemas"]["ProductPrice"];
+            /** Sku */
+            sku: string;
+            stock: components["schemas"]["VariantStock"];
+            /** Weight G */
+            weight_g: number;
+        };
+        /** QuestionPreviewItem */
+        QuestionPreviewItem: {
+            /** Answer */
+            answer: string | null;
+            /** Question */
+            question: string;
+        };
+        /** RatingBucket */
+        RatingBucket: {
+            /** Count */
+            count: number;
+            /** Rating */
+            rating: number;
+        };
+        /** RatingFacet */
+        RatingFacet: {
+            /** Count */
+            count: number;
+            /** Minimum */
+            minimum: number;
+            /** Selected */
+            selected: boolean;
         };
         /** ReadinessResponse */
         ReadinessResponse: {
@@ -112,6 +698,165 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** ReviewItem */
+        ReviewItem: {
+            /** Author */
+            author: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Verified Purchase */
+            is_verified_purchase: boolean;
+            /** Photos */
+            photos: string[];
+            /** Rating */
+            rating: number;
+        };
+        /** SearchSuggestionResponse */
+        SearchSuggestionResponse: {
+            /** Items */
+            items: components["schemas"]["SuggestionItem"][];
+        };
+        /** StockFacet */
+        StockFacet: {
+            /** Count */
+            count: number;
+            /** Selected */
+            selected: boolean;
+            /**
+             * Value
+             * @enum {string}
+             */
+            value: "in_stock" | "out_of_stock";
+        };
+        /** StorefrontHomeResponse */
+        StorefrontHomeResponse: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "bn" | "en";
+            /** Revision */
+            revision: string;
+            /** Sections */
+            sections: components["schemas"]["StorefrontSection"][];
+        };
+        /** StorefrontSection */
+        StorefrontSection: {
+            /** Content */
+            content: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Data */
+            data: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Order */
+            order: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "hero" | "marquee" | "promo_chips" | "flash_sale" | "best_seller_categories" | "best_selling" | "feature_bands" | "featured_category_band" | "comparison" | "social_proof" | "shipping_offer" | "brand_story" | "reviews" | "deals" | "footer";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** StorefrontShellResponse */
+        StorefrontShellResponse: {
+            announcement: components["schemas"]["Announcement"];
+            /** Category Menu */
+            category_menu: components["schemas"]["CategoryItem"][];
+            /** Contact */
+            contact: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Districts */
+            districts: components["schemas"]["DistrictOption"][];
+            /** Footer */
+            footer: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "bn" | "en";
+            /** Payment Methods */
+            payment_methods: {
+                [key: string]: boolean;
+            };
+            /** Settings */
+            settings: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Social */
+            social: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** SuggestionItem */
+        SuggestionItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "product" | "category" | "brand";
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /** VariantStock */
+        VariantStock: {
+            /** Available */
+            available: number;
+            /** In Stock */
+            in_stock: boolean;
+            /** On Hand */
+            on_hand: number;
+            /** Reserved */
+            reserved: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -121,6 +866,287 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    categories_api_v1_catalog_categories_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    category_detail_api_v1_catalog_categories__slug__get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delivery_estimate_api_v1_catalog_delivery_estimate_get: {
+        parameters: {
+            query: {
+                locale?: "bn" | "en";
+                variant_id: string;
+                district_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryEstimateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    filters_api_v1_catalog_filters_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+                q?: string | null;
+                category?: string[];
+                brand?: string[];
+                min_price_poisha?: number | null;
+                max_price_poisha?: number | null;
+                min_rating?: number | null;
+                min_discount_percent?: number | null;
+                stock?: "all" | "in_stock" | "out_of_stock";
+                collection?: ("featured" | "best_selling" | "deals") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterMetadataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    products_api_v1_catalog_products_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+                q?: string | null;
+                category?: string[];
+                brand?: string[];
+                min_price_poisha?: number | null;
+                max_price_poisha?: number | null;
+                min_rating?: number | null;
+                min_discount_percent?: number | null;
+                stock?: "all" | "in_stock" | "out_of_stock";
+                collection?: ("featured" | "best_selling" | "deals") | null;
+                sort?: "relevance" | "newest" | "price_asc" | "price_desc" | "rating_desc" | "best_selling" | "discount_desc";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_detail_api_v1_catalog_products__slug__get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_reviews_api_v1_catalog_products__slug__reviews_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductReviewsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_suggestions_api_v1_catalog_search_suggestions_get: {
+        parameters: {
+            query: {
+                locale?: "bn" | "en";
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchSuggestionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_api_v1_health_get: {
         parameters: {
             query?: never;
@@ -137,6 +1163,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    home_api_v1_storefront_home_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorefrontHomeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shell_api_v1_storefront_shell_get: {
+        parameters: {
+            query?: {
+                locale?: "bn" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorefrontShellResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

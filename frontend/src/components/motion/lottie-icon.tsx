@@ -107,13 +107,13 @@ export function LottieIcon({ name, label, fallback, size = 32, className }: Lott
       ref={containerRef}
       aria-hidden={label ? undefined : true}
       aria-label={label}
+      role={label ? "img" : undefined}
       className={[
         "relative inline-flex shrink-0 items-center justify-center text-electric-violet",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
-      role={label ? "img" : undefined}
       style={stableSize}
     >
       {showAnimation && asset && !playerFailed ? (

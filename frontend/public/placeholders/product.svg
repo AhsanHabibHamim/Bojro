@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" role="img" aria-labelledby="title description">
+  <title id="title">Bojro product placeholder</title>
+  <desc id="description">A purple product package with a lightning mark</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#EDE7FF"/>
+      <stop offset="1" stop-color="#D8CCFF"/>
+    </linearGradient>
+    <linearGradient id="package" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2A1565"/>
+      <stop offset="0.55" stop-color="#5B2FC9"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="900" fill="url(#background)"/>
+  <circle cx="132" cy="140" r="84" fill="#fff" opacity=".34"/>
+  <circle cx="690" cy="720" r="150" fill="#7C4DFF" opacity=".12"/>
+  <path d="M190 296 400 178l210 118v314L400 730 190 610Z" fill="url(#package)"/>
+  <path d="m400 178 210 118-210 120-210-120Z" fill="#fff" opacity=".14"/>
+  <path d="M400 416v314" stroke="#fff" stroke-opacity=".25" stroke-width="8"/>
+  <path d="m438 438-92 130h66l-45 116 116-158h-68l46-88Z" fill="#FFB400" stroke="#fff" stroke-linejoin="round" stroke-width="12"/>
+  <text x="400" y="812" fill="#2A1565" font-family="sans-serif" font-size="32" font-weight="700" text-anchor="middle">BOJRO</text>
+</svg>

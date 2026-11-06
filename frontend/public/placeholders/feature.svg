@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title description">
+  <title id="title">Bojro feature placeholder</title>
+  <desc id="description">Layered purple shapes with a lightning mark</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2A1565"/>
+      <stop offset="0.55" stop-color="#5B2FC9"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </linearGradient>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M56 0H0v56" fill="none" stroke="#fff" stroke-opacity=".09"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="900" fill="url(#background)"/>
+  <rect width="1200" height="900" fill="url(#grid)"/>
+  <circle cx="220" cy="170" r="230" fill="#fff" opacity=".08"/>
+  <circle cx="1040" cy="760" r="320" fill="#EDE7FF" opacity=".1"/>
+  <rect x="280" y="175" width="640" height="550" rx="64" fill="#fff" opacity=".12" stroke="#fff" stroke-opacity=".3" stroke-width="4"/>
+  <path d="m654 252-190 266h137l-90 202 246-320H612l92-148Z" fill="#FFB400" stroke="#fff" stroke-linejoin="round" stroke-width="18"/>
+</svg>

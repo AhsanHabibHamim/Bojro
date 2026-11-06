@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">Bojro product placeholder</title>
+  <desc id="desc">Premium purple product packaging with the Bojro lightning mark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F7F5FC"/>
+      <stop offset="1" stop-color="#EDE7FF"/>
+    </linearGradient>
+    <linearGradient id="pack" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2A1565"/>
+      <stop offset="0.55" stop-color="#5B2FC9"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" rx="72" fill="url(#bg)"/>
+  <ellipse cx="400" cy="676" rx="220" ry="42" fill="#2A1565" opacity=".12"/>
+  <path d="M250 194 400 120l150 74v420L400 688l-150-74z" fill="url(#pack)"/>
+  <path d="m400 120 150 74-150 76-150-76z" fill="#7C4DFF"/>
+  <path d="M438 294 322 458h94l-56 170 174-218h-102l78-116z" fill="#fff"/>
+  <path d="M426 348 372 440h52l-30 86 88-108h-56l40-70z" fill="#EDE7FF"/>
+</svg>

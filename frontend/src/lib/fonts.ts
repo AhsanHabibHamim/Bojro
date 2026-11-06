@@ -5,6 +5,7 @@ export const chonburi = Chonburi({
   weight: "400",
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 export const notoSerifBengali = Noto_Serif_Bengali({
@@ -12,6 +13,7 @@ export const notoSerifBengali = Noto_Serif_Bengali({
   weight: ["700", "800"],
   subsets: ["bengali", "latin"],
   display: "swap",
+  preload: false,
 });
 
 export const nunitoSans = Nunito_Sans({
@@ -19,6 +21,7 @@ export const nunitoSans = Nunito_Sans({
   weight: ["400", "600", "700"],
   subsets: ["latin"],
   display: "swap",
+  preload: false,
 });
 
 export const hindSiliguri = Hind_Siliguri({
@@ -26,6 +29,7 @@ export const hindSiliguri = Hind_Siliguri({
   weight: ["400", "500", "600"],
   subsets: ["bengali", "latin"],
   display: "swap",
+  preload: false,
 });
 
 export const fontVariables = [
