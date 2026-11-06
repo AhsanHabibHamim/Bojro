@@ -73,6 +73,7 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       INTERNAL_API_URL: http://backend:8000
+      REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:

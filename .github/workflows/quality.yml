@@ -111,6 +111,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Build and start the full stack
         run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml up --build --wait
 
@@ -120,6 +129,12 @@ jobs:
           curl --fail --retry 5 --retry-all-errors http://localhost:8000/ready
           curl --fail --retry 5 --retry-all-errors http://localhost:3000/bn
           curl --fail --retry 5 --retry-all-errors http://localhost:3000/en
+
+      - name: Audit mobile performance
+        run: |
+          pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path=home-lighthouse.json --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
+          pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path=product-lighthouse.json --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
+          node -e "for (const file of ['home-lighthouse.json','product-lighthouse.json']) { const score=require('./'+file).categories.performance.score; if (score < 0.9) throw new Error(file+' performance score '+score+' is below 0.9'); console.log(file, score); }"
 
       - name: Print container logs on failure
         if: failure()

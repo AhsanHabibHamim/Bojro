@@ -41,3 +41,15 @@
 **Decision:** Create an admin only when `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` are both provided.
 
 **Reason:** Shipping a known default password would violate the secret and account security requirements.
+
+## 2026-11-06: On-demand locale ISR
+
+**Decision:** Return no locale values from `generateStaticParams` and cache API reads with explicit entity tags. Search and filtered listing routes render dynamically; home, category, and product reads remain tag-cacheable and revalidate on demand.
+
+**Reason:** Docker/Vercel builds must not depend on a live Railway API. The first request populates the Full Route/Data Cache while admin events can invalidate only affected entities.
+
+## 2026-11-06: Generated contract adapter
+
+**Decision:** Network response types come directly from `schema.d.ts`, then one centralized adapter maps API DTOs into frontend presentation models.
+
+**Reason:** The API uses reusable normalized shapes such as nested price/stock models while components need view-specific shapes. One adapter preserves OpenAPI as the source of truth without leaking transport details or scattering handwritten fetches.
