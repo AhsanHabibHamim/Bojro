@@ -9,13 +9,13 @@ from datetime import UTC, datetime, timedelta
 from functools import cache
 from pathlib import Path
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import FromClause
@@ -30,6 +30,9 @@ from app.db.base import Base  # noqa: E402
 from app.db.enums import (  # noqa: E402
     CouponType,
     HomepageSectionType,
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
     ProductStatus,
     ReviewStatus,
     UserRole,
@@ -45,10 +48,14 @@ from app.db.models import (  # noqa: E402
     GeoDivision,
     GeoUpazila,
     HomepageSection,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
     Product,
     ProductImage,
     ProductVariant,
     Review,
+    ReviewPhoto,
     SiteSetting,
     StaticPage,
     User,
@@ -60,6 +67,10 @@ _LOGGER = structlog.get_logger(__name__)
 _GEO_PATH = BACKEND_DIR / "app" / "seed_data" / "bangladesh_geo.json"
 _PASSWORD_HASHER = PasswordHasher()
 _DEMO_SEED_KEY = "_demo_seed_version"
+_E2E_REVIEW_FIXTURE_KEY = "_e2e_review_fixture"
+_E2E_REVIEW_PHONE = "+8801700000999"
+_E2E_REVIEW_ORDER_NUMBER = "BJ-2099-900001"
+_SEED_NAMESPACE = UUID("e339172a-5a94-4c47-99c8-b4af91f39ef4")
 
 
 class GeoMetadata(BaseModel):
@@ -826,10 +837,9 @@ def merge_missing(
 
 @cache
 def seed_id(entity: str, natural_key: str) -> UUID:
-    """Return one UUIDv7 per seed entity for the lifetime of this process."""
+    """Return a stable UUID for one namespaced demonstration natural key."""
 
-    del entity, natural_key
-    return uuid7()
+    return uuid5(_SEED_NAMESPACE, f"{entity}:{natural_key}")
 
 
 def load_geo_dataset() -> GeoDataset:
@@ -1119,6 +1129,7 @@ async def seed_reviews(session: AsyncSession) -> None:
                 "photos": [],
                 "status": ReviewStatus.APPROVED,
                 "is_verified_purchase": False,
+                "author_name_snapshot": f"ডেমো ক্রেতা {position}",
             }
         )
     await upsert_rows(
@@ -1133,8 +1144,207 @@ async def seed_reviews(session: AsyncSession) -> None:
         Review.__table__,
         review_rows,
         conflict_columns=("product_id", "user_id"),
-        update_columns=("rating", "body", "photos", "status", "is_verified_purchase"),
+        update_columns=(
+            "rating",
+            "body",
+            "photos",
+            "status",
+            "is_verified_purchase",
+            "author_name_snapshot",
+        ),
     )
+
+
+async def seed_review_e2e_fixture(session: AsyncSession, seeded_at: datetime) -> None:
+    """Reset one mock-only delivered-purchase lineage without fabricating a review."""
+
+    product_seed = PRODUCTS[-1]
+    product = await session.scalar(select(Product).where(Product.slug == product_seed.slug))
+    if product is None:
+        raise RuntimeError("E2E review fixture product is missing")
+    variant = await session.scalar(
+        select(ProductVariant)
+        .where(ProductVariant.product_id == product.id, ProductVariant.is_active.is_(True))
+        .order_by(ProductVariant.sku)
+        .limit(1)
+        .with_for_update()
+    )
+    if variant is None:
+        raise RuntimeError("E2E review fixture variant is missing")
+
+    customer = await session.scalar(select(User).where(User.phone == _E2E_REVIEW_PHONE))
+    if customer is None:
+        customer = User(
+            id=seed_id("e2e_review_customer", _E2E_REVIEW_PHONE),
+            role=UserRole.CUSTOMER,
+            name="E2E Review Customer",
+            phone=_E2E_REVIEW_PHONE,
+            email=None,
+            password_hash=None,
+            is_guest=False,
+            is_active=True,
+        )
+        session.add(customer)
+        await session.flush()
+    elif customer.role != UserRole.CUSTOMER or customer.is_guest:
+        raise RuntimeError("E2E review fixture phone belongs to an incompatible account")
+
+    existing_review_ids = list(
+        await session.scalars(
+            select(Review.id).where(
+                Review.user_id == customer.id,
+                Review.product_id == product.id,
+            )
+        )
+    )
+    if existing_review_ids:
+        await session.execute(
+            delete(ReviewPhoto).where(ReviewPhoto.review_id.in_(existing_review_ids))
+        )
+        await session.execute(delete(Review).where(Review.id.in_(existing_review_ids)))
+
+    order = await session.scalar(
+        select(Order).where(Order.number == _E2E_REVIEW_ORDER_NUMBER).with_for_update()
+    )
+    if order is None:
+        if variant.stock_on_hand - variant.stock_reserved < 1:
+            raise RuntimeError("E2E review fixture variant is out of stock")
+        division = await session.scalar(select(GeoDivision).where(GeoDivision.code == "6"))
+        district = await session.scalar(select(GeoDistrict).where(GeoDistrict.code == "47"))
+        if division is None or district is None:
+            raise RuntimeError("E2E review fixture geo hierarchy is missing")
+        upazila = await session.scalar(
+            select(GeoUpazila)
+            .where(GeoUpazila.district_id == district.id)
+            .order_by(GeoUpazila.code)
+            .limit(1)
+        )
+        if upazila is None:
+            raise RuntimeError("E2E review fixture upazila is missing")
+        placed_at = seeded_at - timedelta(days=7)
+        order = Order(
+            id=seed_id("e2e_review_order", _E2E_REVIEW_ORDER_NUMBER),
+            number=_E2E_REVIEW_ORDER_NUMBER,
+            user_id=customer.id,
+            status=OrderStatus.DELIVERED,
+            payment_status=PaymentStatus.PAID,
+            payment_method=PaymentMethod.COD,
+            subtotal=variant.price,
+            discount_total=0,
+            shipping_total=0,
+            grand_total=variant.price,
+            coupon_code=None,
+            placed_at=placed_at,
+            address_snapshot={
+                "recipient": customer.name,
+                "phone": _E2E_REVIEW_PHONE,
+                "division": {
+                    "id": str(division.id),
+                    "code": division.code,
+                    "name_bn": division.name_bn,
+                    "name_en": division.name_en,
+                },
+                "district": {
+                    "id": str(district.id),
+                    "code": district.code,
+                    "name_bn": district.name_bn,
+                    "name_en": district.name_en,
+                },
+                "upazila": {
+                    "id": str(upazila.id),
+                    "code": upazila.code,
+                    "name_bn": upazila.name_bn,
+                    "name_en": upazila.name_en,
+                },
+                "address_line": "E2E fixture address, Dhaka",
+            },
+            notes="Deterministic mock-only E2E delivered purchase fixture.",
+        )
+        session.add(order)
+        session.add(
+            OrderItem(
+                id=seed_id("e2e_review_order_item", _E2E_REVIEW_ORDER_NUMBER),
+                order_id=order.id,
+                product_id=product.id,
+                variant_id=variant.id,
+                name_bn=product.name_bn,
+                name_en=product.name_en,
+                sku=variant.sku,
+                options=variant.options,
+                unit_price=variant.price,
+                quantity=1,
+                line_total=variant.price,
+                currency="BDT",
+            )
+        )
+        transitions = (
+            (None, OrderStatus.PENDING, placed_at),
+            (OrderStatus.PENDING, OrderStatus.CONFIRMED, placed_at + timedelta(hours=1)),
+            (OrderStatus.CONFIRMED, OrderStatus.PROCESSING, placed_at + timedelta(hours=2)),
+            (OrderStatus.PROCESSING, OrderStatus.SHIPPED, placed_at + timedelta(days=1)),
+            (OrderStatus.SHIPPED, OrderStatus.DELIVERED, placed_at + timedelta(days=3)),
+        )
+        for position, (from_status, to_status, at) in enumerate(transitions, start=1):
+            session.add(
+                OrderStatusHistory(
+                    id=seed_id(
+                        "e2e_review_order_history",
+                        f"{_E2E_REVIEW_ORDER_NUMBER}:{position}",
+                    ),
+                    order_id=order.id,
+                    from_status=from_status,
+                    to_status=to_status,
+                    at=at,
+                    customer_note=(
+                        "Delivered for the deterministic review E2E fixture."
+                        if to_status == OrderStatus.DELIVERED
+                        else None
+                    ),
+                )
+            )
+        variant.stock_on_hand -= 1
+        product.sold_count += 1
+    elif order.user_id != customer.id:
+        raise RuntimeError("E2E review fixture order belongs to another customer")
+
+    await session.flush()
+    lineage = await session.scalar(
+        select(OrderItem.id).where(
+            OrderItem.order_id == order.id,
+            OrderItem.product_id == product.id,
+        )
+    )
+    if lineage is None:
+        raise RuntimeError("E2E review fixture order lineage is incomplete")
+    delivered = await session.scalar(
+        select(OrderStatusHistory.id).where(
+            OrderStatusHistory.order_id == order.id,
+            OrderStatusHistory.to_status.in_([OrderStatus.DELIVERED, OrderStatus.COMPLETED]),
+        )
+    )
+    if delivered is None:
+        raise RuntimeError("E2E review fixture has no delivered history")
+
+    fixture = await session.scalar(
+        select(SiteSetting).where(SiteSetting.key == _E2E_REVIEW_FIXTURE_KEY)
+    )
+    fixture_value: dict[str, object] = {
+        "phone": _E2E_REVIEW_PHONE,
+        "product_id": str(product.id),
+        "order_number": order.number,
+        "otp_code": "123456",
+        "storage_provider": "mock",
+    }
+    if fixture is None:
+        session.add(
+            SiteSetting(
+                id=seed_id("site_setting", _E2E_REVIEW_FIXTURE_KEY),
+                key=_E2E_REVIEW_FIXTURE_KEY,
+                value=fixture_value,
+            )
+        )
+    else:
+        fixture.value = fixture_value
 
 
 async def seed_promotions(
@@ -1161,6 +1371,7 @@ async def seed_promotions(
             "starts_at": coupon_starts_at,
             "ends_at": coupon_ends_at,
             "is_active": True,
+            "is_discoverable": False,
         },
         {
             "id": seed_id("coupon", "WELCOME150"),
@@ -1176,6 +1387,7 @@ async def seed_promotions(
             "starts_at": coupon_starts_at,
             "ends_at": coupon_ends_at,
             "is_active": True,
+            "is_discoverable": True,
         },
         {
             "id": seed_id("coupon", "FREESHIP"),
@@ -1191,6 +1403,7 @@ async def seed_promotions(
             "starts_at": coupon_starts_at,
             "ends_at": coupon_ends_at,
             "is_active": True,
+            "is_discoverable": False,
         },
     ]
     await upsert_rows(
@@ -1209,6 +1422,7 @@ async def seed_promotions(
             "starts_at",
             "ends_at",
             "is_active",
+            "is_discoverable",
         ),
     )
 
@@ -1637,6 +1851,19 @@ async def upgrade_demo_seed_v2_to_v3(
     marker.value = {**marker.value, "version": 3, "upgraded_at_v3": upgraded_at.isoformat()}
 
 
+async def upgrade_demo_seed_v3_to_v4(
+    session: AsyncSession,
+    marker: SiteSetting,
+    upgraded_at: datetime,
+) -> None:
+    """Expose only the explicitly public Phase 4 demonstration coupon."""
+
+    coupon = await session.scalar(select(Coupon).where(Coupon.code == "WELCOME150"))
+    if coupon is not None:
+        coupon.is_discoverable = True
+    marker.value = {**marker.value, "version": 4, "upgraded_at_v4": upgraded_at.isoformat()}
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if settings.seed_admin_email is None or settings.seed_admin_password is None:
         return False
@@ -1715,22 +1942,29 @@ async def seed_database() -> None:
                 await seed_reviews(session)
                 await seed_promotions(session, primary_variant_ids, seeded_at)
                 await seed_content(session)
+                if settings.storage_provider == "mock":
+                    await seed_review_e2e_fixture(session, seeded_at)
                 marker = SiteSetting(
                     id=uuid7(),
                     key=_DEMO_SEED_KEY,
                     value={
-                        "version": 3,
+                        "version": 4,
                         "geo_coverage_as_of": dataset.metadata.coverage_as_of,
                     },
                 )
                 session.add(marker)
-            elif (marker_version := marker.value.get("version")) in {1, 2}:
+            elif (marker_version := marker.value.get("version")) in {1, 2, 3}:
                 demo_upgraded = True
                 if marker_version == 1:
                     await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
-                await upgrade_demo_seed_v2_to_v3(session, marker, seeded_at)
-            elif marker.value.get("version") != 3:
+                    marker_version = 2
+                if marker_version == 2:
+                    await upgrade_demo_seed_v2_to_v3(session, marker, seeded_at)
+                await upgrade_demo_seed_v3_to_v4(session, marker, seeded_at)
+            elif marker.value.get("version") != 4:
                 raise RuntimeError("unsupported demo seed marker version")
+            if settings.storage_provider == "mock":
+                await seed_review_e2e_fixture(session, seeded_at)
             admin_configured = await seed_admin(session, settings)
         _LOGGER.info(
             "seed_complete",

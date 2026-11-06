@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, Header, Request, Response, Security
 from fastapi.security import APIKeyCookie
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.core.errors import DomainError
@@ -18,27 +21,36 @@ from app.core.security import (
     constant_time_equal,
     set_guest_cookie,
 )
+from app.db.enums import UserRole
+from app.db.models import AuthSession, User
 from app.utils.uuid7 import uuid7
 
 _ACCESS_COOKIE = APIKeyCookie(
-    name="bojro_access",
+    name="__Host-bojro_access",
     scheme_name="AccessCookie",
-    description="HttpOnly SameSite=Lax access cookie; production uses __Host-bojro_access.",
+    description=(
+        "Production HttpOnly Secure SameSite=Lax access cookie. Local development uses "
+        "the unprefixed bojro_access cookie; runtime lookup follows the active environment."
+    ),
     auto_error=False,
 )
 _REFRESH_COOKIE = APIKeyCookie(
-    name="bojro_refresh",
+    name="__Secure-bojro_refresh",
     scheme_name="RefreshCookie",
     description=(
-        "HttpOnly SameSite=Lax refresh cookie scoped to /api/v1/auth; production uses "
-        "__Secure-bojro_refresh."
+        "Production HttpOnly Secure SameSite=Lax __Secure-bojro_refresh cookie scoped to "
+        "/api/v1/auth. Local development uses bojro_refresh; runtime lookup follows the "
+        "active environment."
     ),
     auto_error=False,
 )
 _GUEST_COOKIE = APIKeyCookie(
-    name="bojro_guest",
+    name="__Host-bojro_guest",
     scheme_name="GuestCookie",
-    description="HttpOnly SameSite=Lax guest cookie; production uses __Host-bojro_guest.",
+    description=(
+        "Production HttpOnly Secure SameSite=Lax __Host-bojro_guest cookie. Local development uses "
+        "bojro_guest; runtime lookup follows the active environment."
+    ),
     auto_error=False,
 )
 OriginHeader = Annotated[
@@ -77,6 +89,13 @@ class RequestIdentity:
             return None
 
 
+@dataclass(frozen=True, slots=True)
+class AuthenticatedCustomer:
+    user_id: UUID
+    session_id: UUID
+    csrf: str
+
+
 def _settings(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
 
@@ -99,7 +118,29 @@ def _decode_cookie(request: Request, name: str, token_type: str) -> TokenClaims 
         return None
 
 
-def ensure_guest_identity(request: Request, response: Response) -> RequestIdentity:
+async def _access_is_active(request: Request, access: TokenClaims) -> bool:
+    try:
+        user_id = UUID(access.subject)
+        session_id = UUID(access.session_id)
+    except ValueError:
+        return False
+    factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
+    async with factory() as session:
+        found = await session.scalar(
+            select(AuthSession.id)
+            .join(User, User.id == AuthSession.user_id)
+            .where(
+                AuthSession.id == session_id,
+                AuthSession.user_id == user_id,
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > datetime.now(UTC),
+                User.is_active.is_(True),
+            )
+        )
+    return found is not None
+
+
+async def ensure_guest_identity(request: Request, response: Response) -> RequestIdentity:
     settings = _settings(request)
     guest = _decode_cookie(request, settings.guest_cookie_name, "guest")
     if guest is None:
@@ -118,12 +159,14 @@ def ensure_guest_identity(request: Request, response: Response) -> RequestIdenti
         else:
             csrf = guest.csrf
     access = _decode_cookie(request, settings.access_cookie_name, "access")
-    if access is not None:
+    if access is not None and await _access_is_active(request, access):
         csrf = access.csrf
+    else:
+        access = None
     return RequestIdentity(guest_id=guest_id, csrf=csrf, access=access)
 
 
-def optional_identity(
+async def optional_identity(
     request: Request,
     _access_cookie: AccessCookieDoc = None,
     _guest_cookie: GuestCookieDoc = None,
@@ -131,15 +174,92 @@ def optional_identity(
     del _access_cookie, _guest_cookie
     settings = _settings(request)
     guest = _decode_cookie(request, settings.guest_cookie_name, "guest")
+    access = _decode_cookie(request, settings.access_cookie_name, "access")
+    if access is not None and not await _access_is_active(request, access):
+        access = None
     if guest is None:
-        return None
+        if access is None:
+            return None
+        return RequestIdentity(guest_id=uuid7(), csrf=access.csrf, access=access)
     try:
         guest_id = UUID(guest.subject)
     except ValueError:
         return None
-    access = _decode_cookie(request, settings.access_cookie_name, "access")
     csrf = access.csrf if access is not None else guest.csrf
     return RequestIdentity(guest_id=guest_id, csrf=csrf, access=access)
+
+
+async def require_authenticated_customer(
+    request: Request,
+    _access_cookie: AccessCookieDoc = None,
+) -> AuthenticatedCustomer:
+    del _access_cookie
+    settings = _settings(request)
+    access = _decode_cookie(request, settings.access_cookie_name, "access")
+    if access is None:
+        raise DomainError(
+            "AUTHENTICATION_REQUIRED",
+            "Sign in with a customer account to continue.",
+            status_code=401,
+        )
+    try:
+        user_id = UUID(access.subject)
+        session_id = UUID(access.session_id)
+    except ValueError as exc:
+        raise DomainError(
+            "AUTHENTICATION_REQUIRED",
+            "Sign in with a customer account to continue.",
+            status_code=401,
+        ) from exc
+    factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
+    async with factory() as session:
+        row = (
+            await session.execute(
+                select(User, AuthSession)
+                .join(
+                    AuthSession,
+                    and_(AuthSession.user_id == User.id, AuthSession.id == session_id),
+                )
+                .where(User.id == user_id)
+            )
+        ).one_or_none()
+    now = datetime.now(UTC)
+    if row is None or row[1].revoked_at is not None or row[1].expires_at <= now:
+        raise DomainError(
+            "AUTHENTICATION_REQUIRED",
+            "Sign in with a customer account to continue.",
+            status_code=401,
+        )
+    user = row[0]
+    if not user.is_active:
+        raise DomainError("ACCOUNT_DISABLED", "This account is disabled.", status_code=403)
+    if user.is_guest or user.role != UserRole.CUSTOMER:
+        raise DomainError(
+            "CUSTOMER_ACCOUNT_REQUIRED",
+            "A non-guest customer account is required.",
+            status_code=403,
+        )
+    return AuthenticatedCustomer(user_id=user.id, session_id=session_id, csrf=access.csrf)
+
+
+async def require_unsafe_authenticated_customer(
+    request: Request,
+    origin: OriginHeader,
+    csrf_token: CSRFHeader,
+    customer: Annotated[AuthenticatedCustomer, Depends(require_authenticated_customer)],
+) -> AuthenticatedCustomer:
+    _require_origin(_settings(request), origin)
+    if not constant_time_equal(csrf_token, customer.csrf):
+        raise DomainError("CSRF_INVALID", "The CSRF token is invalid.", status_code=403)
+    return customer
+
+
+def require_json_unsafe_authenticated_customer(
+    customer: Annotated[AuthenticatedCustomer, Depends(require_unsafe_authenticated_customer)],
+    content_type: ContentTypeHeader = None,
+) -> AuthenticatedCustomer:
+    _require_json(content_type)
+    return customer
 
 
 def _require_origin(settings: Settings, origin: str) -> None:
@@ -157,7 +277,7 @@ def _require_json(content_type: str | None) -> None:
         )
 
 
-def require_unsafe_identity(
+async def require_unsafe_identity(
     request: Request,
     origin: OriginHeader,
     csrf_token: CSRFHeader,
@@ -167,7 +287,7 @@ def require_unsafe_identity(
     del _access_cookie, _guest_cookie
     settings = _settings(request)
     _require_origin(settings, origin)
-    identity = optional_identity(request)
+    identity = await optional_identity(request)
     if identity is None:
         raise DomainError(
             "SESSION_REQUIRED",

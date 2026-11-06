@@ -202,13 +202,16 @@ class CheckoutService:
                     status_code=409,
                 )
             if idempotency.completed_at is not None:
-                if idempotency.order_id is None:
+                completed_order_id = idempotency.order_id
+                if completed_order_id is None and idempotency.resource_kind == "order":
+                    completed_order_id = idempotency.resource_id
+                if completed_order_id is None:
                     raise DomainError(
                         "IDEMPOTENCY_RESULT_UNAVAILABLE",
                         "The prior order result is unavailable.",
                         status_code=409,
                     )
-                order_id = idempotency.order_id
+                order_id = completed_order_id
                 replayed = True
             else:
                 if claims.expires_at <= now:
@@ -378,6 +381,8 @@ class CheckoutService:
                 cart.status = CartStatus.CONVERTED
                 cart.version += 1
                 idempotency.order_id = order_id
+                idempotency.resource_kind = "order"
+                idempotency.resource_id = order_id
                 idempotency.response_status = 201
                 idempotency.completed_at = now
                 await self._repository.flush()
@@ -741,7 +746,7 @@ class CheckoutService:
                 OrderTimelineItem(
                     status=item.to_status.value,
                     at=item.at,
-                    note=item.note,
+                    note=item.customer_note,
                 )
                 for item in sorted(order.status_history, key=lambda row: (row.at, row.id))
             ],

@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
+from app.repositories.account import AccountRepository
 from app.repositories.auth import AuthRepository
 from app.repositories.catalog import CatalogRepository
 from app.repositories.checkout import CheckoutRepository
@@ -15,6 +16,7 @@ from app.repositories.commerce import CommerceRepository
 from app.repositories.geo import GeoRepository
 from app.repositories.health import HealthRepository
 from app.repositories.storefront import StorefrontRepository
+from app.services.account import AccountService
 from app.services.auth import AuthService
 from app.services.cache import HotCache
 from app.services.cart import CartService
@@ -42,7 +44,7 @@ def get_catalog_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CatalogService:
     cache: HotCache = request.app.state.hot_cache
-    return CatalogService(CatalogRepository(session), cache)
+    return CatalogService(CatalogRepository(session), cache, request.app.state.storage_provider)
 
 
 def get_storefront_service(
@@ -50,7 +52,7 @@ def get_storefront_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StorefrontService:
     cache: HotCache = request.app.state.hot_cache
-    catalog = CatalogService(CatalogRepository(session), cache)
+    catalog = CatalogService(CatalogRepository(session), cache, request.app.state.storage_provider)
     return StorefrontService(StorefrontRepository(session), catalog, cache)
 
 
@@ -87,6 +89,21 @@ def get_checkout_service(
         CheckoutRepository(session),
         CommerceRepository(session),
         request.app.state.token_service,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
+
+
+def get_account_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AccountService:
+    cache: HotCache = request.app.state.hot_cache
+    catalog = CatalogService(CatalogRepository(session), cache, request.app.state.storage_provider)
+    return AccountService(
+        AccountRepository(session),
+        catalog,
+        request.app.state.storage_provider,
         request.app.state.rate_limiter,
         request.app.state.settings,
     )

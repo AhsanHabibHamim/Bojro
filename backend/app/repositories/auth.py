@@ -6,11 +6,13 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import CartStatus
+from app.db.enums import CartStatus, UserRole
 from app.db.models import AuthSession, Cart, CartItem, ProductVariant, User
 from app.utils.pricing import available_stock
+from app.utils.uuid7 import uuid7
 
 
 class AuthRepository:
@@ -26,8 +28,56 @@ class AuthRepository:
             statement = statement.with_for_update()
         return await self.session.scalar(statement)
 
+    async def ensure_phone_user(
+        self,
+        phone: str,
+        *,
+        name: str,
+        now: datetime,
+    ) -> User:
+        await self.session.execute(
+            insert(User)
+            .values(
+                id=uuid7(),
+                role=UserRole.CUSTOMER,
+                name=name,
+                phone=phone,
+                email=None,
+                password_hash=None,
+                is_guest=False,
+                is_active=True,
+                phone_verified_at=now,
+                last_login_at=now,
+            )
+            .on_conflict_do_nothing(index_elements=["phone"])
+        )
+        user = await self.session.scalar(select(User).where(User.phone == phone).with_for_update())
+        if user is None:
+            raise RuntimeError("phone user disappeared")
+        return user
+
     async def user_by_id(self, user_id: UUID) -> User | None:
         return await self.session.get(User, user_id)
+
+    async def active_access_user(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        now: datetime,
+    ) -> User | None:
+        return await self.session.scalar(
+            select(User)
+            .join(
+                AuthSession,
+                (AuthSession.user_id == User.id) & (AuthSession.id == session_id),
+            )
+            .where(
+                User.id == user_id,
+                User.is_active.is_(True),
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > now,
+            )
+        )
 
     def add_user(self, user: User) -> None:
         self.session.add(user)

@@ -108,6 +108,7 @@ class NoStoreMiddleware(BaseHTTPMiddleware):
         "/api/v1/cart",
         "/api/v1/checkout",
         "/api/v1/orders",
+        "/api/v1/account",
     )
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:

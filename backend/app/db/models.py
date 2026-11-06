@@ -60,10 +60,11 @@ def db_enum[EnumT: Enum](enum_class: type[EnumT], name: str) -> SAEnum:
     )
 
 
-class User(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint("phone IS NOT NULL OR email IS NOT NULL", name="contact_required"),
+        CheckConstraint("revision > 0", name="revision_positive"),
         CheckConstraint(
             "phone IS NULL OR phone ~ '^\\+8801[3-9][0-9]{8}$'",
             name="phone_bd_e164",
@@ -98,13 +99,18 @@ class User(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     addresses: Mapped[list[Address]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
     carts: Mapped[list[Cart]] = relationship(back_populates="user")
     orders: Mapped[list[Order]] = relationship(back_populates="user")
-    reviews: Mapped[list[Review]] = relationship(back_populates="user")
+    reviews: Mapped[list[Review]] = relationship(
+        back_populates="user", foreign_keys="Review.user_id"
+    )
     auth_sessions: Mapped[list[AuthSession]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -192,6 +198,7 @@ class Address(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "addresses"
     __table_args__ = (
         CheckConstraint("phone ~ '^\\+8801[3-9][0-9]{8}$'", name="phone_bd_e164"),
+        CheckConstraint("revision > 0", name="revision_positive"),
         ForeignKeyConstraint(
             ["district_id", "division_id"],
             ["geo_districts.id", "geo_districts.division_id"],
@@ -205,6 +212,13 @@ class Address(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="RESTRICT",
         ),
         Index("ix_addresses_user", "user_id"),
+        Index(
+            "ix_addresses_user_default_created_id",
+            "user_id",
+            "is_default",
+            "created_at",
+            "id",
+        ),
         Index(
             "uq_addresses_default_user",
             "user_id",
@@ -231,6 +245,9 @@ class Address(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     address_line: Mapped[str] = mapped_column(Text, nullable=False)
     is_default: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
     user: Mapped[User] = relationship(back_populates="addresses")
@@ -576,6 +593,14 @@ class Coupon(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("uq_coupons_code_upper", func.upper(text("code")), unique=True),
         Index("ix_coupons_active_dates", "is_active", "starts_at", "ends_at"),
+        Index(
+            "ix_coupons_discoverable_active_dates_id",
+            "is_discoverable",
+            "is_active",
+            "starts_at",
+            "ends_at",
+            "id",
+        ),
     )
 
     code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
@@ -599,6 +624,9 @@ class Coupon(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    is_discoverable: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
     )
 
     @validates("code")
@@ -678,6 +706,8 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="number_format",
         ),
         Index("ix_orders_user_placed_at", "user_id", "placed_at"),
+        Index("ix_orders_user_placed_id", "user_id", "placed_at", "id"),
+        Index("ix_orders_user_status_placed_id", "user_id", "status", "placed_at", "id"),
         Index("ix_orders_status_placed_at", "status", "placed_at"),
         Index("ix_orders_payment_status_placed_at", "payment_status", "placed_at"),
         Index("ix_orders_phone_lookup", text("(address_snapshot ->> 'phone')")),
@@ -741,6 +771,7 @@ class OrderItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         CheckConstraint("currency = 'BDT'", name="currency_bdt"),
         Index("ix_order_items_order", "order_id"),
         Index("ix_order_items_product", "product_id"),
+        Index("ix_order_items_order_product", "order_id", "product_id"),
         Index("ix_order_items_flash_sale_item", "flash_sale_item_id"),
     )
 
@@ -778,6 +809,7 @@ class CouponRedemption(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         Index("ix_coupon_redemptions_coupon_user_released", "coupon_id", "user_id", "released_at"),
         Index("ix_coupon_redemptions_user_created", "user_id", "created_at"),
+        Index("ix_coupon_redemptions_user_created_id", "user_id", "created_at", "id"),
     )
 
     coupon_id: Mapped[UUID] = mapped_column(
@@ -805,8 +837,13 @@ class IdempotencyRecord(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         UniqueConstraint("endpoint", "scope_hash", "idempotency_key"),
         CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        CheckConstraint(
+            "(resource_kind IS NULL) = (resource_id IS NULL)",
+            name="resource_pair_complete",
+        ),
         Index("ix_idempotency_records_expiry", "expires_at"),
         Index("ix_idempotency_records_order", "order_id"),
+        Index("ix_idempotency_records_resource", "resource_kind", "resource_id"),
     )
 
     endpoint: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -816,6 +853,8 @@ class IdempotencyRecord(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     order_id: Mapped[UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
     )
+    resource_kind: Mapped[str | None] = mapped_column(String(40))
+    resource_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     response_status: Mapped[int | None] = mapped_column(SmallInteger)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -838,7 +877,11 @@ class OrderNumberCounter(UUIDPrimaryKeyMixin, Base):
 
 class OrderStatusHistory(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "order_status_history"
-    __table_args__ = (Index("ix_order_status_history_order_at", "order_id", "at"),)
+    __table_args__ = (
+        Index("ix_order_status_history_order_at", "order_id", "at"),
+        Index("ix_order_status_history_order_at_id", "order_id", "at", "id"),
+        Index("ix_order_status_history_order_to", "order_id", "to"),
+    )
 
     order_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
@@ -853,6 +896,7 @@ class OrderStatusHistory(UUIDPrimaryKeyMixin, Base):
         "actor", PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )
     note: Mapped[str | None] = mapped_column(Text)
+    customer_note: Mapped[str | None] = mapped_column(Text)
     at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
@@ -929,8 +973,14 @@ class Review(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("product_id", "user_id"),
         CheckConstraint("rating >= 1 AND rating <= 5", name="rating_range"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint(
+            "NOT is_verified_purchase OR purchase_order_item_id IS NOT NULL",
+            name="verified_purchase_has_lineage",
+        ),
         Index("ix_reviews_product_status_created", "product_id", "status", "created_at"),
         Index("ix_reviews_user_created_at", "user_id", "created_at"),
+        Index("ix_reviews_user_updated_id", "user_id", "updated_at", "id"),
         Index(
             "ix_reviews_approved_product_created_id",
             "product_id",
@@ -959,9 +1009,104 @@ class Review(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_verified_purchase: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+    purchase_order_item_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("order_items.id", ondelete="RESTRICT")
+    )
+    author_name_snapshot: Mapped[str] = mapped_column(String(160), nullable=False)
+    moderated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    moderated_by_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    moderation_note: Mapped[str | None] = mapped_column(Text)
+    rejection_reason: Mapped[str | None] = mapped_column(String(500))
 
     product: Mapped[Product] = relationship(back_populates="reviews")
-    user: Mapped[User] = relationship(back_populates="reviews")
+    user: Mapped[User] = relationship(back_populates="reviews", foreign_keys=[user_id])
+    purchase_order_item: Mapped[OrderItem | None] = relationship()
+    moderator: Mapped[User | None] = relationship(foreign_keys=[moderated_by_id])
+    photo_assets: Mapped[list[ReviewPhoto]] = relationship(
+        back_populates="review", cascade="save-update, merge"
+    )
+
+
+class ReviewPhoto(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "review_photos"
+    __table_args__ = (
+        CheckConstraint("byte_size > 0 AND byte_size <= 5242880", name="byte_size_range"),
+        CheckConstraint(
+            "mime_type IN ('image/jpeg', 'image/png', 'image/webp')",
+            name="mime_type_allowed",
+        ),
+        CheckConstraint(
+            "state IN ('pending', 'ready', 'attached', 'delete_pending', 'deleted')",
+            name="state_allowed",
+        ),
+        CheckConstraint(
+            "sort_order IS NULL OR (sort_order >= 0 AND sort_order < 5)",
+            name="sort_order_range",
+        ),
+        CheckConstraint("width IS NULL OR width > 0", name="width_positive"),
+        CheckConstraint("height IS NULL OR height > 0", name="height_positive"),
+        UniqueConstraint("provider", "public_id", name="uq_review_photos_provider_public_id"),
+        Index(
+            "uq_review_photos_provider_asset_id",
+            "provider",
+            "provider_asset_id",
+            unique=True,
+            postgresql_where=text("provider_asset_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_review_photos_review_sort",
+            "review_id",
+            "sort_order",
+            unique=True,
+            postgresql_where=text("review_id IS NOT NULL"),
+        ),
+        Index("ix_review_photos_user_state_created_id", "user_id", "state", "created_at", "id"),
+        Index(
+            "ix_review_photos_cleanup",
+            "state",
+            "cleanup_after",
+            postgresql_where=text("state IN ('pending', 'ready', 'delete_pending')"),
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    review_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("reviews.id", ondelete="SET NULL")
+    )
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    folder: Mapped[str] = mapped_column(String(255), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_asset_id: Mapped[str | None] = mapped_column(String(255))
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    format: Mapped[str | None] = mapped_column(String(16))
+    alt_text: Mapped[str | None] = mapped_column(String(255))
+    sort_order: Mapped[int | None] = mapped_column(SmallInteger)
+    state: Mapped[str] = mapped_column(
+        String(24), default="pending", server_default=text("'pending'"), nullable=False
+    )
+    signature_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    signature_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+
+    user: Mapped[User] = relationship()
+    review: Mapped[Review | None] = relationship(back_populates="photo_assets")
 
 
 class WishlistItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -969,6 +1114,7 @@ class WishlistItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __table_args__ = (
         UniqueConstraint("user_id", "product_id"),
         Index("ix_wishlist_items_user_created_at", "user_id", "created_at"),
+        Index("ix_wishlist_items_user_created_id", "user_id", "created_at", "id"),
     )
 
     user_id: Mapped[UUID] = mapped_column(
@@ -1006,7 +1152,22 @@ class RecentlyViewed(UUIDPrimaryKeyMixin, Base):
 class SupportTicket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "support_tickets"
     __table_args__ = (
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint("number ~ '^BJ-SUP-[0-9]{4}-[0-9]{6}$'", name="number_format"),
         Index("ix_support_tickets_user_created_at", "user_id", "created_at"),
+        Index(
+            "ix_support_tickets_user_public_last_message_id",
+            "user_id",
+            "public_last_message_at",
+            "id",
+        ),
+        Index(
+            "ix_support_tickets_user_status_public_last_message_id",
+            "user_id",
+            "status",
+            "public_last_message_at",
+            "id",
+        ),
         Index("ix_support_tickets_status_priority", "status", "priority"),
     )
 
@@ -1026,6 +1187,17 @@ class SupportTicket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=TicketPriority.NORMAL,
         nullable=False,
     )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+    last_message_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    public_last_message_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    customer_last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    admin_last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship()
     order: Mapped[Order | None] = relationship()
@@ -1036,7 +1208,10 @@ class SupportTicket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class SupportMessage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "support_messages"
-    __table_args__ = (Index("ix_support_messages_ticket_created_at", "ticket_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_support_messages_ticket_created_at", "ticket_id", "created_at"),
+        Index("ix_support_messages_ticket_created_id", "ticket_id", "created_at", "id"),
+    )
 
     ticket_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
@@ -1053,9 +1228,25 @@ class SupportMessage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     attachments: Mapped[list[str]] = mapped_column(
         ARRAY(Text), default=list, server_default=text("'{}'::text[]"), nullable=False
     )
+    is_internal: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     ticket: Mapped[SupportTicket] = relationship(back_populates="messages")
     author: Mapped[User | None] = relationship()
+
+
+class SupportTicketNumberCounter(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "support_ticket_number_counters"
+    __table_args__ = (
+        CheckConstraint("year >= 2020 AND year <= 9999", name="year_range"),
+        CheckConstraint("next_value >= 1 AND next_value <= 1000000", name="next_value_range"),
+    )
+
+    year: Mapped[int] = mapped_column(SmallInteger, unique=True, nullable=False)
+    next_value: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
 
 class Banner(UUIDPrimaryKeyMixin, TimestampMixin, Base):

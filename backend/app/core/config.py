@@ -63,6 +63,22 @@ class Settings(BaseSettings):
     checkout_rate_window_seconds: int = Field(default=900, ge=60, le=3600)
     tracking_rate_limit: int = Field(default=10, ge=1, le=100)
     tracking_rate_window_seconds: int = Field(default=600, ge=60, le=3600)
+    account_mutation_user_limit: int = Field(default=60, ge=1, le=1000)
+    account_mutation_ip_limit: int = Field(default=120, ge=1, le=2000)
+    account_sensitive_user_limit: int = Field(default=20, ge=1, le=500)
+    account_sensitive_ip_limit: int = Field(default=60, ge=1, le=1000)
+    account_wishlist_user_limit: int = Field(default=180, ge=1, le=2000)
+    account_wishlist_ip_limit: int = Field(default=300, ge=1, le=4000)
+    account_rate_window_seconds: int = Field(default=900, ge=60, le=86400)
+    storage_provider: Literal["mock", "cloudinary"] = "mock"
+    storage_mock_secret: SecretStr = SecretStr(
+        "development-storage-mock-secret-change-me-32-characters"
+    )
+    cloudinary_cloud_name: str | None = None
+    cloudinary_api_key: SecretStr | None = None
+    cloudinary_api_secret: SecretStr | None = None
+    review_upload_signature_seconds: int = Field(default=300, ge=60, le=300)
+    review_upload_cleanup_hours: int = Field(default=24, ge=1, le=168)
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     trusted_hosts: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver", "backend"]
@@ -80,7 +96,14 @@ class Settings(BaseSettings):
             raise ValueError("DATABASE_URL must use postgresql+asyncpg")
         return value
 
-    @field_validator("seed_admin_email", "seed_admin_password", mode="before")
+    @field_validator(
+        "seed_admin_email",
+        "seed_admin_password",
+        "cloudinary_cloud_name",
+        "cloudinary_api_key",
+        "cloudinary_api_secret",
+        mode="before",
+    )
     @classmethod
     def empty_secrets_are_unset(cls, value: object) -> object:
         return None if value == "" else value
@@ -150,6 +173,20 @@ class Settings(BaseSettings):
                 raise ValueError("COOKIE_SECURE cannot be false in production")
             if "*" in self.trusted_hosts:
                 raise ValueError("wildcard TRUSTED_HOSTS are forbidden in production")
+            if self.storage_provider == "mock":
+                raise ValueError(
+                    "OTP_PROVIDER=external is not implemented; mock storage provider is "
+                    "forbidden in production"
+                )
+            if (
+                not self.cloudinary_cloud_name
+                or self.cloudinary_api_key is None
+                or self.cloudinary_api_secret is None
+            ):
+                raise ValueError(
+                    "OTP_PROVIDER=external is not implemented; Cloudinary configuration "
+                    "is required in production"
+                )
             raise ValueError(
                 "OTP_PROVIDER=external is not implemented; production startup is refused"
             )

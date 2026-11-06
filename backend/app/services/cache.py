@@ -49,3 +49,12 @@ class HotCache:
                 )
         except Exception as exc:
             _LOGGER.warning("hot_cache_write_failed", key=key, error=type(exc).__name__)
+
+    async def delete(self, *keys: str) -> None:
+        if self._redis is None or not keys:
+            return
+        try:
+            async with asyncio.timeout(self.TIMEOUT_SECONDS):
+                await self._redis.delete(*(self._key(key) for key in keys))
+        except Exception as exc:
+            _LOGGER.warning("hot_cache_delete_failed", error=type(exc).__name__)

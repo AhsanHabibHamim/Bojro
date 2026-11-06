@@ -44,7 +44,7 @@ async def session(
     response: Response,
     service: Service,
 ) -> SessionResponse:
-    identity = ensure_guest_identity(request, response)
+    identity = await ensure_guest_identity(request, response)
     settings = request.app.state.settings
     refresh = None
     raw_refresh = request.cookies.get(settings.refresh_cookie_name)

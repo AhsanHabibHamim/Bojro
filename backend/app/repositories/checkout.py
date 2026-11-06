@@ -85,6 +85,8 @@ class CheckoutRepository:
         if record.expires_at <= now and record.completed_at is None:
             record.request_hash = request_hash
             record.order_id = None
+            record.resource_kind = None
+            record.resource_id = None
             record.response_status = None
             record.completed_at = None
             record.expires_at = expires_at

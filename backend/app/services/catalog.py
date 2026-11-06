@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urlsplit
 from uuid import UUID
 
+from app.db.enums import ProductStatus
 from app.db.models import Category, Product, Review
 from app.db.models import ProductImage as ProductImageModel
 from app.repositories.catalog import (
@@ -47,6 +49,7 @@ from app.schemas.catalog import (
     VariantStock,
 )
 from app.services.cache import HotCache
+from app.services.storage import StorageProvider
 from app.utils.localization import Locale, localize
 from app.utils.pricing import available_stock, effective_variant_price
 
@@ -59,9 +62,18 @@ class CatalogService:
     CATEGORY_TTL_SECONDS = 120
     PRODUCT_TTL_SECONDS = 60
 
-    def __init__(self, repository: CatalogRepository, cache: HotCache) -> None:
+    def __init__(
+        self,
+        repository: CatalogRepository,
+        cache: HotCache,
+        storage: StorageProvider | None = None,
+    ) -> None:
         self._repository = repository
         self._cache = cache
+        self._storage = storage
+
+    async def invalidate_product(self, slug: str) -> None:
+        await self._cache.delete(f"product:bn:{slug}", f"product:en:{slug}")
 
     @staticmethod
     def _category_ref(category: Category, locale: Locale) -> CategoryRef:
@@ -177,6 +189,8 @@ class CatalogService:
         now: datetime,
         query: ProductListQuery | None = None,
     ) -> ProductCard | None:
+        if product.status != ProductStatus.ACTIVE:
+            return None
         variants = [variant for variant in product.variants if variant.is_active]
         if not variants:
             return None
@@ -306,18 +320,45 @@ class CatalogService:
             ]
         )
 
-    @staticmethod
-    def _review_item(record: ReviewRecord) -> ReviewItem:
+    def _review_item(self, record: ReviewRecord) -> ReviewItem:
         review: Review = record.review
+        structured = (
+            [
+                self._storage.delivery_url(photo.public_id)
+                for photo in sorted(
+                    (photo for photo in review.photo_assets if photo.state == "attached"),
+                    key=lambda photo: (
+                        photo.sort_order if photo.sort_order is not None else 99,
+                        photo.id,
+                    ),
+                )
+            ]
+            if self._storage is not None
+            else []
+        )
         return ReviewItem(
             id=review.id,
             author=record.author,
             rating=review.rating,
             body=review.body,
-            photos=review.photos,
+            photos=structured or self._safe_legacy_review_photos(review.photos),
             is_verified_purchase=review.is_verified_purchase,
             created_at=review.created_at,
         )
+
+    @staticmethod
+    def _safe_legacy_review_photos(photos: list[str]) -> list[str]:
+        safe: list[str] = []
+        for value in photos:
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme == "https"
+                and parsed.hostname is not None
+                and parsed.username is None
+                and parsed.password is None
+            ):
+                safe.append(value)
+        return safe
 
     @staticmethod
     def _option_name(key: str, locale: Locale) -> str:

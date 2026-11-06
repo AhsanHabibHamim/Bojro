@@ -65,8 +65,39 @@ class _Repository:
         del for_update
         return self.users_by_phone.get(phone)
 
+    async def ensure_phone_user(
+        self,
+        phone: str,
+        *,
+        name: str,
+        now: datetime,
+    ) -> User:
+        user = self.users_by_phone.get(phone)
+        if user is None:
+            user = _user(phone=phone)
+            user.name = name
+            user.phone_verified_at = now
+            user.last_login_at = now
+            self.add_user(user)
+        return user
+
     async def user_by_id(self, user_id: UUID) -> User | None:
         return self.users_by_id.get(user_id)
+
+    async def active_access_user(
+        self, user_id: UUID, session_id: UUID, now: datetime
+    ) -> User | None:
+        user = self.users_by_id.get(user_id)
+        session = self.sessions.get(session_id)
+        if (
+            user is None
+            or not user.is_active
+            or session is None
+            or session.revoked_at is not None
+            or session.expires_at <= now
+        ):
+            return None
+        return user
 
     def add_user(self, user: User) -> None:
         if user.phone is not None:
@@ -126,6 +157,7 @@ def _user(
         password_hash=PasswordService.hash(password) if password else None,
         is_guest=is_guest,
         is_active=is_active,
+        revision=1,
     )
 
 
@@ -268,7 +300,7 @@ async def test_auth_service_refresh_logout_and_session_branches(
     access_claims = TokenService(test_settings).decode(issued.access, "access")
     repository.refresh_valid = True
     response = await service.session(access_claims, claims, "guest-csrf")
-    assert response.authenticated
+    assert not response.authenticated
     assert response.can_refresh
     refresh_only = await service.session(None, claims, "guest-csrf")
     assert not refresh_only.authenticated

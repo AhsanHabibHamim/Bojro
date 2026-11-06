@@ -37,7 +37,6 @@ from app.db.models import (
     ProductVariant,
     Review,
     SiteSetting,
-    User,
 )
 from app.schemas.catalog import (
     BrandFacet,
@@ -452,18 +451,20 @@ class CatalogRepository:
         ).all()
         preview_rows = (
             await self._session.execute(
-                select(Review, User.name)
-                .join(User, User.id == Review.user_id)
+                select(Review)
                 .where(
                     Review.product_id == product_id,
                     Review.status == ReviewStatus.APPROVED,
                 )
-                .order_by(Review.created_at.desc(), Review.id.asc())
+                .options(selectinload(Review.photo_assets))
+                .order_by(Review.created_at.desc(), Review.id.desc())
                 .limit(preview_limit)
             )
         ).all()
         histogram = {int(row[0]): int(row[1]) for row in histogram_rows}
-        records = [ReviewRecord(review=row[0], author=str(row[1])) for row in preview_rows]
+        records = [
+            ReviewRecord(review=row[0], author=row[0].author_name_snapshot) for row in preview_rows
+        ]
         return histogram, records
 
     async def related_products(
@@ -529,15 +530,15 @@ class CatalogRepository:
             conditions.append(
                 or_(
                     Review.created_at < created_at,
-                    and_(Review.created_at == created_at, Review.id > cursor.item_id),
+                    and_(Review.created_at == created_at, Review.id < cursor.item_id),
                 )
             )
         rows = (
             await self._session.execute(
-                select(Review, User.name)
-                .join(User, User.id == Review.user_id)
+                select(Review)
                 .where(*conditions)
-                .order_by(Review.created_at.desc(), Review.id.asc())
+                .options(selectinload(Review.photo_assets))
+                .order_by(Review.created_at.desc(), Review.id.desc())
                 .limit(limit + 1)
             )
         ).all()
@@ -560,7 +561,9 @@ class CatalogRepository:
         )
         return ReviewPageData(
             product=product,
-            rows=[ReviewRecord(review=row[0], author=str(row[1])) for row in page_rows],
+            rows=[
+                ReviewRecord(review=row[0], author=row[0].author_name_snapshot) for row in page_rows
+            ],
             next_cursor=next_cursor,
             has_next=has_next,
             total_count=total_count,

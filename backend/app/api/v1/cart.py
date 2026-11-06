@@ -38,7 +38,7 @@ async def get_cart(
     query: Annotated[LocaleQuery, Query()],
     service: Service,
 ) -> CartResponse:
-    identity = ensure_guest_identity(request, response)
+    identity = await ensure_guest_identity(request, response)
     return await service.get(
         user_id=identity.user_id,
         guest_id=identity.guest_id,

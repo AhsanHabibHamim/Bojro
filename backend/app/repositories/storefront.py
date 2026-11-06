@@ -8,6 +8,7 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.enums import ProductStatus, ReviewStatus
 from app.db.models import (
@@ -20,7 +21,6 @@ from app.db.models import (
     ProductVariant,
     Review,
     SiteSetting,
-    User,
 )
 from app.repositories.catalog import ReviewRecord
 
@@ -98,18 +98,18 @@ class StorefrontRepository:
     async def recent_reviews(self, *, limit: int = 8) -> list[ReviewRecord]:
         rows = (
             await self._session.execute(
-                select(Review, User.name)
-                .join(User, User.id == Review.user_id)
+                select(Review)
                 .join(Product, Product.id == Review.product_id)
                 .where(
                     Review.status == ReviewStatus.APPROVED,
                     Product.status == ProductStatus.ACTIVE,
                 )
-                .order_by(Review.created_at.desc(), Review.id)
+                .options(selectinload(Review.photo_assets))
+                .order_by(Review.created_at.desc(), Review.id.desc())
                 .limit(limit)
             )
         ).all()
-        return [ReviewRecord(review=row[0], author=str(row[1])) for row in rows]
+        return [ReviewRecord(review=row[0], author=row[0].author_name_snapshot) for row in rows]
 
     async def settings(self) -> dict[str, dict[str, object]]:
         rows = (await self._session.execute(select(SiteSetting.key, SiteSetting.value))).all()

@@ -53,31 +53,22 @@ class AuthService:
         phone = await self._otp.verify(challenge_id, code, ip_address)
         now = datetime.now(UTC)
         async with self._repository.session.begin():
-            user = await self._repository.user_by_phone(phone, for_update=True)
-            if user is None:
-                user = User(
-                    id=uuid7(),
-                    name=name or "Bojro Customer",
-                    phone=phone,
-                    email=None,
-                    password_hash=None,
-                    is_guest=False,
-                    is_active=True,
-                    phone_verified_at=now,
-                    last_login_at=now,
-                )
-                self._repository.add_user(user)
-                await self._repository.flush()
-            else:
-                if not user.is_active:
-                    raise DomainError(
-                        "ACCOUNT_DISABLED", "This account is disabled.", status_code=403
-                    )
-                user.is_guest = False
-                user.phone_verified_at = now
-                user.last_login_at = now
-                if name is not None and (not user.name or user.name == "Bojro Customer"):
-                    user.name = name
+            user = await self._repository.ensure_phone_user(
+                phone,
+                name=name or "Bojro Customer",
+                now=now,
+            )
+            if not user.is_active:
+                raise DomainError("ACCOUNT_DISABLED", "This account is disabled.", status_code=403)
+            changed = user.is_guest
+            user.is_guest = False
+            user.phone_verified_at = now
+            user.last_login_at = now
+            if name is not None and (not user.name or user.name == "Bojro Customer"):
+                user.name = name
+                changed = True
+            if changed:
+                user.revision += 1
             warnings = await self._repository.merge_guest_cart(guest_id, user.id)
             return await self._issue(user, warnings, now)
 
@@ -180,10 +171,10 @@ class AuthService:
         user: User | None = None
         if access is not None:
             try:
-                user = await self._repository.user_by_id(UUID(access.subject))
+                user = await self._repository.active_access_user(
+                    UUID(access.subject), UUID(access.session_id), now
+                )
             except ValueError:
-                user = None
-            if user is not None and not user.is_active:
                 user = None
         can_refresh = False
         if refresh is not None:

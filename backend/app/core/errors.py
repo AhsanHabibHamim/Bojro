@@ -20,8 +20,10 @@ PHASE3_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
         403: "Origin, CSRF, or account policy rejection",
         404: "Resource not found",
         409: "Current state conflicts with the request",
+        412: "The supplied resource revision is stale",
         415: "JSON content type required",
         422: "Request validation failed",
+        428: "A required precondition header is missing",
         429: "Rate limit exceeded",
         500: "Unexpected server failure",
         503: "Required dependency or configuration unavailable",
@@ -104,6 +106,18 @@ def map_integrity_error(error: IntegrityError) -> DomainError:
             "ACTIVE_CART_CONFLICT",
             "An active cart already exists for this identity.",
         ),
+        "uq_reviews_product_id_user_id": (
+            "REVIEW_ALREADY_EXISTS",
+            "A review already exists for this product.",
+        ),
+        "uq_review_photos_provider_asset_id": (
+            "REVIEW_PHOTO_CONFLICT",
+            "The storage asset is already registered.",
+        ),
+        "uq_addresses_default_user": (
+            "ADDRESS_DEFAULT_CONFLICT",
+            "The default address changed concurrently.",
+        ),
     }
     code, message = mappings.get(
         constraint or "",
@@ -131,6 +145,7 @@ def install_error_handlers(application: FastAPI) -> None:
             "/api/v1/checkout",
             "/api/v1/geo",
             "/api/v1/orders",
+            "/api/v1/account",
         )
         if not request.url.path.startswith(phase3_prefixes):
             return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})

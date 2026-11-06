@@ -41,9 +41,9 @@ def test_catalog_and_homepage_seed_contract() -> None:
     assert {row[0] for row in HOMEPAGE_SECTIONS} == set(HomepageSectionType)
 
 
-def test_seed_ids_are_stable_per_process_uuid7_values() -> None:
+def test_seed_ids_are_stable_across_processes_by_natural_key() -> None:
     first = seed_id("product", "demo")
-    assert first.version == 7
+    assert first.version == 5
     assert seed_id("product", "demo") == first
     assert seed_id("product", "different") != first
 
