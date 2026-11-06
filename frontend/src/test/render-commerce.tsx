@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
 
 import { CommerceProvider } from "@/components/commerce/commerce-provider";
+import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import type { AppLocale } from "@/i18n/routing";
 import type { CommerceApi } from "@/lib/commerce/client";
 import type { CartResponse, SessionResponse } from "@/lib/commerce/types";
@@ -13,6 +14,7 @@ export function createFakeCommerceApi(overrides: Partial<CommerceApi> = {}): Com
   const cart = cartFixture();
   const api = {
     setCsrfListener: vi.fn((listener: (token: string | null) => void) => listener(null)),
+    setSessionListener: vi.fn(),
     setCsrfToken: vi.fn(),
     session: vi.fn().mockResolvedValue(sessionFixture()),
     requestOtp: vi.fn().mockResolvedValue({
@@ -86,7 +88,7 @@ export function renderWithCommerce(
         initialSnapshot={{ cart, session }}
         locale={locale}
       >
-        {children}
+        <WishlistProvider locale={locale}>{children}</WishlistProvider>
       </CommerceProvider>
     );
   }

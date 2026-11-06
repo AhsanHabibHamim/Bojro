@@ -49,7 +49,9 @@ test("guest COD path from product to private tracking", async ({ page }) => {
   await page.getByRole("button", { name: "Place COD order" }).click();
 
   await expect(page).toHaveURL(/\/en\/order-success\/BJ-\d{4}-\d{6}$/);
-  const orderNumber = (await page.locator("body").innerText()).match(/BJ-\d{4}-\d{6}/)?.[0];
+  const orderNumberElement = page.getByText(/^BJ-\d{4}-\d{6}$/).first();
+  await expect(orderNumberElement).toBeVisible();
+  const orderNumber = (await orderNumberElement.textContent())?.trim();
   expect(orderNumber).toBeTruthy();
   await expect(page.getByText("Cash on delivery").first()).toBeVisible();
 

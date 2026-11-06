@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cartFixture, orderFixture, sessionFixture } from "@/test/commerce-fixtures";
 
 import { CommerceClient, CommerceError } from "./client";
+import type { SessionResponse } from "./types";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -167,10 +168,13 @@ describe("CommerceClient", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     const client = new CommerceClient({ baseUrl: "https://api.example.test", fetch: fetchMock });
+    const observedSessions: SessionResponse[] = [];
+    client.setSessionListener((session) => observedSessions.push(session));
 
     await expect(client.session()).resolves.toEqual(refreshed);
     expect(sessionCalls).toBe(2);
     expect(refreshCalls).toBe(1);
+    expect(observedSessions.at(-1)).toEqual(refreshed);
   });
 
   it("recovers authenticated:false sessions when a refresh cookie is available", async () => {
@@ -239,5 +243,50 @@ describe("CommerceClient", () => {
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(CommerceError);
     expect((error as CommerceError).retryAfterSeconds).toBe(37);
+  });
+
+  it("does not refresh expiring authentication for public geo reads", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-07T00:00:00Z"));
+    try {
+      const session = sessionFixture({
+        authenticated: true,
+        can_refresh: true,
+        user: { id: "user-1", name: "Asha", phone: null, email: null },
+        access_expires_at: "2026-11-07T00:02:00Z",
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(session))
+        .mockResolvedValueOnce(jsonResponse({ items: [] }));
+      const client = new CommerceClient({ baseUrl: "https://api.example.test", fetch: fetchMock });
+      await client.session();
+      vi.setSystemTime(new Date("2026-11-07T00:01:30Z"));
+
+      await expect(client.divisions("en")).resolves.toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(String(fetchMock.mock.calls[1]![0])).toContain("/geo/divisions");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends cart DELETE mutations without a JSON body or content type", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(sessionFixture({ csrf_token: "csrf-delete" })))
+      .mockResolvedValueOnce(jsonResponse(cartFixture({ csrf_token: "csrf-delete" })))
+      .mockResolvedValueOnce(jsonResponse(cartFixture({ csrf_token: "csrf-delete" })));
+    const client = new CommerceClient({ baseUrl: "https://api.example.test", fetch: fetchMock });
+    await client.session();
+    await client.removeCartItem("item-1", "en");
+    await client.removeCartCoupon("en");
+
+    for (const call of fetchMock.mock.calls.slice(1)) {
+      const init = (call as [string, RequestInit])[1];
+      expect(init.body).toBeUndefined();
+      expect(new Headers(init.headers).get("Content-Type")).toBeNull();
+      expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("csrf-delete");
+    }
   });
 });

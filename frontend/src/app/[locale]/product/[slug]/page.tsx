@@ -190,6 +190,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
             added: t("purchase.added"),
             addError: t("purchase.addError"),
             discount: t("purchase.discount", { percent: "{percent}" }),
+            wishlistAdd: t("purchase.wishlistAdd"),
+            wishlistRemove: t("purchase.wishlistRemove"),
+            wishlistError: t("purchase.wishlistError"),
           }}
           zoomLabel={t("gallery.zoom")}
         />
@@ -208,6 +211,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
             verified: t("reviews.verified"),
             emptyTitle: t("reviews.emptyTitle"),
             emptyDescription: t("reviews.emptyDescription"),
+            loadMore: t("reviews.loadMore"),
+            loading: t("reviews.loading"),
+            loadError: t("reviews.loadError"),
+            writeReview: t("reviews.writeReview"),
+            editReview: t("reviews.editReview"),
+            signInToReview: t("reviews.signInToReview"),
           }}
           locale={locale}
           product={product}

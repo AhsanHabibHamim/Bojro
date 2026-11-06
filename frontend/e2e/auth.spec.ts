@@ -8,7 +8,7 @@ test("development mock OTP signs in without exposing a production secret", async
   const phone = uniquePhone();
   const mockCode = process.env.E2E_OTP_CODE ?? "123456";
 
-  await page.goto("/en/account");
+  await page.goto("/en/account/login");
   await page.getByLabel("Mobile number").fill(phone);
   await page.getByLabel(/Name/).fill("OTP Test Customer");
   await page.getByRole("button", { name: "Request code" }).click();
@@ -17,7 +17,7 @@ test("development mock OTP signs in without exposing a production secret", async
   await page.getByLabel(/Development mock code|6-digit verification code/).fill(mockCode);
   await page.getByRole("button", { name: "Verify and sign in" }).click();
 
-  await expect(page.getByRole("heading", { name: "You are signed in" })).toBeVisible();
-  await expect(page.getByText(phone)).toBeVisible();
+  await expect(page).toHaveURL(/\/en\/account$/);
+  await expect(page.getByRole("heading", { name: "Account overview" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 });

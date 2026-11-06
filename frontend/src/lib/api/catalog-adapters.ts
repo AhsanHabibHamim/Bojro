@@ -23,6 +23,7 @@ export type ApiProductList = components["schemas"]["ProductListResponse"];
 export type ApiFilters = components["schemas"]["FilterMetadataResponse"];
 export type ApiSuggestions = components["schemas"]["SearchSuggestionResponse"];
 export type ApiProductDetail = components["schemas"]["ProductDetailResponse"];
+export type ApiProductReviews = components["schemas"]["ProductReviewsResponse"];
 export type ApiDeliveryEstimate = components["schemas"]["DeliveryEstimateResponse"];
 export type ApiStorefrontHome = components["schemas"]["StorefrontHomeResponse"];
 export type ApiStorefrontShell = components["schemas"]["StorefrontShellResponse"];
@@ -138,15 +139,31 @@ export function mapSuggestions(raw: ApiSuggestions, query: string): SearchSugges
   };
 }
 
-function mapReview(raw: components["schemas"]["ReviewItem"]): ProductReview {
+export function mapReview(raw: components["schemas"]["ReviewItem"]): ProductReview {
+  // Accept the current URL-only schema and the upcoming generated photo metadata contract.
+  const photos = raw.photos as unknown as Array<
+    string | { url: string; alt?: string | null; alt_text?: string | null }
+  >;
   return {
     id: raw.id,
     author_name: raw.author,
     rating: raw.rating,
     body: raw.body,
-    photos: raw.photos.map((url) => ({ url, alt: "" })),
+    photos: photos.map((photo) =>
+      typeof photo === "string"
+        ? { url: photo, alt: "" }
+        : { url: photo.url, alt: photo.alt_text ?? photo.alt ?? "" },
+    ),
     is_verified_purchase: raw.is_verified_purchase,
     created_at: raw.created_at,
+  };
+}
+
+export function mapProductReviews(raw: ApiProductReviews): CursorPage<ProductReview> {
+  return {
+    items: raw.items.map(mapReview),
+    next_cursor: raw.page_info.next_cursor,
+    total: raw.page_info.total_count,
   };
 }
 

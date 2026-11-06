@@ -14,6 +14,8 @@ import {
 import type { TrackingResponse } from "@/lib/commerce/types";
 import { formatNumber } from "@/lib/format-number";
 
+import { OrderTimeline } from "./order-timeline";
+
 export const ORDER_NUMBER_PATTERN = /^BJ-\d{4}-\d{6}$/;
 
 export type TrackOrderLabels = {
@@ -46,14 +48,6 @@ export type TrackOrderLabels = {
   statuses: Record<string, string>;
   paymentStatuses: Record<string, string>;
 };
-
-function displayDate(value: string, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-BD", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Dhaka",
-  }).format(new Date(value));
-}
 
 export function TrackOrderClient({
   locale,
@@ -253,30 +247,7 @@ export function TrackOrderClient({
             </div>
           </dl>
           <h3 className="mt-7 text-lg font-extrabold">{labels.result.timeline}</h3>
-          <ol className="mt-4 space-y-0">
-            {result.timeline.map((event, index) => (
-              <li
-                key={`${event.status}-${event.at}`}
-                className="relative flex gap-4 pb-6 last:pb-0"
-              >
-                {index < result.timeline.length - 1 ? (
-                  <span
-                    aria-hidden
-                    className="absolute top-5 left-[0.55rem] h-full w-px bg-brand-purple/20"
-                  />
-                ) : null}
-                <span className="relative mt-1 size-3 shrink-0 rounded-full bg-brand-purple ring-4 ring-soft-lavender" />
-                <div>
-                  <strong className="text-deep-indigo">
-                    {labels.statuses[event.status] ?? event.status}
-                  </strong>
-                  <time className="block text-sm text-muted" dateTime={event.at}>
-                    {displayDate(event.at, locale)}
-                  </time>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <OrderTimeline events={result.timeline} locale={locale} statuses={labels.statuses} />
         </section>
       ) : null}
     </div>

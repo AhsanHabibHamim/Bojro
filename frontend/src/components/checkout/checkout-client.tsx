@@ -20,6 +20,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { CartTotals, type CartTotalsLabels } from "@/components/commerce/cart-totals";
 import { useCommerce } from "@/components/commerce/commerce-provider";
 import type { AppLocale } from "@/i18n/routing";
+import { loginHref } from "@/lib/account/return-to";
 import { CommerceError } from "@/lib/commerce/client";
 import { secondsUntil } from "@/lib/commerce/auth";
 import {
@@ -472,7 +473,7 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
                 <p className="text-muted">{labels.account.guest}</p>
                 <Link
                   className="min-h-11 py-2 font-extrabold text-brand-purple"
-                  href={`/${locale}/account`}
+                  href={loginHref(locale, `/${locale}/checkout`)}
                 >
                   {labels.account.signIn}
                 </Link>

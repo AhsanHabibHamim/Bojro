@@ -6,9 +6,11 @@ import type { CatalogQuery } from "@/lib/catalog/types";
 import {
   type ApiDeliveryEstimate,
   type ApiProductList,
+  type ApiProductReviews,
   type ApiSuggestions,
   mapDeliveryEstimate,
   mapProductList,
+  mapProductReviews,
   mapSuggestions,
 } from "./catalog-adapters";
 import { fetchApiJson, getPublicApiUrl } from "./client";
@@ -31,6 +33,14 @@ export const browserCatalogApi = {
     return browserGet<ApiProductList>(`${API_PREFIX}/products?${search}`, signal).then(
       mapProductList,
     );
+  },
+  reviews(slug: string, locale: string, cursor?: string, signal?: AbortSignal) {
+    const search = new URLSearchParams({ locale, limit: "20" });
+    if (cursor) search.set("cursor", cursor);
+    return browserGet<ApiProductReviews>(
+      `${API_PREFIX}/products/${encodeURIComponent(slug)}/reviews?${search}`,
+      signal,
+    ).then(mapProductReviews);
   },
   deliveryEstimate(
     variantId: string,

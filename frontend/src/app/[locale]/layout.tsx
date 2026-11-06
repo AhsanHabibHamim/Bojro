@@ -9,6 +9,7 @@ import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { WishlistProvider } from "@/components/wishlist/wishlist-provider";
 import { routing } from "@/i18n/routing";
 import { catalogApi } from "@/lib/api/catalog";
 import { localizeStorefrontHref } from "@/lib/catalog/hrefs";
@@ -113,38 +114,40 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           {t("skipToContent")}
         </a>
         <CommerceProvider locale={locale}>
-          <div className="min-h-screen overflow-x-clip pb-20 lg:pb-0">
-            <AnnouncementBar
-              href={
-                shell?.announcement.href
-                  ? localizeStorefrontHref(shell.announcement.href, locale)
-                  : undefined
-              }
-              text={shell?.announcement.text}
-            />
-            {shellError && process.env.NODE_ENV === "development" ? (
-              <div
-                className="bg-sale-amber px-4 py-2 text-center text-xs font-bold text-deep-indigo"
-                role="status"
-              >
-                {tErrors("shellFallback")}
-              </div>
-            ) : null}
-            <Header locale={locale} shell={shell} />
-            <main id="main-content">{children}</main>
-            <Footer locale={locale} shell={shell} />
-            <MobileTabBar
-              labels={{
-                label: tMobile("label"),
-                home: tMobile("home"),
-                categories: tMobile("categories"),
-                cart: tMobile("cart"),
-                account: tMobile("account"),
-                cartCount: tMobile("cartCount", { count: "{count}" }),
-              }}
-              locale={locale}
-            />
-          </div>
+          <WishlistProvider locale={locale}>
+            <div className="min-h-screen overflow-x-clip pb-20 lg:pb-0">
+              <AnnouncementBar
+                href={
+                  shell?.announcement.href
+                    ? localizeStorefrontHref(shell.announcement.href, locale)
+                    : undefined
+                }
+                text={shell?.announcement.text}
+              />
+              {shellError && process.env.NODE_ENV === "development" ? (
+                <div
+                  className="bg-sale-amber px-4 py-2 text-center text-xs font-bold text-deep-indigo"
+                  role="status"
+                >
+                  {tErrors("shellFallback")}
+                </div>
+              ) : null}
+              <Header locale={locale} shell={shell} />
+              <main id="main-content">{children}</main>
+              <Footer locale={locale} shell={shell} />
+              <MobileTabBar
+                labels={{
+                  label: tMobile("label"),
+                  home: tMobile("home"),
+                  categories: tMobile("categories"),
+                  cart: tMobile("cart"),
+                  account: tMobile("account"),
+                  cartCount: tMobile("cartCount", { count: "{count}" }),
+                }}
+                locale={locale}
+              />
+            </div>
+          </WishlistProvider>
         </CommerceProvider>
       </body>
     </html>

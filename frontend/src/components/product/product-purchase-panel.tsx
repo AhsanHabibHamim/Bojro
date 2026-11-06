@@ -4,6 +4,7 @@ import { Check, Lightning, Minus, Package, Plus, ShoppingCart, Star } from "@pho
 import { useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import type { AppLocale } from "@/i18n/routing";
 import type { ProductDetail, ProductVariant } from "@/lib/catalog/types";
 import { formatNumber, formatOneDecimal } from "@/lib/format-number";
@@ -24,6 +25,9 @@ export type PurchaseLabels = {
   added: string;
   addError: string;
   discount: string;
+  wishlistAdd: string;
+  wishlistRemove: string;
+  wishlistError: string;
 };
 
 export function findVariantForOption(
@@ -262,6 +266,17 @@ export function ProductPurchasePanel({
             </p>
           ) : null}
         </div>
+        <WishlistButton
+          className="mt-1 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-5 font-extrabold text-brand-purple"
+          labels={{
+            add: labels.wishlistAdd,
+            remove: labels.wishlistRemove,
+            error: labels.wishlistError,
+          }}
+          productId={product.id}
+          returnTo={`/${locale}/product/${encodeURIComponent(product.slug)}`}
+          showText
+        />
       </div>
 
       <div className="fixed right-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-3 z-40 rounded-2xl border border-brand-purple/15 bg-white/96 p-3 shadow-[0_-12px_34px_rgb(42_21_101/0.16)] backdrop-blur-xl lg:hidden">

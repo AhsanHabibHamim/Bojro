@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
-import { AccountClient } from "@/components/account/account-client";
+import { AccountLoginRoute } from "@/components/account/account-login-route";
 import type { AppLocale } from "@/i18n/routing";
 
-type AccountPageProps = { params: Promise<{ locale: AppLocale }> };
+type LoginPageProps = {
+  params: Promise<{ locale: AppLocale }>;
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+};
 
-export async function generateMetadata({ params }: AccountPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: LoginPageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "auth" });
   return {
@@ -16,12 +19,14 @@ export async function generateMetadata({ params }: AccountPageProps): Promise<Me
   };
 }
 
-export default async function AccountPage({ params }: AccountPageProps) {
+export default async function LoginPage({ params, searchParams }: LoginPageProps) {
   const { locale } = await params;
+  const query = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "auth" });
+  const returnTo = Array.isArray(query.returnTo) ? query.returnTo[0] : query.returnTo;
   return (
-    <AccountClient
+    <AccountLoginRoute
       isDevelopment={process.env.NODE_ENV === "development"}
       labels={{
         title: t("title"),
@@ -36,10 +41,7 @@ export default async function AccountPage({ params }: AccountPageProps) {
           logout: t("signedIn.logout"),
           loggingOut: t("signedIn.loggingOut"),
         },
-        available: {
-          title: t("available.title"),
-          description: t("available.description"),
-        },
+        available: { title: t("available.title"), description: t("available.description") },
         otp: {
           tab: t("otp.tab"),
           title: t("otp.title"),
@@ -72,6 +74,8 @@ export default async function AccountPage({ params }: AccountPageProps) {
         security: t("security"),
         genericError: t("genericError"),
       }}
+      locale={locale}
+      returnTo={returnTo ?? null}
     />
   );
 }

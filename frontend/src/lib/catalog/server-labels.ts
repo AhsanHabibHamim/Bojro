@@ -9,7 +9,9 @@ export async function getProductCardLabels(locale: AppLocale): Promise<ProductCa
   const t = await getTranslations({ locale, namespace: "catalog.card" });
   return {
     viewProduct: t("viewProduct"),
-    wishlistUnavailable: t("wishlistUnavailable"),
+    wishlistAdd: t("wishlistAdd"),
+    wishlistRemove: t("wishlistRemove"),
+    wishlistError: t("wishlistError"),
     reviews: t("reviews"),
     inStock: t("inStock"),
     lowStock: t("lowStock"),

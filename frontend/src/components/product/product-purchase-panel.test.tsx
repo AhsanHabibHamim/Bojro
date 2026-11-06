@@ -77,6 +77,9 @@ const labels: PurchaseLabels = {
   added: "Added",
   addError: "Error",
   discount: "Save {percent}%",
+  wishlistAdd: "Save to wishlist",
+  wishlistRemove: "Remove from wishlist",
+  wishlistError: "Wishlist error",
 };
 
 function Harness() {

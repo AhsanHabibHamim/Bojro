@@ -24,7 +24,9 @@ const product: ProductCardDto = {
 
 const labels: ProductCardLabels = {
   viewProduct: "View product",
-  wishlistUnavailable: "Unavailable",
+  wishlistAdd: "Add to wishlist",
+  wishlistRemove: "Remove from wishlist",
+  wishlistError: "Wishlist error",
   reviews: "reviews",
   inStock: "In stock",
   lowStock: "Low stock",
@@ -50,6 +52,13 @@ describe("ProductCard", () => {
   it("formats the same integer poisha with Bangla numerals", () => {
     render(<ProductCard labels={labels} locale="bn" product={product} />);
     expect(screen.getByText("৳১,২৫০.৫")).toBeVisible();
+  });
+
+  it("keeps the wishlist control visible with a 44px touch target", () => {
+    render(<ProductCard labels={labels} locale="en" product={product} />);
+    const wishlist = screen.getByRole("link", { name: "Add to wishlist" });
+    expect(wishlist).toHaveClass("size-11");
+    expect(wishlist.parentElement).not.toHaveClass("opacity-0");
   });
 
   it("quick-adds the API default variant instead of inventing a selection", async () => {

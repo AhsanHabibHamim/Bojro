@@ -30,11 +30,13 @@ import type {
   PlaceOrderRequest,
   PlaceOrderResponse,
   SessionResponse,
+  SessionUser,
   TrackOrderRequest,
   TrackingResponse,
 } from "@/lib/commerce/types";
 
 type PendingAction = "bootstrap" | "cart" | "auth" | "coupon" | "shipping" | "checkout" | null;
+type ResourceStatus = "idle" | "loading" | "ready" | "error";
 
 type CommerceErrors = {
   session: CommerceError | null;
@@ -56,10 +58,14 @@ type CommerceContextValue = CommerceSnapshot & {
   isLoading: boolean;
   isBootstrapping: boolean;
   isReady: boolean;
+  isSessionReady: boolean;
   isCartMutating: boolean;
+  sessionStatus: ResourceStatus;
+  cartStatus: ResourceStatus;
   pendingAction: PendingAction;
   errors: CommerceErrors;
   bootstrap: () => Promise<void>;
+  refreshSession: () => Promise<SessionResponse>;
   refreshCart: () => Promise<CartResponse>;
   addItem: (variantId: string, quantity: number) => Promise<CartResponse>;
   updateItem: (itemId: string, quantity: number) => Promise<CartResponse>;
@@ -71,6 +77,7 @@ type CommerceContextValue = CommerceSnapshot & {
   verifyOtp: (input: OtpVerification) => Promise<SessionResponse>;
   loginWithEmail: (input: EmailLogin) => Promise<SessionResponse>;
   logout: () => Promise<void>;
+  patchSessionUser: (patch: Partial<Pick<SessionUser, "name" | "phone" | "email">>) => void;
   getDivisions: (signal?: AbortSignal) => Promise<GeoOption[]>;
   getDistricts: (divisionId: string, signal?: AbortSignal) => Promise<GeoOption[]>;
   getUpazilas: (districtId: string, signal?: AbortSignal) => Promise<GeoOption[]>;
@@ -89,6 +96,10 @@ function commerceError(error: unknown): CommerceError {
     : new CommerceError("Something interrupted this request. Please try again.");
 }
 
+function sessionPrincipal(session: SessionResponse | null): string {
+  return session?.authenticated && session.user ? `user:${session.user.id}` : "guest";
+}
+
 export function CommerceProvider({
   children,
   locale,
@@ -102,8 +113,9 @@ export function CommerceProvider({
   autoBootstrap?: boolean;
   initialSnapshot?: Partial<CommerceSnapshot>;
 }) {
-  const hasInitialSnapshot =
-    initialSnapshot?.session !== undefined && initialSnapshot?.cart !== undefined;
+  const hasInitialSession = initialSnapshot?.session !== undefined;
+  const hasInitialCart = initialSnapshot?.cart !== undefined;
+  const hasInitialSnapshot = hasInitialSession && hasInitialCart;
   const startsBootstrapping = autoBootstrap && !hasInitialSnapshot;
   const [api] = useState<CommerceApi>(() => client ?? new CommerceClient());
   const [session, setSession] = useState<SessionResponse | null>(initialSnapshot?.session ?? null);
@@ -115,7 +127,13 @@ export function CommerceProvider({
     startsBootstrapping ? "bootstrap" : null,
   );
   const [isBootstrapping, setIsBootstrapping] = useState(startsBootstrapping);
-  const [isReady, setIsReady] = useState(!startsBootstrapping);
+  const [isReady, setIsReady] = useState(hasInitialCart);
+  const [sessionStatus, setSessionStatus] = useState<ResourceStatus>(
+    hasInitialSession ? "ready" : startsBootstrapping ? "loading" : "idle",
+  );
+  const [cartStatus, setCartStatus] = useState<ResourceStatus>(
+    hasInitialCart ? "ready" : startsBootstrapping ? "loading" : "idle",
+  );
   const [isCartMutating, setIsCartMutating] = useState(false);
   const [errors, setErrors] = useState<CommerceErrors>({
     session: null,
@@ -125,28 +143,13 @@ export function CommerceProvider({
     checkout: null,
   });
   const bootstrapPromiseRef = useRef<Promise<void> | null>(null);
-  const readyRef = useRef(!startsBootstrapping);
+  const readyRef = useRef(hasInitialCart);
   const cartRef = useRef<CartResponse | null>(initialSnapshot?.cart ?? null);
+  const sessionRef = useRef<SessionResponse | null>(initialSnapshot?.session ?? null);
+  const acceptedSessionRef = useRef(hasInitialSession);
   const cartEpochRef = useRef(0);
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve());
   const queuedMutationsRef = useRef(0);
-
-  useEffect(() => {
-    api.setCsrfListener(setCsrf);
-    const initialCsrf = initialSnapshot?.session?.csrf_token ?? initialSnapshot?.cart?.csrf_token;
-    if (initialCsrf) api.setCsrfToken(initialCsrf);
-  }, [api, initialSnapshot?.cart?.csrf_token, initialSnapshot?.session?.csrf_token]);
-
-  const acceptSession = useCallback(
-    (nextSession: SessionResponse) => {
-      setSession(nextSession);
-      setCsrf(nextSession.csrf_token);
-      api.setCsrfToken(nextSession.csrf_token);
-      setErrors((current) => ({ ...current, session: null }));
-      return nextSession;
-    },
-    [api],
-  );
 
   const markReady = useCallback((ready: boolean) => {
     readyRef.current = ready;
@@ -156,7 +159,12 @@ export function CommerceProvider({
   const acceptCart = useCallback(
     (nextCart: CartResponse, epoch = cartEpochRef.current) => {
       const current = cartRef.current;
-      if (epoch !== cartEpochRef.current) return current ?? nextCart;
+      if (epoch !== cartEpochRef.current) {
+        throw new CommerceError("The signed-in account changed.", {
+          status: 409,
+          code: "SESSION_PRINCIPAL_CHANGED",
+        });
+      }
       if (current && current.cart_id === nextCart.cart_id && nextCart.version < current.version) {
         return current;
       }
@@ -165,29 +173,108 @@ export function CommerceProvider({
       setCsrf(nextCart.csrf_token);
       api.setCsrfToken(nextCart.csrf_token);
       setErrors((current) => ({ ...current, cart: null, cartMutation: null }));
+      setCartStatus("ready");
       return nextCart;
     },
     [api],
   );
+
+  const commitSession = useCallback(
+    (nextSession: SessionResponse) => {
+      sessionRef.current = nextSession;
+      setSession(nextSession);
+      setCsrf(nextSession.csrf_token || null);
+      api.setCsrfToken(nextSession.csrf_token || null);
+      setErrors((current) => ({ ...current, session: null }));
+      setSessionStatus("ready");
+      return nextSession;
+    },
+    [api],
+  );
+
+  const loadCartForPrincipal = useCallback(
+    async (epoch: number) => {
+      await mutationQueueRef.current.catch(() => undefined);
+      try {
+        const accepted = acceptCart(await api.cart(locale), epoch);
+        if (epoch === cartEpochRef.current) markReady(true);
+        return accepted;
+      } catch (error) {
+        if (epoch === cartEpochRef.current) {
+          setCartStatus("error");
+          markReady(false);
+          setErrors((current) => ({ ...current, cart: commerceError(error) }));
+        }
+        throw error;
+      }
+    },
+    [acceptCart, api, locale, markReady],
+  );
+
+  const acceptSession = useCallback(
+    (nextSession: SessionResponse) => {
+      const previousPrincipal = sessionPrincipal(sessionRef.current);
+      const nextPrincipal = sessionPrincipal(nextSession);
+      const changed = acceptedSessionRef.current && previousPrincipal !== nextPrincipal;
+      acceptedSessionRef.current = true;
+      commitSession(nextSession);
+      if (changed) {
+        const epoch = ++cartEpochRef.current;
+        cartRef.current = null;
+        setCart(null);
+        setCartStatus("loading");
+        markReady(false);
+        setErrors((current) => ({ ...current, cart: null, cartMutation: null }));
+        void loadCartForPrincipal(epoch).catch(() => undefined);
+      }
+      return nextSession;
+    },
+    [commitSession, loadCartForPrincipal, markReady],
+  );
+
+  useEffect(() => {
+    api.setCsrfListener(setCsrf);
+    api.setSessionListener(acceptSession);
+    const initialCsrf = initialSnapshot?.session?.csrf_token ?? initialSnapshot?.cart?.csrf_token;
+    if (initialCsrf) api.setCsrfToken(initialCsrf);
+  }, [acceptSession, api, initialSnapshot?.cart?.csrf_token, initialSnapshot?.session?.csrf_token]);
+
+  const refreshSession = useCallback(async () => {
+    setSessionStatus("loading");
+    setErrors((current) => ({ ...current, session: null }));
+    try {
+      return acceptSession(await api.session());
+    } catch (error) {
+      const normalized = commerceError(error);
+      if (normalized.code === "SESSION_PRINCIPAL_CHANGED" && sessionRef.current) {
+        return sessionRef.current;
+      }
+      setSessionStatus("error");
+      setErrors((current) => ({ ...current, session: normalized }));
+      throw normalized;
+    }
+  }, [acceptSession, api]);
 
   const bootstrap = useCallback(() => {
     if (bootstrapPromiseRef.current) return bootstrapPromiseRef.current;
     const epoch = cartEpochRef.current;
     setIsBootstrapping(true);
     setPendingAction("bootstrap");
-    markReady(false);
+    setCartStatus("loading");
+    if (!hasInitialCart) markReady(false);
     let cartLoaded = false;
     const task = (async () => {
       try {
-        acceptSession(await api.session());
-      } catch (error) {
-        setErrors((current) => ({ ...current, session: commerceError(error) }));
-      }
+        await refreshSession();
+      } catch {}
       try {
         acceptCart(await api.cart(locale), epoch);
         cartLoaded = epoch === cartEpochRef.current;
       } catch (error) {
-        setErrors((current) => ({ ...current, cart: commerceError(error) }));
+        if (epoch === cartEpochRef.current) {
+          setCartStatus("error");
+          setErrors((current) => ({ ...current, cart: commerceError(error) }));
+        }
       }
     })();
     const tracked = task.finally(() => {
@@ -199,7 +286,7 @@ export function CommerceProvider({
     });
     bootstrapPromiseRef.current = tracked;
     return tracked;
-  }, [acceptCart, acceptSession, api, locale, markReady]);
+  }, [acceptCart, api, hasInitialCart, locale, markReady, refreshSession]);
 
   useEffect(() => {
     if (!autoBootstrap || readyRef.current) return;
@@ -219,7 +306,10 @@ export function CommerceProvider({
         .session()
         .then(acceptSession)
         .catch((error: unknown) => {
-          setErrors((current) => ({ ...current, session: commerceError(error) }));
+          const normalized = commerceError(error);
+          if (normalized.code === "SESSION_PRINCIPAL_CHANGED") return;
+          setSessionStatus("error");
+          setErrors((current) => ({ ...current, session: normalized }));
         });
     }, delay);
     return () => window.clearTimeout(timer);
@@ -243,7 +333,11 @@ export function CommerceProvider({
       return accepted;
     } catch (error) {
       const normalized = commerceError(error);
-      setErrors((current) => ({ ...current, cart: normalized }));
+      if (epoch === cartEpochRef.current) {
+        setCartStatus("error");
+        if (!cartRef.current) markReady(false);
+        setErrors((current) => ({ ...current, cart: normalized }));
+      }
       throw normalized;
     }
   }, [acceptCart, api, locale, markReady]);
@@ -266,7 +360,9 @@ export function CommerceProvider({
             return acceptCart(await request(), epoch);
           } catch (error) {
             const normalized = commerceError(error);
-            setErrors((current) => ({ ...current, cartMutation: normalized }));
+            if (epoch === cartEpochRef.current) {
+              setErrors((current) => ({ ...current, cartMutation: normalized }));
+            }
             throw normalized;
           }
         });
@@ -323,10 +419,7 @@ export function CommerceProvider({
       setPendingAction("auth");
       setErrors((current) => ({ ...current, auth: null }));
       try {
-        const nextSession = acceptSession(await request());
-        cartEpochRef.current += 1;
-        await refreshCart();
-        return nextSession;
+        return acceptSession(await request());
       } catch (error) {
         const normalized = commerceError(error);
         setErrors((current) => ({ ...current, auth: normalized }));
@@ -335,7 +428,7 @@ export function CommerceProvider({
         setPendingAction(null);
       }
     },
-    [acceptSession, refreshCart],
+    [acceptSession],
   );
 
   const requestOtp = useCallback(
@@ -363,15 +456,18 @@ export function CommerceProvider({
     [api, completeLogin],
   );
   const logout = useCallback(async () => {
-    await mutationQueueRef.current;
     setPendingAction("auth");
     setErrors((current) => ({ ...current, auth: null }));
     try {
       await api.logout();
-      const nextSession = await api.session();
-      acceptSession(nextSession);
-      cartEpochRef.current += 1;
-      await refreshCart();
+      acceptSession({
+        authenticated: false,
+        user: null,
+        can_refresh: false,
+        access_expires_at: null,
+        csrf_token: "",
+        merge_warnings: [],
+      });
     } catch (error) {
       const normalized = commerceError(error);
       setErrors((current) => ({ ...current, auth: normalized }));
@@ -379,7 +475,16 @@ export function CommerceProvider({
     } finally {
       setPendingAction(null);
     }
-  }, [acceptSession, api, refreshCart]);
+  }, [acceptSession, api]);
+
+  const patchSessionUser = useCallback(
+    (patch: Partial<Pick<SessionUser, "name" | "phone" | "email">>) => {
+      const current = sessionRef.current;
+      if (!current?.authenticated || !current.user) return;
+      commitSession({ ...current, user: { ...current.user, ...patch } });
+    },
+    [commitSession],
+  );
   const getDivisions = useCallback(
     (signal?: AbortSignal) => api.divisions(locale, signal),
     [api, locale],
@@ -463,10 +568,14 @@ export function CommerceProvider({
       isLoading: isBootstrapping || isCartMutating || pendingAction !== null,
       isBootstrapping,
       isReady,
+      isSessionReady: sessionStatus === "ready",
       isCartMutating,
+      sessionStatus,
+      cartStatus,
       pendingAction,
       errors,
       bootstrap,
+      refreshSession,
       refreshCart,
       addItem,
       updateItem,
@@ -478,6 +587,7 @@ export function CommerceProvider({
       verifyOtp,
       loginWithEmail,
       logout,
+      patchSessionUser,
       getDivisions,
       getDistricts,
       getUpazilas,
@@ -504,12 +614,16 @@ export function CommerceProvider({
       isBootstrapping,
       isCartMutating,
       isReady,
+      sessionStatus,
+      cartStatus,
       loginWithEmail,
       locale,
       logout,
+      patchSessionUser,
       pendingAction,
       placeOrder,
       refreshCart,
+      refreshSession,
       removeCoupon,
       removeItem,
       requestOtp,

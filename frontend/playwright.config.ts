@@ -13,11 +13,22 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      grepInvert: /@mobile-dashboard/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "mobile-account-dashboard",
+      grep: /@mobile-dashboard/,
+      use: { ...devices["Pixel 7"] },
+    },
+  ],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
     : {
-        command: "pnpm dev",
+        command: "NEXT_PUBLIC_E2E_STORAGE_MOCK=1 pnpm dev",
         url: "http://localhost:3000/en",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

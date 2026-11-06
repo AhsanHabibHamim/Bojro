@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "./schema";
-import { mapProductCard, mapProductList, targetToHref } from "./catalog-adapters";
+import { mapProductCard, mapProductList, mapReview, targetToHref } from "./catalog-adapters";
 
 const card: components["schemas"]["ProductCard"] = {
   id: "018f0a43-6dc9-7d0a-a779-6c23ee9b3792",
@@ -64,5 +64,21 @@ describe("generated catalog contract adapters", () => {
     expect(page).toMatchObject({ next_cursor: "next", total: 40 });
     expect(targetToHref("category:groceries")).toBe("/category/groceries");
     expect(targetToHref("collection:deals")).toBe("/shop?sort=discount");
+  });
+
+  it("is ready for generated public review photo alt metadata", () => {
+    const review = {
+      id: "review-1",
+      author: "Asha",
+      rating: 5,
+      body: "Useful review body",
+      photos: [{ url: "/review.webp", alt_text: "Charger beside its box" }],
+      is_verified_purchase: true,
+      created_at: "2026-11-07T00:00:00Z",
+    } as unknown as components["schemas"]["ReviewItem"];
+
+    expect(mapReview(review).photos).toEqual([
+      { url: "/review.webp", alt: "Charger beside its box" },
+    ]);
   });
 });

@@ -21,7 +21,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
-  `connect-src 'self' ${apiOrigin}`,
+  `connect-src 'self' ${apiOrigin} https://api.cloudinary.com`,
   "manifest-src 'self'",
   "worker-src 'self' blob:",
   ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
@@ -50,6 +50,20 @@ const nextConfig: NextConfig = {
         hostname: "placehold.co",
         pathname: "/800x800/**",
       },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+      ...(process.env.NEXT_PUBLIC_E2E_STORAGE_MOCK === "1"
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: "bojro-storage-mock.invalid",
+              pathname: "/**",
+            },
+          ]
+        : []),
     ],
   },
   async headers() {

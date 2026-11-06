@@ -13,8 +13,43 @@ function collectLeafKeys(value: unknown, prefix = ""): string[] {
   );
 }
 
+function placeholders(message: string): string[] {
+  const names = new Set<string>();
+  let depth = 0;
+  for (let index = 0; index < message.length; index += 1) {
+    if (message[index] === "{") {
+      if (depth === 0) {
+        const match = message.slice(index + 1).match(/^([A-Za-z][A-Za-z0-9_]*)\s*[,}]/);
+        if (match?.[1]) names.add(match[1]);
+      }
+      depth += 1;
+    } else if (message[index] === "}") {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  return [...names].sort();
+}
+
+function collectMessages(value: unknown, prefix = ""): Record<string, string> {
+  if (typeof value === "string") return { [prefix]: value };
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, nestedValue]) =>
+      Object.entries(collectMessages(nestedValue, prefix ? `${prefix}.${key}` : key)),
+    ),
+  );
+}
+
 describe("message catalogs", () => {
   it("keeps Bangla and English message coverage in sync", () => {
     expect(collectLeafKeys(bnMessages).sort()).toEqual(collectLeafKeys(enMessages).sort());
+  });
+
+  it("keeps ICU placeholder names in sync across locales", () => {
+    const bn = collectMessages(bnMessages);
+    const en = collectMessages(enMessages);
+    for (const key of Object.keys(en)) {
+      expect(placeholders(bn[key] ?? ""), key).toEqual(placeholders(en[key]!));
+    }
   });
 });

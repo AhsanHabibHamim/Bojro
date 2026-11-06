@@ -1,4 +1,6 @@
-import { Eye, Heart, Star } from "@phosphor-icons/react/dist/ssr";
+import { Eye, Star } from "@phosphor-icons/react/dist/ssr";
+
+import { WishlistButton } from "@/components/wishlist/wishlist-button";
 
 import type { AppLocale } from "@/i18n/routing";
 import type { ProductCard as ProductCardDto } from "@/lib/catalog/types";
@@ -10,7 +12,9 @@ import { QuickAddButton } from "./quick-add-button";
 
 export type ProductCardLabels = {
   viewProduct: string;
-  wishlistUnavailable: string;
+  wishlistAdd: string;
+  wishlistRemove: string;
+  wishlistError: string;
   reviews: string;
   inStock: string;
   lowStock: string;
@@ -80,23 +84,24 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
         ) : null}
       </a>
 
-      <div className="absolute top-3 right-3 z-10 flex translate-x-12 flex-col gap-2 opacity-0 transition duration-300 group-focus-within:translate-x-0 group-focus-within:opacity-100 group-hover:translate-x-0 group-hover:opacity-100">
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 opacity-100 transition duration-300">
         <a
           aria-label={`${labels.viewProduct}: ${product.name}`}
-          className="inline-grid size-10 place-items-center rounded-full bg-white text-brand-purple shadow-lg transition-colors hover:bg-brand-purple hover:text-white"
+          className="inline-grid size-11 place-items-center rounded-full bg-white text-brand-purple shadow-lg transition-colors hover:bg-brand-purple hover:text-white"
           href={productHref}
         >
           <Eye aria-hidden size={20} weight="duotone" />
         </a>
-        <button
-          aria-label={labels.wishlistUnavailable}
-          className="inline-grid size-10 cursor-not-allowed place-items-center rounded-full bg-white text-muted opacity-80 shadow-lg"
-          disabled
-          title={labels.wishlistUnavailable}
-          type="button"
-        >
-          <Heart aria-hidden size={20} weight="duotone" />
-        </button>
+        <WishlistButton
+          className="inline-grid size-11 place-items-center rounded-full bg-white text-brand-purple shadow-lg transition-colors hover:bg-brand-purple hover:text-white"
+          labels={{
+            add: labels.wishlistAdd,
+            remove: labels.wishlistRemove,
+            error: labels.wishlistError,
+          }}
+          productId={product.id}
+          returnTo={productHref}
+        />
       </div>
 
       <div
