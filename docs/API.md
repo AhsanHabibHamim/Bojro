@@ -59,3 +59,14 @@ All `/api/v1/account/*` operations require an active, unrevoked, non-guest custo
 - Support endpoints expose owned ticket threads, hide internal messages, and require idempotency for ticket/message creation.
 
 Mutable revisioned resources return strong `ETag` values. Missing `If-Match` is `428`; a stale validator is `412`. Cross-owner and missing resources use the same response semantics.
+
+## Admin API
+
+`/api/v1/admin/*` uses a separate JWT audience, cookie names, refresh channel, CSRF token, rate limits, and optional encrypted TOTP/recovery flow. Customer credentials and sessions cannot access admin routes.
+
+- Dashboard and revisioned catalog/category/brand/media/CSV endpoints manage stock through immutable inventory movements.
+- Order endpoints return API-derived legal actions, support transaction-safe state changes, manual/mock shipment booking, notes, payment history, and snapshot invoice/packing PDFs.
+- Customer, review moderation, coupon, flash sale, homepage/banner, page/blog, typed settings, media, and audit endpoints use ETags plus replay-safe idempotency.
+- Public blog/static-page rendering consumes structured rich-document blocks; arbitrary HTML, scripts, and unsafe links are rejected.
+
+Admin mutations append redacted audit records and durable revalidation/outbox rows in the same transaction. The ARQ worker performs external delivery and cleanup outside database locks.

@@ -17,6 +17,10 @@
 - Revisioned customer resources use strong ETags, mandatory If-Match, and idempotency keys for ambiguous creates/messages.
 - Review photos use server-issued owned upload IDs and verified provider metadata; arbitrary final URLs are rejected.
 - Customer support queries exclude internal messages and internal activity metadata.
+- Admin and customer tokens/cookies use separate audiences, names, paths, session kinds, and CSRF values.
+- TOTP seeds use versioned AES-GCM encryption keys; recovery codes are hashed and timestep replay is rejected.
+- CSV imports use fixed columns, size/row limits, full validation-before-commit, and spreadsheet-formula neutralization on export.
+- Audit diffs redact sensitive keys/PII, and database triggers maintain tamper-evident hashes and append-only behavior.
 
 ## Pending Feature Reviews
 

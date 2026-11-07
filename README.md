@@ -27,6 +27,7 @@ The API container applies migrations and seeds idempotently on startup. Open:
 - Checkout: <http://localhost:3000/en/checkout>
 - Account login: <http://localhost:3000/en/account>
 - Order tracking: <http://localhost:3000/en/track-order>
+- Admin login: <http://localhost:3000/en/admin/login>
 
 ## Local Development
 
@@ -66,6 +67,8 @@ PLAYWRIGHT_BASE_URL=http://localhost:3000 PLAYWRIGHT_SKIP_WEBSERVER=1 pnpm test:
 ```
 
 The example stack uses the explicit development-only mock OTP code from `infra/.env`. Production rejects the mock provider and requires an approved notification adapter.
+
+The admin account is created only when `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` are set. The Compose stack also runs the ARQ worker for media cleanup, catalog/home revalidation outbox delivery, and courier reconciliation.
 
 Install local Git hooks with `uv tool install pre-commit && pre-commit install`.
 

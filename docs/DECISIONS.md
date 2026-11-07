@@ -83,3 +83,21 @@
 **Decision:** Reviews reference owned upload records, never arbitrary customer-supplied URLs. Development/E2E uses an explicitly enabled signed mock provider; production rejects mock storage until the Cloudinary provider phase is configured.
 
 **Reason:** Structured assets enforce ownership, type/size limits, lifecycle cleanup, moderation, and signature verification without proxying image bytes through FastAPI.
+
+## 2026-11-07: Separate admin security domain
+
+**Decision:** Admin access uses distinct token audiences/types, cookie names/paths, refresh sessions, CSRF state, rate limits, and optional encrypted TOTP/recovery codes.
+
+**Reason:** An authenticated customer must never become an admin through token confusion, shared refresh rotation, or frontend route mistakes. Server-side role/session checks remain authoritative.
+
+## 2026-11-07: Transactional audit and outbox
+
+**Decision:** Every admin aggregate mutation commits its revision, idempotency result, minimal redacted diff, inventory movement where relevant, audit event, and revalidation/outbox row atomically. Workers perform network calls after commit.
+
+**Reason:** External outages must not roll back valid business changes or leave catalog caches silently stale, while retries must never duplicate admin effects.
+
+## 2026-11-07: Operational PDFs are not fiscal invoices
+
+**Decision:** Generate immutable order-snapshot invoice and packing-slip PDFs for operations and label them non-fiscal.
+
+**Reason:** A production tax/fiscal invoice requires jurisdiction-specific legal review beyond a generic commerce implementation.

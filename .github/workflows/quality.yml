@@ -108,6 +108,12 @@ jobs:
   compose-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      SEED_ADMIN_EMAIL: admin-e2e@bojro.com.bd
+      SEED_ADMIN_PASSWORD: "E2E-only-admin-password-47!"
+      E2E_ADMIN_EMAIL: admin-e2e@bojro.com.bd
+      E2E_ADMIN_PASSWORD: "E2E-only-admin-password-47!"
+      E2E_ADMIN_ORDER_NUMBER: BJ-2099-900002
     steps:
       - uses: actions/checkout@v4
 
@@ -149,6 +155,10 @@ jobs:
           PLAYWRIGHT_SKIP_WEBSERVER: "1"
           E2E_OTP_CODE: "123456"
           E2E_API_URL: http://localhost:8000
+          E2E_ADMIN_EMAIL: ${{ env.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ env.E2E_ADMIN_PASSWORD }}
+          E2E_ADMIN_ORDER_NUMBER: ${{ env.E2E_ADMIN_ORDER_NUMBER }}
+          NEXT_PUBLIC_E2E_STORAGE_MOCK: "1"
         run: pnpm --filter @bojro/frontend test:e2e
 
       - name: Upload Playwright report on failure

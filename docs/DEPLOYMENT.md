@@ -24,3 +24,7 @@ Production payment, courier, notification, storage, analytics, and LLM credentia
 Vercel preview domains cannot validate production cookie auth against Railway. Use paired custom staging domains such as `staging.bojro.com.bd` and `api-staging.bojro.com.bd`, or a same-origin BFF. Set four independent 32+ character secrets for JWT, guest identity, checkout quotes, and OTP HMAC; never reuse `APP_SECRET_KEY` for them. The mock OTP provider is development/test-only and production startup rejects it.
 
 `STORAGE_PROVIDER=mock` and `NEXT_PUBLIC_E2E_STORAGE_MOCK=true` are limited to local development and CI. Production must omit the public E2E flag and will fail closed until the Cloudinary provider credentials and verification adapter are delivered in the provider-integration phase.
+
+Run a separate Railway worker service with `arq app.workers.review_photos.WorkerSettings`. Production readiness should require its Redis health heartbeat. Configure independent `ADMIN_JWT_SECRET_KEY`, versioned `ADMIN_TOTP_KEYRING`, revalidation URL/secret, and a real storage/courier provider before enabling those features; local `mock` providers are rejected in production.
+
+Use `backend/scripts/bootstrap_admin.py` after migrations for an existing production database. It provisions only one environment-supplied admin and required system defaults; it never loads the demo catalog or rewrites an existing admin password.

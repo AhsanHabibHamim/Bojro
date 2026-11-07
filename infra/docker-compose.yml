@@ -40,14 +40,21 @@ services:
       APP_ENV: development
       APP_SECRET_KEY: ${APP_SECRET_KEY:-local-only-change-me-at-least-32-characters}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-jwt-secret-change-me-at-least-32-characters}
+      ADMIN_JWT_SECRET_KEY: ${ADMIN_JWT_SECRET_KEY:-local-admin-jwt-secret-change-me-at-least-32-characters}
       GUEST_IDENTITY_SECRET: ${GUEST_IDENTITY_SECRET:-local-guest-secret-change-me-at-least-32-characters}
       QUOTE_TOKEN_SECRET: ${QUOTE_TOKEN_SECRET:-local-quote-secret-change-me-at-least-32-characters}
       OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-local-otp-secret-change-me-at-least-32-characters}
       OTP_PROVIDER: ${OTP_PROVIDER:-mock}
       OTP_MOCK_CODE: ${OTP_MOCK_CODE:-123456}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      ADMIN_TOTP_ENCRYPTION_KEY: ${ADMIN_TOTP_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      ADMIN_TOTP_KEYRING: '${ADMIN_TOTP_KEYRING:-{"v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}'
+      ADMIN_TOTP_REQUIRED: ${ADMIN_TOTP_REQUIRED:-false}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-mock}
       STORAGE_MOCK_SECRET: ${STORAGE_MOCK_SECRET:-local-storage-mock-secret-change-me-32-characters}
+      COURIER_PROVIDER: ${COURIER_PROVIDER:-mock}
+      REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
+      REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bojro}:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/${POSTGRES_DB:-bojro}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: '["${FRONTEND_ORIGIN:-http://localhost:3000}"]'
@@ -70,6 +77,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/backend.Dockerfile
+    environment:
+      APP_ENV: development
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-local-only-change-me-at-least-32-characters}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-jwt-secret-change-me-at-least-32-characters}
+      ADMIN_JWT_SECRET_KEY: ${ADMIN_JWT_SECRET_KEY:-local-admin-jwt-secret-change-me-at-least-32-characters}
+      GUEST_IDENTITY_SECRET: ${GUEST_IDENTITY_SECRET:-local-guest-secret-change-me-at-least-32-characters}
+      QUOTE_TOKEN_SECRET: ${QUOTE_TOKEN_SECRET:-local-quote-secret-change-me-at-least-32-characters}
+      OTP_HMAC_SECRET: ${OTP_HMAC_SECRET:-local-otp-secret-change-me-at-least-32-characters}
+      ADMIN_TOTP_ENCRYPTION_KEY: ${ADMIN_TOTP_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}
+      ADMIN_TOTP_KEYRING: '${ADMIN_TOTP_KEYRING:-{"v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}'
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bojro}:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/${POSTGRES_DB:-bojro}
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-mock}
+      STORAGE_MOCK_SECRET: ${STORAGE_MOCK_SECRET:-local-storage-mock-secret-change-me-32-characters}
+      COURIER_PROVIDER: ${COURIER_PROVIDER:-mock}
+      REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
+      REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
+    command: [".venv/bin/arq", "app.workers.review_photos.WorkerSettings"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
