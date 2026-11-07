@@ -17,6 +17,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     SmallInteger,
     String,
@@ -32,12 +33,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 from app.db.enums import (
+    AuthSessionKind,
     CartStatus,
+    CatalogImportStatus,
     CouponType,
     CourierProvider,
     HomepageSectionType,
+    MediaPurpose,
+    MediaState,
     MessageAuthor,
     OrderStatus,
+    OutboxStatus,
     PaymentMethod,
     PaymentRecordStatus,
     PaymentStatus,
@@ -99,6 +105,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    disabled_reason: Mapped[str | None] = mapped_column(String(500))
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revision: Mapped[int] = mapped_column(
         Integer, default=1, server_default=text("1"), nullable=False
     )
@@ -122,6 +131,7 @@ class AuthSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
         Index("ix_auth_sessions_user_expires", "user_id", "expires_at"),
         Index("ix_auth_sessions_family", "family_id"),
+        Index("ix_auth_sessions_user_kind_expires", "user_id", "kind", "expires_at"),
         Index(
             "ix_auth_sessions_active_expiry",
             "expires_at",
@@ -132,15 +142,87 @@ class AuthSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    kind: Mapped[AuthSessionKind] = mapped_column(
+        db_enum(AuthSessionKind, "auth_session_kind"),
+        default=AuthSessionKind.CUSTOMER,
+        server_default=text("'customer'"),
+        nullable=False,
+    )
     refresh_jti_hash: Mapped[str] = mapped_column(CHAR(64), unique=True, nullable=False)
     family_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_rotated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    absolute_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    mfa_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     user_agent_hash: Mapped[str | None] = mapped_column(CHAR(64))
     ip_prefix_hash: Mapped[str | None] = mapped_column(CHAR(64))
 
     user: Mapped[User] = relationship(back_populates="auth_sessions")
+
+
+class AdminTotpCredential(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "admin_totp_credentials"
+    __table_args__ = (
+        CheckConstraint(
+            "last_accepted_timestep IS NULL OR last_accepted_timestep >= 0",
+            name="timestep_nonnegative",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    encrypted_secret: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary(12), nullable=False)
+    key_id: Mapped[str] = mapped_column(
+        String(64), default="v1", server_default=text("'v1'"), nullable=False
+    )
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_accepted_timestep: Mapped[int | None] = mapped_column(BigInteger)
+
+    user: Mapped[User] = relationship()
+
+
+class AdminRecoveryCode(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "admin_recovery_codes"
+    __table_args__ = (Index("ix_admin_recovery_codes_user_unused", "user_id", "used_at"),)
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    code_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship()
+
+
+class AdminAuthChallenge(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "admin_auth_challenges"
+    __table_args__ = (
+        CheckConstraint("attempts >= 0 AND attempts <= 5", name="attempts_range"),
+        CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        Index("ix_admin_auth_challenges_expiry", "expires_at"),
+        Index("ix_admin_auth_challenges_user_created", "user_id", "created_at"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(CHAR(64), unique=True, nullable=False)
+    ip_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    user_agent_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default=text("0"), nullable=False
+    )
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship()
 
 
 class GeoDivision(UUIDPrimaryKeyMixin, Base):
@@ -290,11 +372,17 @@ class Category(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name_en: Mapped[str] = mapped_column(String(180), nullable=False)
     icon: Mapped[str | None] = mapped_column(String(120))
     image: Mapped[str | None] = mapped_column(Text)
+    image_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
     sort_order: Mapped[int] = mapped_column(
         "sort", Integer, default=0, server_default=text("0"), nullable=False
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
     parent: Mapped[Category | None] = relationship(
@@ -323,6 +411,15 @@ class Brand(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     slug: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    logo_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     products: Mapped[list[Product]] = relationship(back_populates="brand")
 
@@ -394,6 +491,9 @@ class Product(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     seo_title_en: Mapped[str | None] = mapped_column(String(255))
     seo_description_bn: Mapped[str | None] = mapped_column(String(320))
     seo_description_en: Mapped[str | None] = mapped_column(String(320))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     category: Mapped[Category] = relationship(back_populates="products")
     brand: Mapped[Brand | None] = relationship(back_populates="products")
@@ -459,6 +559,9 @@ class ProductVariant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     product: Mapped[Product] = relationship(back_populates="variants")
     images: Mapped[list[ProductImage]] = relationship(
@@ -481,6 +584,13 @@ class ProductImage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ),
         Index("ix_product_images_product_sort", "product_id", "sort"),
         Index("ix_product_images_variant_sort", "variant_id", "sort"),
+        UniqueConstraint(
+            "product_id",
+            "sort",
+            name="uq_product_images_product_sort",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
     )
 
     product_id: Mapped[UUID] = mapped_column(
@@ -491,8 +601,16 @@ class ProductImage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     )
     url: Mapped[str] = mapped_column(Text, nullable=False)
     alt: Mapped[str] = mapped_column(String(255), nullable=False)
+    alt_bn: Mapped[str | None] = mapped_column(String(255))
+    alt_en: Mapped[str | None] = mapped_column(String(255))
+    media_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
     sort_order: Mapped[int] = mapped_column(
         "sort", Integer, default=0, server_default=text("0"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
     product: Mapped[Product] = relationship(back_populates="images")
@@ -628,6 +746,9 @@ class Coupon(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     is_discoverable: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     @validates("code")
     def normalize_code(self, _key: str, value: str) -> str:
@@ -642,6 +763,7 @@ class FlashSale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("ends_at > starts_at", name="dates"),
         Index("ix_flash_sales_active_dates", "is_active", "starts_at", "ends_at"),
+        Index("ix_flash_sales_schedule", "is_active", "starts_at", "ends_at", "id"),
     )
 
     name_bn: Mapped[str] = mapped_column(String(180), nullable=False)
@@ -650,6 +772,9 @@ class FlashSale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_active: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
     items: Mapped[list[FlashSaleItem]] = relationship(
@@ -666,6 +791,7 @@ class FlashSaleItem(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         CheckConstraint("qty_limit > 0", name="qty_limit_positive"),
         CheckConstraint("sold_qty >= 0 AND sold_qty <= qty_limit", name="sold_qty_range"),
         Index("ix_flash_sale_items_sale_sold", "flash_sale_id", "sold_qty"),
+        Index("ix_flash_sale_items_variant_sale", "variant_id", "flash_sale_id"),
     )
 
     flash_sale_id: Mapped[UUID] = mapped_column(
@@ -745,6 +871,12 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     coupon_code: Mapped[str | None] = mapped_column(String(64))
     address_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
+    merchant_snapshot: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
     idempotency_key: Mapped[str | None] = mapped_column(String(128))
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
@@ -759,6 +891,9 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     payments: Mapped[list[Payment]] = relationship(back_populates="order")
     shipments: Mapped[list[Shipment]] = relationship(back_populates="order")
+    admin_notes: Mapped[list[OrderNote]] = relationship(
+        back_populates="order", cascade="all, delete-orphan"
+    )
     source_cart: Mapped[Cart | None] = relationship()
 
 
@@ -838,7 +973,7 @@ class IdempotencyRecord(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         UniqueConstraint("endpoint", "scope_hash", "idempotency_key"),
         CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
         CheckConstraint(
-            "(resource_kind IS NULL) = (resource_id IS NULL)",
+            "resource_id IS NULL OR resource_kind IS NOT NULL",
             name="resource_pair_complete",
         ),
         Index("ix_idempotency_records_expiry", "expires_at"),
@@ -856,6 +991,16 @@ class IdempotencyRecord(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     resource_kind: Mapped[str | None] = mapped_column(String(40))
     resource_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     response_status: Mapped[int | None] = mapped_column(SmallInteger)
+    response_body: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    response_headers: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    state: Mapped[str] = mapped_column(
+        String(24), default="processing", server_default=text("'processing'"), nullable=False
+    )
+    retention_class: Mapped[str] = mapped_column(
+        String(32), default="standard", server_default=text("'standard'"), nullable=False
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -946,6 +1091,7 @@ class Shipment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_shipments_order_created_at", "order_id", "created_at"),
         Index("ix_shipments_tracking_code", "tracking_code"),
         Index("ix_shipments_status_updated_at", "status", "updated_at"),
+        Index("ix_shipments_reconcile", "status", "updated_at"),
     )
 
     order_id: Mapped[UUID] = mapped_column(
@@ -964,8 +1110,32 @@ class Shipment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     raw: Mapped[dict[str, object]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
+    booking_idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(500))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     order: Mapped[Order] = relationship(back_populates="shipments")
+
+
+class OrderNote(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "order_notes"
+    __table_args__ = (Index("ix_order_notes_order_created_id", "order_id", "created_at", "id"),)
+
+    order_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    actor_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    customer_visible: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+
+    order: Mapped[Order] = relationship(back_populates="admin_notes")
+    actor: Mapped[User | None] = relationship()
 
 
 class Review(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -1268,6 +1438,12 @@ class Banner(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     subtitle_en: Mapped[str | None] = mapped_column(String(320))
     image_bn: Mapped[str] = mapped_column(Text, nullable=False)
     image_en: Mapped[str] = mapped_column(Text, nullable=False)
+    image_bn_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    image_en_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
     href: Mapped[str | None] = mapped_column(Text)
     sort_order: Mapped[int] = mapped_column(
         "sort", Integer, default=0, server_default=text("0"), nullable=False
@@ -1277,19 +1453,28 @@ class Banner(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
 
 class HomepageSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "homepage_sections"
     __table_args__ = (
         CheckConstraint('"order" >= 1 AND "order" <= 15', name="order_range"),
+        UniqueConstraint(
+            "order",
+            name="uq_homepage_sections_order",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
         Index("ix_homepage_sections_visible_order", "is_visible", "order"),
     )
 
     section_type: Mapped[HomepageSectionType] = mapped_column(
         "type", db_enum(HomepageSectionType, "homepage_section_type"), unique=True, nullable=False
     )
-    sort_order: Mapped[int] = mapped_column("order", SmallInteger, unique=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column("order", SmallInteger, nullable=False)
     is_visible: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
     )
@@ -1298,6 +1483,12 @@ class HomepageSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     content_en: Mapped[dict[str, object]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    schema_version: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
 
@@ -1310,8 +1501,27 @@ class StaticPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title_en: Mapped[str] = mapped_column(String(255), nullable=False)
     body_bn: Mapped[str] = mapped_column(Text, nullable=False)
     body_en: Mapped[str] = mapped_column(Text, nullable=False)
+    document_bn: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    document_en: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    document_version: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
     is_published: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    cover_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
     )
 
 
@@ -1320,6 +1530,196 @@ class SiteSetting(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     key: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
     value: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    schema_version: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+
+class BlogPost(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "blog_posts"
+    __table_args__ = (
+        Index("ix_blog_posts_published_at", "is_published", "published_at", "id"),
+        Index("ix_blog_posts_tags", "tags", postgresql_using="gin"),
+    )
+
+    slug: Mapped[str] = mapped_column(String(180), unique=True, nullable=False)
+    title_bn: Mapped[str] = mapped_column(String(255), nullable=False)
+    title_en: Mapped[str] = mapped_column(String(255), nullable=False)
+    excerpt_bn: Mapped[str | None] = mapped_column(String(500))
+    excerpt_en: Mapped[str | None] = mapped_column(String(500))
+    document_bn: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    document_en: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    document_version: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String(64)), default=list, server_default=text("'{}'::text[]"), nullable=False
+    )
+    cover_asset_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="RESTRICT")
+    )
+    is_published: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+
+class MediaAsset(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "media_assets"
+    __table_args__ = (
+        CheckConstraint("byte_size > 0 AND byte_size <= 10485760", name="byte_size_range"),
+        CheckConstraint(
+            "mime_type IN ('image/jpeg', 'image/png', 'image/webp')",
+            name="mime_type_allowed",
+        ),
+        CheckConstraint("width IS NULL OR (width >= 64 AND width <= 8000)", name="width_range"),
+        CheckConstraint("height IS NULL OR (height >= 64 AND height <= 8000)", name="height_range"),
+        CheckConstraint(
+            "width IS NULL OR height IS NULL OR width::bigint * height::bigint <= 40000000",
+            name="pixel_limit",
+        ),
+        UniqueConstraint("provider", "public_id", name="uq_media_assets_provider_public_id"),
+        Index("ix_media_assets_owner_purpose_created", "owner_id", "purpose", "created_at"),
+        Index(
+            "ix_media_assets_cleanup",
+            "state",
+            "cleanup_after",
+            postgresql_where=text("state IN ('pending', 'delete_pending')"),
+        ),
+    )
+
+    owner_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    purpose: Mapped[MediaPurpose] = mapped_column(
+        db_enum(MediaPurpose, "media_purpose"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    folder: Mapped[str] = mapped_column(String(255), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    provider_asset_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+    format: Mapped[str | None] = mapped_column(String(16))
+    state: Mapped[MediaState] = mapped_column(
+        db_enum(MediaState, "media_state"),
+        default=MediaState.PENDING,
+        server_default=text("'pending'"),
+        nullable=False,
+    )
+    signature_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    signature_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cleanup_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+    owner: Mapped[User] = relationship()
+
+
+class InventoryMovement(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "inventory_movements"
+    __table_args__ = (
+        CheckConstraint(
+            "reason = 'opening_balance' OR delta_on_hand <> 0 OR delta_reserved <> 0",
+            name="nonzero_delta",
+        ),
+        CheckConstraint("balance_on_hand >= 0", name="on_hand_nonnegative"),
+        CheckConstraint("balance_reserved >= 0", name="reserved_nonnegative"),
+        CheckConstraint("balance_reserved <= balance_on_hand", name="reserved_within_on_hand"),
+        Index("ix_inventory_movements_variant_created_id", "variant_id", "created_at", "id"),
+    )
+
+    variant_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("product_variants.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    actor_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    order_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
+    )
+    catalog_import_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("catalog_imports.id", ondelete="SET NULL")
+    )
+    reason: Mapped[str] = mapped_column(String(160), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(500))
+    delta_on_hand: Mapped[int] = mapped_column(Integer, nullable=False)
+    delta_reserved: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    balance_on_hand: Mapped[int] = mapped_column(Integer, nullable=False)
+    balance_reserved: Mapped[int] = mapped_column(Integer, nullable=False)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True)
+
+    variant: Mapped[ProductVariant] = relationship()
+    actor: Mapped[User | None] = relationship()
+    order: Mapped[Order | None] = relationship()
+
+
+class CatalogImport(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "catalog_imports"
+    __table_args__ = (Index("ix_catalog_imports_actor_created", "actor_id", "created_at"),)
+
+    actor_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    file_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[CatalogImportStatus] = mapped_column(
+        db_enum(CatalogImportStatus, "catalog_import_status"), nullable=False
+    )
+    row_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    report: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    actor: Mapped[User] = relationship()
+
+
+class OutboxEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        UniqueConstraint("deduplication_key", name="uq_outbox_events_deduplication_key"),
+        Index("ix_outbox_events_delivery", "status", "next_attempt_at", "created_at"),
+    )
+
+    topic: Mapped[str] = mapped_column(String(160), nullable=False)
+    deduplication_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[OutboxStatus] = mapped_column(
+        db_enum(OutboxStatus, "outbox_status"),
+        default=OutboxStatus.PENDING,
+        server_default=text("'pending'"),
+        nullable=False,
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(500))
 
 
 class AuditLog(UUIDPrimaryKeyMixin, Base):
@@ -1328,6 +1728,8 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
         Index("ix_audit_logs_actor_at", "actor", "at"),
         Index("ix_audit_logs_entity_entity_id_at", "entity", "entity_id", "at"),
         Index("ix_audit_logs_action_at", "action", "at"),
+        Index("ix_audit_logs_request_id_at", "request_id", "at"),
+        Index("ix_audit_logs_ip_at", "ip_address", "at"),
     )
 
     actor_id: Mapped[UUID | None] = mapped_column(
@@ -1341,6 +1743,18 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
     )
     ip_address: Mapped[str | None] = mapped_column(INET)
     request_id: Mapped[str | None] = mapped_column(String(128))
+    event_kind: Mapped[str] = mapped_column(
+        String(32), default="mutation", server_default=text("'mutation'"), nullable=False
+    )
+    actor_snapshot: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    method: Mapped[str | None] = mapped_column(String(12))
+    path: Mapped[str | None] = mapped_column(String(500))
+    status_code: Mapped[int | None] = mapped_column(SmallInteger)
+    user_agent_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    previous_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    entry_hash: Mapped[str] = mapped_column(CHAR(64), unique=True, nullable=False)
     at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )

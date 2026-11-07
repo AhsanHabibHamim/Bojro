@@ -7,8 +7,11 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.admin_security import AdminTOTPService
 from app.db.session import get_session
 from app.repositories.account import AccountRepository
+from app.repositories.admin import AdminRepository
+from app.repositories.admin_auth import AdminAuthRepository
 from app.repositories.auth import AuthRepository
 from app.repositories.catalog import CatalogRepository
 from app.repositories.checkout import CheckoutRepository
@@ -17,13 +20,24 @@ from app.repositories.geo import GeoRepository
 from app.repositories.health import HealthRepository
 from app.repositories.storefront import StorefrontRepository
 from app.services.account import AccountService
+from app.services.admin_auth import AdminAuthService
+from app.services.admin_catalog import AdminCatalogService
+from app.services.admin_catalog_csv import AdminCatalogCSVService
+from app.services.admin_content import AdminContentService
+from app.services.admin_customers_reviews import AdminCustomerReviewService
+from app.services.admin_dashboard import AdminDashboardService
+from app.services.admin_marketing import AdminMarketingService
+from app.services.admin_media import AdminMediaService
+from app.services.admin_orders import AdminOrderService
 from app.services.auth import AuthService
 from app.services.cache import HotCache
 from app.services.cart import CartService
 from app.services.catalog import CatalogService
 from app.services.checkout import CheckoutService
+from app.services.content import ContentService
 from app.services.geo import GeoService
 from app.services.health import HealthService
+from app.services.order_pdf import OrderPDFService
 from app.services.storefront import StorefrontService
 
 
@@ -36,7 +50,7 @@ def get_health_service(request: Request) -> HealthService:
         redis_required=settings.is_production,
         timeout_seconds=settings.readiness_timeout_seconds,
     )
-    return HealthService(repository, settings.app_name)
+    return HealthService(repository, settings)
 
 
 def get_catalog_service(
@@ -53,7 +67,12 @@ def get_storefront_service(
 ) -> StorefrontService:
     cache: HotCache = request.app.state.hot_cache
     catalog = CatalogService(CatalogRepository(session), cache, request.app.state.storage_provider)
-    return StorefrontService(StorefrontRepository(session), catalog, cache)
+    return StorefrontService(
+        StorefrontRepository(session),
+        catalog,
+        cache,
+        request.app.state.storage_provider,
+    )
 
 
 def get_auth_service(
@@ -107,3 +126,93 @@ def get_account_service(
         request.app.state.rate_limiter,
         request.app.state.settings,
     )
+
+
+def get_admin_auth_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminAuthService:
+    return AdminAuthService(
+        AdminAuthRepository(session),
+        request.app.state.token_service,
+        AdminTOTPService(request.app.state.settings),
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
+
+
+def get_admin_catalog_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminCatalogService:
+    return AdminCatalogService(AdminRepository(session), request.app.state.storage_provider)
+
+
+def get_admin_catalog_csv_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminCatalogCSVService:
+    return AdminCatalogCSVService(AdminRepository(session))
+
+
+def get_admin_media_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminMediaService:
+    settings = request.app.state.settings
+    return AdminMediaService(
+        AdminRepository(session),
+        request.app.state.storage_provider,
+        settings.app_env,
+        settings.media_upload_signature_seconds,
+        settings.media_upload_cleanup_hours,
+    )
+
+
+def get_admin_dashboard_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminDashboardService:
+    return AdminDashboardService(session)
+
+
+def get_admin_order_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminOrderService:
+    settings = request.app.state.settings
+    return AdminOrderService(
+        AdminRepository(session),
+        request.app.state.courier_gateways,
+        not settings.is_production and settings.courier_provider == "mock",
+    )
+
+
+def get_admin_customer_review_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminCustomerReviewService:
+    return AdminCustomerReviewService(AdminRepository(session), request.app.state.storage_provider)
+
+
+def get_order_pdf_service(request: Request) -> OrderPDFService:
+    return OrderPDFService(request.app.state.settings.pdf_font_path)
+
+
+def get_admin_marketing_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminMarketingService:
+    return AdminMarketingService(AdminRepository(session), request.app.state.storage_provider)
+
+
+def get_admin_content_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminContentService:
+    return AdminContentService(AdminRepository(session), request.app.state.storage_provider)
+
+
+def get_content_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ContentService:
+    return ContentService(session, request.app.state.storage_provider)

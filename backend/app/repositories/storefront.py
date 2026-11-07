@@ -10,13 +10,14 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.enums import ProductStatus, ReviewStatus
+from app.db.enums import MediaState, ProductStatus, ReviewStatus
 from app.db.models import (
     Banner,
     FlashSale,
     FlashSaleItem,
     GeoDistrict,
     HomepageSection,
+    MediaAsset,
     Product,
     ProductVariant,
     Review,
@@ -118,3 +119,13 @@ class StorefrontRepository:
     async def districts(self) -> list[GeoDistrict]:
         statement = select(GeoDistrict).order_by(GeoDistrict.name_en, GeoDistrict.id)
         return list(await self._session.scalars(statement))
+
+    async def media_assets(self, asset_ids: set[UUID]) -> dict[UUID, MediaAsset]:
+        if not asset_ids:
+            return {}
+        assets = await self._session.scalars(
+            select(MediaAsset).where(
+                MediaAsset.id.in_(asset_ids), MediaAsset.state == MediaState.READY
+            )
+        )
+        return {asset.id: asset for asset in assets}

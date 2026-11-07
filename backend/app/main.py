@@ -26,6 +26,7 @@ from app.core.middleware import (
 from app.core.security import TokenService
 from app.db.session import create_engine, create_session_factory
 from app.services.cache import HotCache
+from app.services.courier import create_courier_gateways
 from app.services.otp import OTPService
 from app.services.rate_limit import RateLimiter
 from app.services.storage import create_storage_provider
@@ -84,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = resolved_settings
     application.state.token_service = TokenService(resolved_settings)
     application.state.storage_provider = create_storage_provider(resolved_settings)
+    application.state.courier_gateways = create_courier_gateways(resolved_settings)
     install_error_handlers(application)
     application.add_middleware(
         CORSMiddleware,
@@ -103,6 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "X-Request-ID",
             "Idempotent-Replayed",
             "Retry-After",
+            "Content-Disposition",
         ],
     )
     application.add_middleware(
@@ -116,13 +119,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(api_v1_router, prefix=resolved_settings.api_v1_prefix)
 
     default_openapi = application.openapi
+    etag_get_operations = {
+        "adminGetProduct",
+        "adminListCategories",
+        "adminGetCategory",
+        "adminGetBrand",
+        "adminGetOrder",
+        "adminGetCustomer",
+        "adminGetReview",
+        "adminGetCoupon",
+        "adminGetFlashSale",
+        "adminListHomepageSections",
+        "adminListBanners",
+        "adminGetBanner",
+        "adminGetPage",
+        "adminGetBlogPost",
+        "adminGetMedia",
+        "getPublishedPage",
+        "getPublishedBlogPost",
+    }
 
     def openapi_with_runtime_preconditions() -> dict[str, object]:
         schema = default_openapi()
         for path, path_item in schema.get("paths", {}).items():
-            if not path.startswith(f"{resolved_settings.api_v1_prefix}/account"):
+            if not path.startswith(
+                (
+                    f"{resolved_settings.api_v1_prefix}/account",
+                    f"{resolved_settings.api_v1_prefix}/admin",
+                )
+            ):
                 continue
-            for operation in path_item.values():
+            for _method, operation in path_item.items():
                 if not isinstance(operation, dict):
                     continue
                 for parameter in operation.get("parameters", []):
@@ -130,6 +157,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         # Runtime keeps the value nullable so absence reaches the domain
                         # handler and returns RFC 6585's 428 instead of FastAPI's 422.
                         parameter["required"] = True
+                if path.startswith(f"{resolved_settings.api_v1_prefix}/admin"):
+                    for status_code, response in operation.get("responses", {}).items():
+                        if not str(status_code).startswith("2") or not isinstance(response, dict):
+                            continue
+                        headers = response.setdefault("headers", {})
+                        headers.setdefault(
+                            "Cache-Control",
+                            {
+                                "description": "Admin responses are never cacheable.",
+                                "schema": {"type": "string", "example": "no-store"},
+                            },
+                        )
+                        parameter_names = {
+                            parameter.get("name")
+                            for parameter in operation.get("parameters", [])
+                            if isinstance(parameter, dict)
+                        }
+                        if "Idempotency-Key" in parameter_names:
+                            headers.setdefault(
+                                "Idempotent-Replayed",
+                                {
+                                    "description": (
+                                        "True when the exact stored command response was replayed."
+                                    ),
+                                    "schema": {"type": "string", "enum": ["true"]},
+                                },
+                            )
+                if operation.get("operationId") in etag_get_operations:
+                    for status_code, response in operation.get("responses", {}).items():
+                        if not str(status_code).startswith("2") or not isinstance(response, dict):
+                            continue
+                        response.setdefault("headers", {}).setdefault(
+                            "ETag",
+                            {
+                                "description": "Strong validator for the returned representation.",
+                                "schema": {"type": "string"},
+                            },
+                        )
+                        if "If-Match" in parameter_names:
+                            headers.setdefault(
+                                "ETag",
+                                {
+                                    "description": "Strong validator after a successful mutation.",
+                                    "schema": {"type": "string"},
+                                },
+                            )
         return schema
 
     application.openapi = openapi_with_runtime_preconditions  # type: ignore[method-assign]

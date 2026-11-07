@@ -336,6 +336,38 @@ async def _set_auth_state(
         await engine.dispose()
 
 
+async def _demote_existing_admin(settings: Settings, excluded_user_id: UUID) -> UUID | None:
+    engine = create_engine(settings)
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session, session.begin():
+            admin = await session.scalar(
+                select(User)
+                .where(User.role == UserRole.ADMIN, User.id != excluded_user_id)
+                .with_for_update()
+            )
+            if admin is None:
+                return None
+            admin.role = UserRole.CUSTOMER
+            return admin.id
+    finally:
+        await engine.dispose()
+
+
+async def _restore_admin(settings: Settings, admin_id: UUID | None) -> None:
+    if admin_id is None:
+        return
+    engine = create_engine(settings)
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session, session.begin():
+            admin = await session.scalar(select(User).where(User.id == admin_id).with_for_update())
+            assert admin is not None
+            admin.role = UserRole.ADMIN
+    finally:
+        await engine.dispose()
+
+
 async def _expire_upload(
     settings: Settings,
     upload_id: UUID,
@@ -497,17 +529,28 @@ def test_authenticated_customer_session_states_and_cors(
     assert phase4_client.get("/api/v1/account/profile").status_code == 403
     asyncio.run(_set_auth_state(integration_settings, user_id, session_id, active=True, guest=True))
     assert phase4_client.get("/api/v1/account/profile").status_code == 403
-    asyncio.run(
-        _set_auth_state(
-            integration_settings,
-            user_id,
-            session_id,
-            guest=False,
-            role=UserRole.ADMIN,
+    existing_admin_id = asyncio.run(_demote_existing_admin(integration_settings, user_id))
+    try:
+        asyncio.run(
+            _set_auth_state(
+                integration_settings,
+                user_id,
+                session_id,
+                guest=False,
+                role=UserRole.ADMIN,
+            )
         )
-    )
-    assert phase4_client.get("/api/v1/account/profile").status_code == 403
-    asyncio.run(_set_auth_state(integration_settings, user_id, session_id, role=UserRole.CUSTOMER))
+        assert phase4_client.get("/api/v1/account/profile").status_code == 403
+        asyncio.run(
+            _set_auth_state(
+                integration_settings,
+                user_id,
+                session_id,
+                role=UserRole.CUSTOMER,
+            )
+        )
+    finally:
+        asyncio.run(_restore_admin(integration_settings, existing_admin_id))
 
     bad_csrf = phase4_client.patch(
         "/api/v1/account/profile",

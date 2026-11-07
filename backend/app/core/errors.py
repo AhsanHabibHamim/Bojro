@@ -146,6 +146,8 @@ def install_error_handlers(application: FastAPI) -> None:
             "/api/v1/geo",
             "/api/v1/orders",
             "/api/v1/account",
+            "/api/v1/admin",
+            "/api/v1/content",
         )
         if not request.url.path.startswith(phase3_prefixes):
             return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})

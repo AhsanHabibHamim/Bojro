@@ -21,7 +21,7 @@ from app.core.security import (
     constant_time_equal,
     set_guest_cookie,
 )
-from app.db.enums import UserRole
+from app.db.enums import AuthSessionKind, UserRole
 from app.db.models import AuthSession, User
 from app.utils.uuid7 import uuid7
 
@@ -134,7 +134,9 @@ async def _access_is_active(request: Request, access: TokenClaims) -> bool:
                 AuthSession.user_id == user_id,
                 AuthSession.revoked_at.is_(None),
                 AuthSession.expires_at > datetime.now(UTC),
+                AuthSession.kind == AuthSessionKind.CUSTOMER,
                 User.is_active.is_(True),
+                User.role == UserRole.CUSTOMER,
             )
         )
     return found is not None
@@ -224,7 +226,12 @@ async def require_authenticated_customer(
             )
         ).one_or_none()
     now = datetime.now(UTC)
-    if row is None or row[1].revoked_at is not None or row[1].expires_at <= now:
+    if (
+        row is None
+        or row[1].kind != AuthSessionKind.CUSTOMER
+        or row[1].revoked_at is not None
+        or row[1].expires_at <= now
+    ):
         raise DomainError(
             "AUTHENTICATION_REQUIRED",
             "Sign in with a customer account to continue.",

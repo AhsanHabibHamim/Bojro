@@ -19,6 +19,18 @@ def strong_etag(resource_kind: str, resource_id: UUID | str, revision: int) -> s
     return f'"{hashlib.sha256(value).hexdigest()}"'
 
 
+def representation_etag(resource_kind: str, value: object) -> str:
+    encoded = json.dumps(
+        value,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+        default=str,
+    ).encode()
+    digest = hashlib.sha256(resource_kind.encode() + b":" + encoded).hexdigest()
+    return f'"{digest}"'
+
+
 def enforce_if_match(if_match: str | None, current_etag: str) -> None:
     if if_match is None:
         raise DomainError(

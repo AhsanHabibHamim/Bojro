@@ -13,9 +13,8 @@ from uuid import UUID, uuid5
 
 import structlog
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import FromClause
@@ -28,16 +27,20 @@ from app.core.config import Settings, get_settings  # noqa: E402
 from app.core.logging import configure_logging  # noqa: E402
 from app.db.base import Base  # noqa: E402
 from app.db.enums import (  # noqa: E402
+    AuthSessionKind,
     CouponType,
     HomepageSectionType,
     OrderStatus,
     PaymentMethod,
+    PaymentRecordStatus,
     PaymentStatus,
     ProductStatus,
     ReviewStatus,
     UserRole,
 )
 from app.db.models import (  # noqa: E402
+    AuditLog,
+    AuthSession,
     Banner,
     Brand,
     Category,
@@ -51,6 +54,7 @@ from app.db.models import (  # noqa: E402
     Order,
     OrderItem,
     OrderStatusHistory,
+    Payment,
     Product,
     ProductImage,
     ProductVariant,
@@ -70,6 +74,8 @@ _DEMO_SEED_KEY = "_demo_seed_version"
 _E2E_REVIEW_FIXTURE_KEY = "_e2e_review_fixture"
 _E2E_REVIEW_PHONE = "+8801700000999"
 _E2E_REVIEW_ORDER_NUMBER = "BJ-2099-900001"
+_E2E_ADMIN_ORDER_FIXTURE_KEY = "_e2e_admin_order_fixture"
+_E2E_ADMIN_ORDER_NUMBER = "BJ-2099-900002"
 _SEED_NAMESPACE = UUID("e339172a-5a94-4c47-99c8-b4af91f39ef4")
 
 
@@ -1307,6 +1313,72 @@ async def seed_review_e2e_fixture(session: AsyncSession, seeded_at: datetime) ->
     elif order.user_id != customer.id:
         raise RuntimeError("E2E review fixture order belongs to another customer")
 
+    admin_order = await session.scalar(
+        select(Order).where(Order.number == _E2E_ADMIN_ORDER_NUMBER).with_for_update()
+    )
+    if admin_order is None:
+        if variant.stock_on_hand - variant.stock_reserved < 1:
+            raise RuntimeError("E2E admin order fixture variant is out of stock")
+        admin_order = Order(
+            id=seed_id("e2e_admin_order", _E2E_ADMIN_ORDER_NUMBER),
+            number=_E2E_ADMIN_ORDER_NUMBER,
+            user_id=customer.id,
+            status=OrderStatus.PENDING,
+            payment_status=PaymentStatus.PENDING,
+            payment_method=PaymentMethod.COD,
+            subtotal=variant.price,
+            discount_total=0,
+            shipping_total=0,
+            grand_total=variant.price,
+            coupon_code=None,
+            placed_at=seeded_at,
+            address_snapshot=order.address_snapshot,
+            notes="Deterministic mock-only E2E admin lifecycle fixture.",
+        )
+        session.add(admin_order)
+        session.add(
+            OrderItem(
+                id=seed_id("e2e_admin_order_item", _E2E_ADMIN_ORDER_NUMBER),
+                order_id=admin_order.id,
+                product_id=product.id,
+                variant_id=variant.id,
+                name_bn=product.name_bn,
+                name_en=product.name_en,
+                sku=variant.sku,
+                options=variant.options,
+                unit_price=variant.price,
+                quantity=1,
+                line_total=variant.price,
+                currency="BDT",
+            )
+        )
+        session.add(
+            OrderStatusHistory(
+                id=seed_id("e2e_admin_order_history", _E2E_ADMIN_ORDER_NUMBER),
+                order_id=admin_order.id,
+                from_status=None,
+                to_status=OrderStatus.PENDING,
+                at=seeded_at,
+                customer_note="Order placed.",
+            )
+        )
+        session.add(
+            Payment(
+                id=seed_id("e2e_admin_payment", _E2E_ADMIN_ORDER_NUMBER),
+                order_id=admin_order.id,
+                provider=PaymentMethod.COD,
+                provider_txn_id=None,
+                amount=variant.price,
+                currency="BDT",
+                status=PaymentRecordStatus.PENDING,
+                raw_payload={"fixture": "admin_order_lifecycle"},
+                idempotency_key="seed:e2e_admin_order_payment",
+            )
+        )
+        variant.stock_reserved += 1
+    elif admin_order.user_id != customer.id:
+        raise RuntimeError("E2E admin order fixture belongs to another customer")
+
     await session.flush()
     lineage = await session.scalar(
         select(OrderItem.id).where(
@@ -1345,6 +1417,21 @@ async def seed_review_e2e_fixture(session: AsyncSession, seeded_at: datetime) ->
         )
     else:
         fixture.value = fixture_value
+
+    admin_fixture = await session.scalar(
+        select(SiteSetting).where(SiteSetting.key == _E2E_ADMIN_ORDER_FIXTURE_KEY)
+    )
+    admin_fixture_value: dict[str, object] = {"order_number": admin_order.number}
+    if admin_fixture is None:
+        session.add(
+            SiteSetting(
+                id=seed_id("site_setting", _E2E_ADMIN_ORDER_FIXTURE_KEY),
+                key=_E2E_ADMIN_ORDER_FIXTURE_KEY,
+                value=admin_fixture_value,
+            )
+        )
+    else:
+        admin_fixture.value = admin_fixture_value
 
 
 async def seed_promotions(
@@ -1629,6 +1716,16 @@ async def seed_content(session: AsyncSession) -> None:
 
     setting_rows: list[dict[str, object]] = [
         {
+            "id": seed_id("site_setting", "branding"),
+            "key": "branding",
+            "value": {
+                "store_name_bn": "বজ্র",
+                "store_name_en": "Bojro",
+                "logo_asset_id": None,
+                "favicon_asset_id": None,
+            },
+        },
+        {
             "id": seed_id("site_setting", "shipping_rules"),
             "key": "shipping_rules",
             "value": {
@@ -1673,6 +1770,16 @@ async def seed_content(session: AsyncSession) -> None:
             },
         },
         {
+            "id": seed_id("site_setting", "whatsapp"),
+            "key": "whatsapp",
+            "value": {
+                "enabled": False,
+                "phone": "+8801700000000",
+                "message_bn": "বজ্র সাপোর্টে স্বাগতম",
+                "message_en": "Welcome to Bojro support",
+            },
+        },
+        {
             "id": seed_id("site_setting", "payment_methods"),
             "key": "payment_methods",
             "value": {"cod": True, "bkash": False, "nagad": False, "sslcommerz": False},
@@ -1681,6 +1788,11 @@ async def seed_content(session: AsyncSession) -> None:
             "id": seed_id("site_setting", "social_links"),
             "key": "social_links",
             "value": {"facebook": "", "instagram": "", "youtube": ""},
+        },
+        {
+            "id": seed_id("site_setting", "analytics"),
+            "key": "analytics",
+            "value": {"google_analytics_id": None, "meta_pixel_id": None},
         },
         {
             "id": seed_id("site_setting", "announcement"),
@@ -1864,6 +1976,35 @@ async def upgrade_demo_seed_v3_to_v4(
     marker.value = {**marker.value, "version": 4, "upgraded_at_v4": upgraded_at.isoformat()}
 
 
+async def upgrade_demo_seed_v4_to_v5(
+    session: AsyncSession, marker: SiteSetting, upgraded_at: datetime
+) -> None:
+    """Add Phase 5 typed setting sections without replacing operator-owned values."""
+
+    defaults: dict[str, dict[str, object]] = {
+        "branding": {
+            "store_name_bn": "বজ্র",
+            "store_name_en": "Bojro",
+            "logo_asset_id": None,
+            "favicon_asset_id": None,
+        },
+        "whatsapp": {
+            "enabled": False,
+            "phone": "+8801700000000",
+            "message_bn": "বজ্র সাপোর্টে স্বাগতম",
+            "message_en": "Welcome to Bojro support",
+        },
+        "analytics": {"google_analytics_id": None, "meta_pixel_id": None},
+    }
+    existing = set(
+        await session.scalars(select(SiteSetting.key).where(SiteSetting.key.in_(defaults)))
+    )
+    for key, value in defaults.items():
+        if key not in existing:
+            session.add(SiteSetting(id=seed_id("site_setting_v5", key), key=key, value=value))
+    marker.value = {**marker.value, "version": 5, "upgraded_at_v5": upgraded_at.isoformat()}
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if settings.seed_admin_email is None or settings.seed_admin_password is None:
         return False
@@ -1893,17 +2034,37 @@ async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
 
     admin.role = UserRole.ADMIN
     admin.is_guest = False
-    if admin.password_hash is None:
+    if settings.seed_admin_force_password_rotation:
+        rotated_at = datetime.now(UTC)
         admin.password_hash = _PASSWORD_HASHER.hash(password)
-    else:
-        matches: bool = False
-        try:
-            _PASSWORD_HASHER.verify(admin.password_hash, password)
-            matches = True
-        except VerificationError:
-            pass
-        if not matches or _PASSWORD_HASHER.check_needs_rehash(admin.password_hash):
-            admin.password_hash = _PASSWORD_HASHER.hash(password)
+        admin.password_changed_at = rotated_at
+        admin.revision += 1
+        await session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == admin.id,
+                AuthSession.kind == AuthSessionKind.ADMIN,
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=rotated_at)
+        )
+        session.add(
+            AuditLog(
+                actor_id=None,
+                action="admin.password_rotated_by_seed",
+                entity="admin_auth",
+                entity_id=admin.id,
+                event_kind="security",
+                actor_snapshot={"kind": "system", "source": "seed"},
+                diff={"password": {"changed": True}, "sessions": {"revoked": True}},
+                status_code=200,
+            )
+        )
+        _LOGGER.warning(
+            "admin_seed_password_rotated",
+            admin_id=str(admin.id),
+            rotated_at=rotated_at.isoformat(),
+        )
     return True
 
 
@@ -1948,20 +2109,25 @@ async def seed_database() -> None:
                     id=uuid7(),
                     key=_DEMO_SEED_KEY,
                     value={
-                        "version": 4,
+                        "version": 5,
                         "geo_coverage_as_of": dataset.metadata.coverage_as_of,
                     },
                 )
                 session.add(marker)
-            elif (marker_version := marker.value.get("version")) in {1, 2, 3}:
+            elif (marker_version := marker.value.get("version")) in {1, 2, 3, 4}:
                 demo_upgraded = True
                 if marker_version == 1:
                     await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
                     marker_version = 2
                 if marker_version == 2:
                     await upgrade_demo_seed_v2_to_v3(session, marker, seeded_at)
-                await upgrade_demo_seed_v3_to_v4(session, marker, seeded_at)
-            elif marker.value.get("version") != 4:
+                    marker_version = 3
+                if marker_version == 3:
+                    await upgrade_demo_seed_v3_to_v4(session, marker, seeded_at)
+                    marker_version = 4
+                if marker_version == 4:
+                    await upgrade_demo_seed_v4_to_v5(session, marker, seeded_at)
+            elif marker.value.get("version") != 5:
                 raise RuntimeError("unsupported demo seed marker version")
             if settings.storage_provider == "mock":
                 await seed_review_e2e_fixture(session, seeded_at)

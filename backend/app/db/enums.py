@@ -8,6 +8,11 @@ class UserRole(StrEnum):
     ADMIN = "admin"
 
 
+class AuthSessionKind(StrEnum):
+    CUSTOMER = "customer"
+    ADMIN = "admin"
+
+
 class ProductStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"
@@ -70,6 +75,7 @@ class CourierProvider(StrEnum):
     STEADFAST = "steadfast"
     REDX = "redx"
     MANUAL = "manual"
+    MOCK = "mock"
 
 
 class ShipmentStatus(StrEnum):
@@ -125,3 +131,35 @@ class HomepageSectionType(StrEnum):
     REVIEWS = "reviews"
     DEALS = "deals"
     FOOTER = "footer"
+
+
+class MediaPurpose(StrEnum):
+    PRODUCT = "product"
+    CATEGORY = "category"
+    BRAND = "brand"
+    BANNER = "banner"
+    PAGE = "page"
+    BLOG = "blog"
+    LOGO = "logo"
+
+
+class MediaState(StrEnum):
+    PENDING = "pending"
+    READY = "ready"
+    DELETE_PENDING = "delete_pending"
+    DELETED = "deleted"
+
+
+class CatalogImportStatus(StrEnum):
+    VALIDATING = "validating"
+    VALID = "valid"
+    INVALID = "invalid"
+    IMPORTED = "imported"
+    FAILED = "failed"
+
+
+class OutboxStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    DELIVERED = "delivered"
+    FAILED = "failed"

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, cast
 from uuid import UUID
 
+import httpx
 from redis.asyncio import Redis
 
 from app.core.config import Settings
@@ -47,9 +48,20 @@ class MockOTPProvider:
 
 
 class ExternalOTPProvider:
+    def __init__(self, endpoint: str | None, api_key: str | None) -> None:
+        self._endpoint = endpoint
+        self._api_key = api_key
+
     async def send(self, phone: str, code: str) -> None:
-        del phone, code
-        raise RuntimeError("external OTP provider is not configured")
+        if self._endpoint is None or self._api_key is None:
+            raise RuntimeError("external OTP provider is not configured")
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                self._endpoint,
+                json={"phone": phone, "code": code},
+                headers={"Authorization": f"Bearer {self._api_key}"},
+            )
+            response.raise_for_status()
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +91,16 @@ class OTPService:
         self._settings = settings
         self._secret = settings.otp_hmac_secret.get_secret_value()
         self._provider: OTPProvider = (
-            MockOTPProvider() if settings.otp_provider == "mock" else ExternalOTPProvider()
+            MockOTPProvider()
+            if settings.otp_provider == "mock"
+            else ExternalOTPProvider(
+                settings.otp_external_endpoint,
+                (
+                    settings.otp_external_api_key.get_secret_value()
+                    if settings.otp_external_api_key is not None
+                    else None
+                ),
+            )
         )
         self._memory_challenges: dict[str, _MemoryChallenge] = {}
         self._memory_resends: dict[str, float] = {}

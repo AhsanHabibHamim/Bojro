@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.enums import CartStatus, UserRole
+from app.db.enums import AuthSessionKind, CartStatus, UserRole
 from app.db.models import AuthSession, Cart, CartItem, ProductVariant, User
 from app.utils.pricing import available_stock
 from app.utils.uuid7 import uuid7
@@ -74,8 +74,11 @@ class AuthRepository:
             .where(
                 User.id == user_id,
                 User.is_active.is_(True),
+                User.role == UserRole.CUSTOMER,
+                AuthSession.kind == AuthSessionKind.CUSTOMER,
                 AuthSession.revoked_at.is_(None),
                 AuthSession.expires_at > now,
+                AuthSession.kind == AuthSessionKind.CUSTOMER,
             )
         )
 

@@ -546,6 +546,9 @@ class AccountRepository:
         )
 
     async def recompute_product_rating(self, product_id: UUID) -> None:
+        await self.session.scalar(
+            select(Product.id).where(Product.id == product_id).with_for_update()
+        )
         row = (
             await self.session.execute(
                 select(func.count(Review.id), func.coalesce(func.avg(Review.rating), 0)).where(

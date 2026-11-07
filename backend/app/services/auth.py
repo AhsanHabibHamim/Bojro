@@ -9,6 +9,7 @@ from uuid import UUID
 from app.core.config import Settings
 from app.core.errors import DomainError
 from app.core.security import PasswordService, TokenClaims, TokenService
+from app.db.enums import AuthSessionKind, UserRole
 from app.db.models import AuthSession, User
 from app.repositories.auth import AuthRepository
 from app.schemas.auth import SessionResponse, SessionUser
@@ -58,6 +59,12 @@ class AuthService:
                 name=name or "Bojro Customer",
                 now=now,
             )
+            if user.role == UserRole.ADMIN:
+                raise DomainError(
+                    "CUSTOMER_AUTH_FORBIDDEN",
+                    "This identity cannot use customer authentication.",
+                    status_code=403,
+                )
             if not user.is_active:
                 raise DomainError("ACCOUNT_DISABLED", "This account is disabled.", status_code=403)
             changed = user.is_guest
@@ -83,7 +90,13 @@ class AuthService:
         now = datetime.now(UTC)
         async with self._repository.session.begin():
             user = await self._repository.user_by_email(email)
-            if user is None or user.password_hash is None or user.is_guest or not user.is_active:
+            if (
+                user is None
+                or user.role == UserRole.ADMIN
+                or user.password_hash is None
+                or user.is_guest
+                or not user.is_active
+            ):
                 PasswordService.verify_dummy(password)
                 raise self._invalid_credentials()
             if not PasswordService.verify(user.password_hash, password):
@@ -108,6 +121,7 @@ class AuthService:
             if (
                 auth_session is None
                 or auth_session.user_id != user_id
+                or auth_session.kind != AuthSessionKind.CUSTOMER
                 or auth_session.revoked_at is not None
                 or auth_session.expires_at <= now
             ):
@@ -117,7 +131,7 @@ class AuthService:
                 reused = True
             else:
                 user = await self._repository.user_by_id(user_id)
-                if user is None or not user.is_active:
+                if user is None or user.role == UserRole.ADMIN or not user.is_active:
                     auth_session.revoked_at = now
                     reused = True
                 else:
@@ -217,8 +231,11 @@ class AuthService:
                 user_id=user.id,
                 refresh_jti_hash=TokenService.hash_value(refresh_jti),
                 family_id=uuid7(),
+                kind=AuthSessionKind.CUSTOMER,
                 expires_at=refresh_expiry,
                 last_rotated_at=now,
+                absolute_expires_at=refresh_expiry,
+                last_seen_at=now,
             )
         )
         await self._repository.flush()

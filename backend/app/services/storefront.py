@@ -4,23 +4,28 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import cast
+from uuid import UUID
 
 from pydantic import JsonValue
 
 from app.db.enums import HomepageSectionType
-from app.db.models import Banner, HomepageSection
+from app.db.models import Banner, HomepageSection, MediaAsset
 from app.repositories.storefront import StorefrontRepository
 from app.schemas.catalog import ProductListQuery
 from app.schemas.storefront import (
     Announcement,
     BannerItem,
     DistrictOption,
+    StorefrontAnalytics,
+    StorefrontBranding,
     StorefrontHomeResponse,
     StorefrontSection,
     StorefrontShellResponse,
+    StorefrontWhatsApp,
 )
 from app.services.cache import HotCache
 from app.services.catalog import CatalogService
+from app.services.storage import StorageProvider
 from app.utils.localization import Locale, localize
 
 
@@ -33,10 +38,12 @@ class StorefrontService:
         repository: StorefrontRepository,
         catalog: CatalogService,
         cache: HotCache,
+        storage: StorageProvider,
     ) -> None:
         self._repository = repository
         self._catalog = catalog
         self._cache = cache
+        self._storage = storage
 
     @staticmethod
     def _banner(banner: Banner, locale: Locale) -> BannerItem:
@@ -50,9 +57,13 @@ class StorefrontService:
         )
 
     @staticmethod
-    def _content(section: HomepageSection, locale: Locale) -> dict[str, JsonValue]:
+    def _content(
+        section: HomepageSection,
+        locale: Locale,
+        media_urls: dict[UUID, str] | None = None,
+    ) -> dict[str, JsonValue]:
         raw = section.content_bn if locale == "bn" else section.content_en
-        return cast(dict[str, JsonValue], raw)
+        return cast(dict[str, JsonValue], _resolve_content_media(raw, media_urls or {}))
 
     async def home(self, locale: Locale) -> StorefrontHomeResponse:
         cache_key = f"home:{locale}"
@@ -62,6 +73,17 @@ class StorefrontService:
 
         now = datetime.now(UTC)
         sections = await self._repository.sections()
+        content_asset_ids: set[UUID] = set()
+        for section in sections:
+            _collect_content_asset_ids(
+                section.content_bn if locale == "bn" else section.content_en,
+                content_asset_ids,
+            )
+        content_assets = await self._repository.media_assets(content_asset_ids)
+        content_media_urls = {
+            asset_id: self._storage.delivery_url(asset.public_id)
+            for asset_id, asset in content_assets.items()
+        }
         banners = await self._repository.banners(now)
         flash_sale = await self._repository.current_flash_sale(now)
         categories = await self._catalog.categories(locale)
@@ -131,7 +153,7 @@ class StorefrontService:
                 type=section.section_type.value,
                 order=section.sort_order,
                 updated_at=section.updated_at,
-                content=self._content(section, locale),
+                content=self._content(section, locale, content_media_urls),
                 data=dynamic.get(section.section_type, {}),
             )
             for section in sections
@@ -159,6 +181,18 @@ class StorefrontService:
         contact = settings.get("contact", {})
         social = settings.get("social_links", {})
         payments = settings.get("payment_methods", {})
+        branding = settings.get("branding", {})
+        whatsapp = settings.get("whatsapp", {})
+        analytics = settings.get("analytics", {})
+        branding_ids = {
+            UUID(str(value))
+            for value in (
+                branding.get("logo_asset_id"),
+                branding.get("favicon_asset_id"),
+            )
+            if value is not None
+        }
+        branding_assets = await self._repository.media_assets(branding_ids)
         footer_section = next(
             (section for section in sections if section.section_type == HomepageSectionType.FOOTER),
             None,
@@ -168,6 +202,31 @@ class StorefrontService:
             announcement=Announcement(
                 enabled=bool(announcement.get("enabled", True)),
                 text=str(announcement.get(locale, "")),
+            ),
+            branding=StorefrontBranding(
+                store_name_bn=str(branding.get("store_name_bn", "Bojro")),
+                store_name_en=str(branding.get("store_name_en", "Bojro")),
+                logo_url=_setting_asset_url(
+                    branding.get("logo_asset_id"), branding_assets, self._storage
+                ),
+                favicon_url=_setting_asset_url(
+                    branding.get("favicon_asset_id"), branding_assets, self._storage
+                ),
+            ),
+            whatsapp=StorefrontWhatsApp(
+                enabled=bool(whatsapp.get("enabled", False)),
+                phone=str(whatsapp.get("phone", "")),
+                message=str(whatsapp.get(f"message_{locale}", "")),
+            ),
+            analytics=StorefrontAnalytics(
+                google_analytics_id=(
+                    str(analytics["google_analytics_id"])
+                    if analytics.get("google_analytics_id")
+                    else None
+                ),
+                meta_pixel_id=(
+                    str(analytics["meta_pixel_id"]) if analytics.get("meta_pixel_id") else None
+                ),
             ),
             category_menu=categories.items,
             footer=self._content(footer_section, locale) if footer_section is not None else {},
@@ -194,3 +253,45 @@ class StorefrontService:
         )
         await self._cache.set(cache_key, response, ttl_seconds=self.SHELL_TTL_SECONDS)
         return response
+
+
+def _collect_content_asset_ids(value: object, result: set[UUID]) -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "image_asset_id" and child is not None:
+                result.add(UUID(str(child)))
+            elif key == "gallery_asset_ids" and isinstance(child, list):
+                result.update(UUID(str(item)) for item in child)
+            else:
+                _collect_content_asset_ids(child, result)
+    elif isinstance(value, list):
+        for child in value:
+            _collect_content_asset_ids(child, result)
+
+
+def _resolve_content_media(value: object, media_urls: dict[UUID, str]) -> object:
+    if isinstance(value, dict):
+        resolved = {key: _resolve_content_media(child, media_urls) for key, child in value.items()}
+        asset_id = value.get("image_asset_id")
+        if asset_id is not None:
+            resolved["image_url"] = media_urls.get(UUID(str(asset_id)))
+        gallery_ids = value.get("gallery_asset_ids")
+        if isinstance(gallery_ids, list):
+            resolved["gallery_urls"] = [
+                media_urls[UUID(str(item))] for item in gallery_ids if UUID(str(item)) in media_urls
+            ]
+        return resolved
+    if isinstance(value, list):
+        return [_resolve_content_media(child, media_urls) for child in value]
+    return value
+
+
+def _setting_asset_url(
+    value: object,
+    assets: dict[UUID, MediaAsset],
+    storage: StorageProvider,
+) -> str | None:
+    if value is None:
+        return None
+    asset = assets.get(UUID(str(value)))
+    return storage.delivery_url(asset.public_id) if asset is not None else None

@@ -25,6 +25,7 @@ from app.db.models import (
     IdempotencyRecord,
     Order,
     OrderNumberCounter,
+    Product,
     ProductVariant,
     SiteSetting,
     User,
@@ -115,6 +116,21 @@ class CheckoutRepository:
         )
 
     async def variants_for_update(self, variant_ids: list[UUID]) -> list[ProductVariant]:
+        product_ids = sorted(
+            set(
+                await self.session.scalars(
+                    select(ProductVariant.product_id).where(ProductVariant.id.in_(variant_ids))
+                )
+            )
+        )
+        list(
+            await self.session.scalars(
+                select(Product)
+                .where(Product.id.in_(product_ids))
+                .order_by(Product.id)
+                .with_for_update()
+            )
+        )
         return list(
             await self.session.scalars(
                 select(ProductVariant)
@@ -254,6 +270,21 @@ class CheckoutRepository:
 
     def add(self, value: object) -> None:
         self.session.add(value)
+
+    async def merchant_snapshot(self) -> dict[str, object]:
+        settings = {
+            item.key: item.value
+            for item in await self.session.scalars(
+                select(SiteSetting).where(SiteSetting.key.in_({"branding", "contact"}))
+            )
+        }
+        return {
+            "branding": settings.get(
+                "branding",
+                {"store_name_bn": "বজ্র", "store_name_en": "Bojro"},
+            ),
+            "contact": settings.get("contact", {}),
+        }
 
     async def flush(self) -> None:
         await self.session.flush()

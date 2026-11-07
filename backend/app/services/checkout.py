@@ -31,6 +31,7 @@ from app.db.enums import (
 from app.db.models import (
     AuditLog,
     CouponRedemption,
+    InventoryMovement,
     Order,
     OrderItem,
     OrderStatusHistory,
@@ -58,6 +59,7 @@ from app.schemas.commerce import (
 from app.services.cart import CartService
 from app.services.commerce_pricing import coupon_is_active
 from app.services.rate_limit import RateLimiter, RateLimitExceeded, RateLimitUnavailable
+from app.utils.idempotency import scoped_idempotency_key
 from app.utils.localization import Locale
 from app.utils.pricing import available_stock
 from app.utils.uuid7 import uuid7
@@ -239,6 +241,13 @@ class CheckoutService:
                         status_code=409,
                     )
                 customer = await self._checkout_customer(payload, user_id)
+                payment_methods = await self._repository.site_setting("payment_methods")
+                if payment_methods is None or not bool(payment_methods.value.get("cod", False)):
+                    raise DomainError(
+                        "COD_DISABLED",
+                        "Cash on delivery is currently unavailable.",
+                        status_code=409,
+                    )
                 await self._validate_cod_risk(payload.customer.phone)
                 cart_items = await self._repository.cart_items_for_update(cart.id)
                 if not cart_items:
@@ -303,6 +312,12 @@ class CheckoutService:
                         status_code=503,
                     ) from exc
                 order_id = uuid7()
+                order_idempotency_key = scoped_idempotency_key(
+                    scope=customer.id,
+                    endpoint="checkout.order",
+                    resource=cart.id,
+                    client_key=idempotency_key,
+                )
                 created_order = self._create_order(
                     order_id,
                     number,
@@ -311,17 +326,44 @@ class CheckoutService:
                     payload,
                     hierarchy,
                     cart_response,
-                    idempotency_key,
+                    order_idempotency_key,
                     now,
                 )
+                created_order.merchant_snapshot = await self._repository.merchant_snapshot()
                 self._repository.add(created_order)
+                revised_product_ids: set[UUID] = set()
+                revised_flash_sale_ids: set[UUID] = set()
                 for cart_item in cart_items:
                     variant = variant_map[cart_item.variant_id]
                     response_item = response_items[variant.id]
                     flash = selected_flash.get(variant.id)
                     variant.stock_reserved += cart_item.quantity
+                    variant.revision += 1
+                    if variant.product_id not in revised_product_ids:
+                        variant.product.revision += 1
+                        revised_product_ids.add(variant.product_id)
+                    self._repository.add(
+                        InventoryMovement(
+                            variant_id=variant.id,
+                            order_id=order_id,
+                            reason="checkout_reserved",
+                            delta_on_hand=0,
+                            delta_reserved=cart_item.quantity,
+                            balance_on_hand=variant.stock_on_hand,
+                            balance_reserved=variant.stock_reserved,
+                            idempotency_key=scoped_idempotency_key(
+                                scope=customer.id,
+                                endpoint="checkout.inventory.reserve",
+                                resource=cart_item.id,
+                                client_key=idempotency_key,
+                            ),
+                        )
+                    )
                     if flash is not None:
                         flash.sold_qty += cart_item.quantity
+                        if flash.flash_sale_id not in revised_flash_sale_ids:
+                            flash.flash_sale.revision += 1
+                            revised_flash_sale_ids.add(flash.flash_sale_id)
                     self._repository.add(
                         OrderItem(
                             order_id=order_id,
@@ -340,6 +382,7 @@ class CheckoutService:
                     )
                 if coupon is not None:
                     coupon.usage_count += 1
+                    coupon.revision += 1
                     self._repository.add(
                         CouponRedemption(
                             coupon_id=coupon.id,
@@ -356,7 +399,12 @@ class CheckoutService:
                         currency="BDT",
                         status=PaymentRecordStatus.PENDING,
                         raw_payload={},
-                        idempotency_key=f"cod:{order_id}",
+                        idempotency_key=scoped_idempotency_key(
+                            scope=customer.id,
+                            endpoint="checkout.payment.cod",
+                            resource=order_id,
+                            client_key=idempotency_key,
+                        ),
                     )
                 )
                 self._repository.add(

@@ -10,23 +10,40 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.base import utc_now
-from app.db.enums import OrderStatus
+from app.db.enums import (
+    OrderStatus,
+    PaymentMethod,
+    PaymentRecordStatus,
+    PaymentStatus,
+)
 from app.db.models import (
     AuditLog,
     Coupon,
     CouponRedemption,
     FlashSaleItem,
+    InventoryMovement,
     Order,
     OrderItem,
     OrderStatusHistory,
+    Payment,
+    Product,
     ProductVariant,
 )
+from app.utils.idempotency import scoped_idempotency_key
 
 
 class OrderRepositoryProtocol(Protocol):
     async def get_for_update(self, order_id: UUID) -> Order | None: ...
 
     async def apply_inventory_side_effects(self, order: Order, to_status: OrderStatus) -> None: ...
+    async def apply_payment_side_effects(
+        self,
+        order: Order,
+        to_status: OrderStatus,
+        *,
+        refund_reference: str | None,
+        idempotency_key: str,
+    ) -> None: ...
 
     def add_status_history(
         self,
@@ -84,6 +101,22 @@ class SQLAlchemyOrderRepository:
             )
         )
         variant_ids = sorted({item.variant_id for item in items if item.variant_id is not None})
+        product_ids = sorted(
+            set(
+                await self._session.scalars(
+                    select(ProductVariant.product_id).where(ProductVariant.id.in_(variant_ids))
+                )
+            )
+        )
+        products = {
+            product.id: product
+            for product in await self._session.scalars(
+                select(Product)
+                .where(Product.id.in_(product_ids))
+                .order_by(Product.id)
+                .with_for_update()
+            )
+        }
         variants = {
             variant.id: variant
             for variant in await self._session.scalars(
@@ -93,6 +126,8 @@ class SQLAlchemyOrderRepository:
                 .with_for_update()
             )
         }
+        if len(products) != len(product_ids):
+            raise RuntimeError("reserved order inventory is missing its product")
         if len(variants) != len(variant_ids) or any(item.variant_id is None for item in items):
             raise RuntimeError("reserved order inventory is missing its variant")
         flash_ids = sorted(
@@ -126,6 +161,29 @@ class SQLAlchemyOrderRepository:
                 if flash.sold_qty < item.quantity:
                     raise RuntimeError("flash-sale allocation is lower than the order quantity")
                 flash.sold_qty -= item.quantity
+            self._session.add(
+                InventoryMovement(
+                    variant_id=variant.id,
+                    order_id=order.id,
+                    reason=(
+                        "order_shipped" if to_status == OrderStatus.SHIPPED else "order_cancelled"
+                    ),
+                    delta_on_hand=-item.quantity if to_status == OrderStatus.SHIPPED else 0,
+                    delta_reserved=-item.quantity,
+                    balance_on_hand=variant.stock_on_hand,
+                    balance_reserved=variant.stock_reserved,
+                    idempotency_key=scoped_idempotency_key(
+                        scope=order.user_id,
+                        endpoint=f"order.inventory.{to_status.value}",
+                        resource=item.id,
+                        client_key=str(order.id),
+                    ),
+                )
+            )
+        for variant in variants.values():
+            variant.revision += 1
+        for product in products.values():
+            product.revision += 1
 
         if to_status != OrderStatus.CANCELLED:
             return
@@ -140,7 +198,87 @@ class SQLAlchemyOrderRepository:
         if coupon is None or coupon.usage_count <= 0:
             raise RuntimeError("coupon usage ledger is inconsistent")
         coupon.usage_count -= 1
+        coupon.revision += 1
         redemption.released_at = utc_now()
+
+    async def apply_payment_side_effects(
+        self,
+        order: Order,
+        to_status: OrderStatus,
+        *,
+        refund_reference: str | None,
+        idempotency_key: str,
+    ) -> None:
+        payments = list(
+            await self._session.scalars(
+                select(Payment)
+                .where(Payment.order_id == order.id)
+                .order_by(Payment.id)
+                .with_for_update()
+            )
+        )
+        if to_status == OrderStatus.CANCELLED:
+            order.payment_status = PaymentStatus.CANCELLED
+            for payment in payments:
+                if payment.status in {
+                    PaymentRecordStatus.PENDING,
+                    PaymentRecordStatus.INITIATED,
+                    PaymentRecordStatus.AUTHORIZED,
+                }:
+                    payment.status = PaymentRecordStatus.CANCELLED
+            return
+        if (
+            to_status == OrderStatus.DELIVERED
+            and order.payment_method == PaymentMethod.COD
+            and order.payment_status != PaymentStatus.PAID
+        ):
+            order.payment_status = PaymentStatus.PAID
+            pending_payment = next(
+                (
+                    candidate
+                    for candidate in payments
+                    if candidate.provider == PaymentMethod.COD
+                    and candidate.status
+                    in {
+                        PaymentRecordStatus.PENDING,
+                        PaymentRecordStatus.INITIATED,
+                        PaymentRecordStatus.AUTHORIZED,
+                    }
+                ),
+                None,
+            )
+            if pending_payment is None:
+                raise RuntimeError("COD order has no pending payment record")
+            pending_payment.status = PaymentRecordStatus.SUCCEEDED
+            pending_payment.provider_txn_id = (
+                pending_payment.provider_txn_id or f"COD-{order.number}"
+            )
+            pending_payment.raw_payload = {
+                **pending_payment.raw_payload,
+                "source": "delivery_confirmation",
+            }
+            return
+        if to_status == OrderStatus.REFUNDED:
+            if refund_reference is None:
+                raise RuntimeError("refund reference missing after transition validation")
+            order.payment_status = PaymentStatus.REFUNDED
+            self._session.add(
+                Payment(
+                    order_id=order.id,
+                    provider=order.payment_method,
+                    provider_txn_id=refund_reference,
+                    amount=order.grand_total,
+                    currency=order.currency,
+                    status=PaymentRecordStatus.REFUNDED,
+                    raw_payload={"manual_confirmation": True},
+                    idempotency_key=scoped_idempotency_key(
+                        scope=order.user_id,
+                        endpoint="order.payment.refund",
+                        resource=order.id,
+                        client_key=idempotency_key,
+                    ),
+                )
+            )
 
     def add_status_history(
         self,

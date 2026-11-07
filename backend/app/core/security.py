@@ -18,7 +18,14 @@ from fastapi import Response
 
 from app.core.config import Settings
 
-TokenType = Literal["access", "refresh", "guest", "quote"]
+TokenType = Literal[
+    "access",
+    "refresh",
+    "guest",
+    "quote",
+    "admin_access",
+    "admin_refresh",
+]
 _PASSWORD_HASHER = PasswordHasher()
 _DUMMY_PASSWORD_HASH = _PASSWORD_HASHER.hash(
     "bojro-dummy-password-verification-value-not-a-user-password"
@@ -66,13 +73,14 @@ class TokenService:
         now: datetime | None = None,
         jti: str | None = None,
         extra: dict[str, Any] | None = None,
+        audience: str | None = None,
     ) -> tuple[str, datetime, str]:
         issued_at = now or datetime.now(UTC)
         expires_at = issued_at + lifetime
         token_jti = jti or self.new_opaque_value()
         payload: dict[str, Any] = {
             "iss": self._settings.jwt_issuer,
-            "aud": self._settings.jwt_audience,
+            "aud": audience or self._settings.jwt_audience,
             "sub": subject,
             "typ": token_type,
             "sid": session_id,
@@ -143,6 +151,49 @@ class TokenService:
         )
         return token, expires_at
 
+    def encode_admin_access(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        csrf: str,
+        *,
+        now: datetime | None = None,
+    ) -> tuple[str, datetime]:
+        token, expires_at, _ = self._encode(
+            token_type="admin_access",
+            subject=str(user_id),
+            session_id=str(session_id),
+            csrf=csrf,
+            lifetime=timedelta(minutes=self._settings.admin_access_token_minutes),
+            secret=self._settings.admin_jwt_secret_key.get_secret_value(),
+            now=now,
+            audience=self._settings.admin_jwt_audience,
+            extra={"role": "admin", "channel": "admin"},
+        )
+        return token, expires_at
+
+    def encode_admin_refresh(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        csrf: str,
+        *,
+        now: datetime | None = None,
+        jti: str | None = None,
+    ) -> tuple[str, datetime, str]:
+        return self._encode(
+            token_type="admin_refresh",
+            subject=str(user_id),
+            session_id=str(session_id),
+            csrf=csrf,
+            lifetime=timedelta(hours=self._settings.admin_refresh_absolute_hours),
+            secret=self._settings.admin_jwt_secret_key.get_secret_value(),
+            now=now,
+            jti=jti,
+            audience=self._settings.admin_jwt_audience,
+            extra={"role": "admin", "channel": "admin"},
+        )
+
     def encode_quote(
         self,
         *,
@@ -172,8 +223,11 @@ class TokenService:
         *,
         verify_expiration: bool = True,
     ) -> TokenClaims:
+        is_admin = expected_type in {"admin_access", "admin_refresh"}
         secret = (
-            self._settings.guest_identity_secret.get_secret_value()
+            self._settings.admin_jwt_secret_key.get_secret_value()
+            if is_admin
+            else self._settings.guest_identity_secret.get_secret_value()
             if expected_type == "guest"
             else self._settings.quote_token_secret.get_secret_value()
             if expected_type == "quote"
@@ -184,7 +238,9 @@ class TokenService:
                 token,
                 secret,
                 algorithms=["HS256"],
-                audience=self._settings.jwt_audience,
+                audience=(
+                    self._settings.admin_jwt_audience if is_admin else self._settings.jwt_audience
+                ),
                 issuer=self._settings.jwt_issuer,
                 options={
                     "verify_exp": verify_expiration,
@@ -311,6 +367,47 @@ def clear_auth_cookies(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         settings.refresh_cookie_name,
         path="/api/v1/auth",
+        secure=settings.effective_cookie_secure,
+        httponly=True,
+        samesite=settings.cookie_same_site,
+    )
+
+
+def set_admin_access_cookie(response: Response, settings: Settings, token: str) -> None:
+    response.set_cookie(
+        settings.admin_access_cookie_name,
+        token,
+        max_age=settings.admin_access_token_minutes * 60,
+        httponly=True,
+        secure=settings.effective_cookie_secure,
+        samesite=settings.cookie_same_site,
+        path="/",
+    )
+
+
+def set_admin_refresh_cookie(response: Response, settings: Settings, token: str) -> None:
+    response.set_cookie(
+        settings.admin_refresh_cookie_name,
+        token,
+        max_age=settings.admin_refresh_absolute_hours * 3600,
+        httponly=True,
+        secure=settings.effective_cookie_secure,
+        samesite=settings.cookie_same_site,
+        path="/api/v1/admin/auth",
+    )
+
+
+def clear_admin_auth_cookies(response: Response, settings: Settings) -> None:
+    response.delete_cookie(
+        settings.admin_access_cookie_name,
+        path="/",
+        secure=settings.effective_cookie_secure,
+        httponly=True,
+        samesite=settings.cookie_same_site,
+    )
+    response.delete_cookie(
+        settings.admin_refresh_cookie_name,
+        path="/api/v1/admin/auth",
         secure=settings.effective_cookie_secure,
         httponly=True,
         samesite=settings.cookie_same_site,
