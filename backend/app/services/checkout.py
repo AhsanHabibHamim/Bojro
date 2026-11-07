@@ -39,8 +39,10 @@ from app.db.models import (
     ProductVariant,
     User,
 )
+from app.providers.payments import create_payment_providers
 from app.repositories.checkout import CheckoutRepository, GeoHierarchy
 from app.repositories.commerce import CommerceRepository
+from app.repositories.providers import ProviderRepository
 from app.schemas.commerce import (
     AddressGeoSnapshot,
     CartResponse,
@@ -56,8 +58,10 @@ from app.schemas.commerce import (
     TrackingLocation,
     TrackingResponse,
 )
+from app.schemas.providers import CustomerShipmentSummary
 from app.services.cart import CartService
 from app.services.commerce_pricing import coupon_is_active
+from app.services.payments import PaymentService
 from app.services.rate_limit import RateLimiter, RateLimitExceeded, RateLimitUnavailable
 from app.utils.idempotency import scoped_idempotency_key
 from app.utils.localization import Locale
@@ -82,6 +86,7 @@ class CheckoutService:
         tokens: TokenService,
         rate_limiter: RateLimiter,
         settings: Settings,
+        payment_service: PaymentService | None = None,
     ) -> None:
         self._repository = repository
         self._commerce_repository = commerce_repository
@@ -89,6 +94,14 @@ class CheckoutService:
         self._tokens = tokens
         self._rate_limiter = rate_limiter
         self._settings = settings
+        repository_session = getattr(repository, "session", None)
+        self._payment_service = payment_service
+        if self._payment_service is None and repository_session is not None:
+            self._payment_service = PaymentService(
+                ProviderRepository(repository_session),
+                create_payment_providers(settings),
+                settings,
+            )
 
     async def quote(
         self,
@@ -125,7 +138,9 @@ class CheckoutService:
                 else await self._repository.user_by_phone(payload.customer.phone)
             )
             self._reject_registered_phone_for_guest(customer, user_id)
-            await self._validate_cod_risk(payload.customer.phone)
+            await self._payments.require_accepting_new(PaymentMethod(payload.payment_method))
+            if payload.payment_method == PaymentMethod.COD.value:
+                await self._validate_cod_risk(payload.customer.phone)
             await self._repository.flush()
             populated = await self._commerce_repository.populated_cart(cart.id)
             cart_response = await self._cart_service.response(
@@ -241,14 +256,10 @@ class CheckoutService:
                         status_code=409,
                     )
                 customer = await self._checkout_customer(payload, user_id)
-                payment_methods = await self._repository.site_setting("payment_methods")
-                if payment_methods is None or not bool(payment_methods.value.get("cod", False)):
-                    raise DomainError(
-                        "COD_DISABLED",
-                        "Cash on delivery is currently unavailable.",
-                        status_code=409,
-                    )
-                await self._validate_cod_risk(payload.customer.phone)
+                selected_method = PaymentMethod(payload.payment_method)
+                await self._payments.require_accepting_new(selected_method)
+                if selected_method == PaymentMethod.COD:
+                    await self._validate_cod_risk(payload.customer.phone)
                 cart_items = await self._repository.cart_items_for_update(cart.id)
                 if not cart_items:
                     raise DomainError("CART_EMPTY", "The cart is empty.", status_code=409)
@@ -328,6 +339,7 @@ class CheckoutService:
                     cart_response,
                     order_idempotency_key,
                     now,
+                    locale,
                 )
                 created_order.merchant_snapshot = await self._repository.merchant_snapshot()
                 self._repository.add(created_order)
@@ -391,22 +403,25 @@ class CheckoutService:
                             code_snapshot=coupon.code,
                         )
                     )
-                self._repository.add(
-                    Payment(
-                        order_id=order_id,
-                        provider=PaymentMethod.COD,
-                        amount=cart_response.totals.grand_total_poisha,
-                        currency="BDT",
-                        status=PaymentRecordStatus.PENDING,
-                        raw_payload={},
-                        idempotency_key=scoped_idempotency_key(
-                            scope=customer.id,
-                            endpoint="checkout.payment.cod",
-                            resource=order_id,
-                            client_key=idempotency_key,
-                        ),
+                if selected_method == PaymentMethod.COD:
+                    self._repository.add(
+                        Payment(
+                            order_id=order_id,
+                            provider=PaymentMethod.COD,
+                            attempt_no=1,
+                            merchant_reference=f"BP{order_id.hex[:28]}",
+                            amount_poisha=cart_response.totals.grand_total_poisha,
+                            currency="BDT",
+                            status=PaymentRecordStatus.PENDING,
+                            provider_payload={"source": "checkout_cod"},
+                            idempotency_key=scoped_idempotency_key(
+                                scope=customer.id,
+                                endpoint="checkout.payment.cod",
+                                resource=order_id,
+                                client_key=idempotency_key,
+                            ),
+                        )
                     )
-                )
                 self._repository.add(
                     OrderStatusHistory(
                         order_id=order_id,
@@ -439,9 +454,13 @@ class CheckoutService:
         loaded_order = await self._repository.order_by_id(order_id)
         if loaded_order is None:
             raise RuntimeError("created order disappeared")
-        receipt = self._receipt(loaded_order, locale)
+        receipt = await self._receipt(loaded_order, locale)
         return PlacedOrder(
-            response=OrderCreateResponse(order=receipt, replayed=replayed),
+            response=OrderCreateResponse(
+                order=receipt,
+                replayed=replayed,
+                payment_required=loaded_order.payment_method != PaymentMethod.COD,
+            ),
             status_code=200 if replayed else 201,
         )
 
@@ -464,7 +483,7 @@ class CheckoutService:
         )
         if not authorized or order is None:
             raise self._order_not_found()
-        return self._receipt(order, locale)
+        return await self._receipt(order, locale)
 
     async def track(
         self,
@@ -483,11 +502,15 @@ class CheckoutService:
         district = cast(dict[str, Any], snapshot["district"])
         upazila = cast(dict[str, Any], snapshot["upazila"])
         shipping = cast(dict[str, Any], snapshot.get("shipping", {}))
+        payment = await self._payments.summary(order)
+        latest_shipment = self._latest_shipment(order)
         return TrackingResponse(
             number=order.number,
             status=order.status.value,
             payment_status=order.payment_status.value,
             payment_method=cast(Any, order.payment_method.value),
+            payment=payment,
+            latest_shipment=latest_shipment,
             placed_at=order.placed_at,
             updated_at=order.updated_at,
             item_count=sum(item.quantity for item in order.items),
@@ -647,6 +670,7 @@ class CheckoutService:
         cart_response: CartResponse,
         idempotency_key: str,
         now: datetime,
+        locale: Locale,
     ) -> Order:
         address = payload.shipping_address
         shipping = cart_response.shipping
@@ -660,6 +684,7 @@ class CheckoutService:
             "customer_email": (
                 str(payload.customer.email) if payload.customer.email is not None else None
             ),
+            "locale": locale,
             "division": self._geo_snapshot(hierarchy.division),
             "district": self._geo_snapshot(hierarchy.district),
             "upazila": self._geo_snapshot(hierarchy.upazila),
@@ -676,7 +701,7 @@ class CheckoutService:
             source_cart_id=cart.id,
             status=OrderStatus.PENDING,
             payment_status=PaymentStatus.PENDING,
-            payment_method=PaymentMethod.COD,
+            payment_method=PaymentMethod(payload.payment_method),
             subtotal=cart_response.totals.subtotal_poisha,
             discount_total=cart_response.totals.discount_poisha,
             shipping_total=cart_response.totals.shipping_poisha,
@@ -687,6 +712,11 @@ class CheckoutService:
             notes=payload.notes,
             idempotency_key=idempotency_key,
             placed_at=now,
+            payment_due_at=(
+                None
+                if payload.payment_method == PaymentMethod.COD.value
+                else now + timedelta(minutes=self._settings.online_order_ttl_minutes)
+            ),
         )
 
     @staticmethod
@@ -751,15 +781,14 @@ class CheckoutService:
     def _scope(user_id: UUID | None, guest_id: UUID) -> str:
         return f"user:{user_id}" if user_id is not None else f"guest:{guest_id}"
 
-    @classmethod
-    def _receipt(cls, order: Order, locale: Locale) -> OrderReceipt:
+    async def _receipt(self, order: Order, locale: Locale) -> OrderReceipt:
         snapshot = order.address_snapshot
         address = OrderAddressResponse(
             recipient=str(snapshot["recipient"]),
             phone=str(snapshot["phone"]),
-            division=cls._response_geo_snapshot(snapshot["division"], locale),
-            district=cls._response_geo_snapshot(snapshot["district"], locale),
-            upazila=cls._response_geo_snapshot(snapshot["upazila"], locale),
+            division=self._response_geo_snapshot(snapshot["division"], locale),
+            district=self._response_geo_snapshot(snapshot["district"], locale),
+            upazila=self._response_geo_snapshot(snapshot["upazila"], locale),
             address_line=str(snapshot["address_line"]),
         )
         return OrderReceipt(
@@ -767,6 +796,8 @@ class CheckoutService:
             status=order.status.value,
             payment_status=order.payment_status.value,
             payment_method=cast(Any, order.payment_method.value),
+            payment=await self._payments.summary(order),
+            latest_shipment=self._latest_shipment(order),
             subtotal_poisha=order.subtotal,
             discount_poisha=order.discount_total,
             shipping_poisha=order.shipping_total,
@@ -800,6 +831,23 @@ class CheckoutService:
             ],
             notes=order.notes,
         )
+
+    @staticmethod
+    def _latest_shipment(order: Order) -> CustomerShipmentSummary | None:
+        if not order.shipments:
+            return None
+        shipment = max(order.shipments, key=lambda item: (item.attempt_no, item.id))
+        return CustomerShipmentSummary(
+            courier=shipment.courier,
+            status=shipment.status,
+            tracking_code=shipment.tracking_code,
+        )
+
+    @property
+    def _payments(self) -> PaymentService:
+        if self._payment_service is None:
+            raise RuntimeError("payment service is unavailable for this checkout operation")
+        return self._payment_service
 
     @staticmethod
     def _response_geo_snapshot(value: object, locale: Locale) -> AddressGeoSnapshot:

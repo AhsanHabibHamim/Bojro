@@ -29,12 +29,14 @@ from app.db.base import Base  # noqa: E402
 from app.db.enums import (  # noqa: E402
     AuthSessionKind,
     CouponType,
+    CourierProvider,
     HomepageSectionType,
     OrderStatus,
     PaymentMethod,
     PaymentRecordStatus,
     PaymentStatus,
     ProductStatus,
+    ProviderGeoLevel,
     ReviewStatus,
     UserRole,
 )
@@ -58,6 +60,7 @@ from app.db.models import (  # noqa: E402
     Product,
     ProductImage,
     ProductVariant,
+    ProviderLocationMapping,
     Review,
     ReviewPhoto,
     SiteSetting,
@@ -954,6 +957,81 @@ async def seed_geo(session: AsyncSession, dataset: GeoDataset) -> None:
         update_columns=("district_id", "name_bn", "name_en"),
     )
 
+    for courier in (
+        CourierProvider.PATHAO,
+        CourierProvider.STEADFAST,
+        CourierProvider.REDX,
+    ):
+        mapping_rows: list[dict[str, object]] = []
+        mapping_rows.extend(
+            {
+                "id": seed_id("provider_geo", f"{courier.value}:division:{row.code}"),
+                "courier": courier,
+                "geo_level": ProviderGeoLevel.DIVISION,
+                "division_id": seed_id("geo_division", row.code),
+                "district_id": None,
+                "upazila_id": None,
+                "external_id": f"mock-{courier.value}-division-{row.code}",
+                "external_parent_id": None,
+                "active": True,
+                "provider_payload": {
+                    "provenance": "internal_deterministic_mock",
+                    "official_wire_fidelity": False,
+                },
+            }
+            for row in dataset.divisions
+        )
+        mapping_rows.extend(
+            {
+                "id": seed_id("provider_geo", f"{courier.value}:district:{row.code}"),
+                "courier": courier,
+                "geo_level": ProviderGeoLevel.DISTRICT,
+                "division_id": None,
+                "district_id": seed_id("geo_district", row.code),
+                "upazila_id": None,
+                "external_id": f"mock-{courier.value}-district-{row.code}",
+                "external_parent_id": f"mock-{courier.value}-division-{row.division_code}",
+                "active": True,
+                "provider_payload": {
+                    "provenance": "internal_deterministic_mock",
+                    "official_wire_fidelity": False,
+                },
+            }
+            for row in dataset.districts
+        )
+        mapping_rows.extend(
+            {
+                "id": seed_id("provider_geo", f"{courier.value}:upazila:{row.code}"),
+                "courier": courier,
+                "geo_level": ProviderGeoLevel.UPAZILA,
+                "division_id": None,
+                "district_id": None,
+                "upazila_id": seed_id("geo_upazila", row.code),
+                "external_id": f"mock-{courier.value}-upazila-{row.code}",
+                "external_parent_id": f"mock-{courier.value}-district-{row.district_code}",
+                "active": True,
+                "provider_payload": {
+                    "provenance": "internal_deterministic_mock",
+                    "official_wire_fidelity": False,
+                },
+            }
+            for row in dataset.upazilas
+        )
+        await upsert_rows(
+            session,
+            ProviderLocationMapping.__table__,
+            mapping_rows,
+            conflict_columns=("courier", "geo_level", "external_id"),
+            update_columns=(
+                "division_id",
+                "district_id",
+                "upazila_id",
+                "external_parent_id",
+                "active",
+                "provider_payload",
+            ),
+        )
+
 
 async def seed_catalog(session: AsyncSession) -> list[UUID]:
     category_rows: list[dict[str, object]] = [
@@ -1367,11 +1445,14 @@ async def seed_review_e2e_fixture(session: AsyncSession, seeded_at: datetime) ->
                 id=seed_id("e2e_admin_payment", _E2E_ADMIN_ORDER_NUMBER),
                 order_id=admin_order.id,
                 provider=PaymentMethod.COD,
+                attempt_no=1,
+                merchant_reference="BP"
+                + seed_id("e2e_admin_payment", _E2E_ADMIN_ORDER_NUMBER).hex[:28],
                 provider_txn_id=None,
-                amount=variant.price,
+                amount_poisha=variant.price,
                 currency="BDT",
                 status=PaymentRecordStatus.PENDING,
-                raw_payload={"fixture": "admin_order_lifecycle"},
+                provider_payload={"fixture": "admin_order_lifecycle"},
                 idempotency_key="seed:e2e_admin_order_payment",
             )
         )
@@ -1785,6 +1866,38 @@ async def seed_content(session: AsyncSession) -> None:
             "value": {"cod": True, "bkash": False, "nagad": False, "sslcommerz": False},
         },
         {
+            "id": seed_id("site_setting", "provider_operations"),
+            "key": "provider_operations",
+            "value": {"hard_disabled": []},
+        },
+        {
+            "id": seed_id("site_setting", "courier_operations"),
+            "key": "courier_operations",
+            "value": {
+                "pathao_accept_new": False,
+                "steadfast_accept_new": False,
+                "redx_accept_new": False,
+                "hard_disabled": [],
+            },
+        },
+        {
+            "id": seed_id("site_setting", "_e2e_phase6_provider_fixtures"),
+            "key": "_e2e_phase6_provider_fixtures",
+            "value": {
+                "semantics": "internal_deterministic_mock_only",
+                "payments": {
+                    "bkash": ["success", "cancel", "processing", "refund"],
+                    "nagad": ["success", "cancel", "processing", "refund"],
+                    "sslcommerz": ["success", "cancel", "processing", "refund"],
+                },
+                "couriers": {
+                    "pathao": ["booked", "in_transit", "delivered", "returned"],
+                    "steadfast": ["booked", "in_transit", "delivered", "returned"],
+                    "redx": ["booked", "in_transit", "delivered", "returned"],
+                },
+            },
+        },
+        {
             "id": seed_id("site_setting", "social_links"),
             "key": "social_links",
             "value": {"facebook": "", "instagram": "", "youtube": ""},
@@ -2005,6 +2118,48 @@ async def upgrade_demo_seed_v4_to_v5(
     marker.value = {**marker.value, "version": 5, "upgraded_at_v5": upgraded_at.isoformat()}
 
 
+async def upgrade_demo_seed_v5_to_v6(
+    session: AsyncSession, marker: SiteSetting, upgraded_at: datetime
+) -> None:
+    """Add only non-secret Phase 6 accept-new toggles and deterministic fixture metadata."""
+
+    defaults: dict[str, dict[str, object]] = {
+        "provider_operations": {"hard_disabled": []},
+        "courier_operations": {
+            "pathao_accept_new": False,
+            "steadfast_accept_new": False,
+            "redx_accept_new": False,
+            "hard_disabled": [],
+        },
+        "_e2e_phase6_provider_fixtures": {
+            "semantics": "internal_deterministic_mock_only",
+            "payments": {
+                "bkash": ["success", "cancel", "processing", "refund"],
+                "nagad": ["success", "cancel", "processing", "refund"],
+                "sslcommerz": ["success", "cancel", "processing", "refund"],
+            },
+            "couriers": {
+                "pathao": ["booked", "in_transit", "delivered", "returned"],
+                "steadfast": ["booked", "in_transit", "delivered", "returned"],
+                "redx": ["booked", "in_transit", "delivered", "returned"],
+            },
+        },
+    }
+    existing = {
+        setting.key: setting
+        for setting in await session.scalars(
+            select(SiteSetting).where(SiteSetting.key.in_(defaults))
+        )
+    }
+    for key, value in defaults.items():
+        setting = existing.get(key)
+        if setting is None:
+            session.add(SiteSetting(id=seed_id("site_setting_v6", key), key=key, value=value))
+        else:
+            setting.value = merge_missing(setting.value, value)
+    marker.value = {**marker.value, "version": 6, "upgraded_at_v6": upgraded_at.isoformat()}
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if settings.seed_admin_email is None or settings.seed_admin_password is None:
         return False
@@ -2109,12 +2264,12 @@ async def seed_database() -> None:
                     id=uuid7(),
                     key=_DEMO_SEED_KEY,
                     value={
-                        "version": 5,
+                        "version": 6,
                         "geo_coverage_as_of": dataset.metadata.coverage_as_of,
                     },
                 )
                 session.add(marker)
-            elif (marker_version := marker.value.get("version")) in {1, 2, 3, 4}:
+            elif (marker_version := marker.value.get("version")) in {1, 2, 3, 4, 5}:
                 demo_upgraded = True
                 if marker_version == 1:
                     await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
@@ -2127,7 +2282,10 @@ async def seed_database() -> None:
                     marker_version = 4
                 if marker_version == 4:
                     await upgrade_demo_seed_v4_to_v5(session, marker, seeded_at)
-            elif marker.value.get("version") != 5:
+                    marker_version = 5
+                if marker_version == 5:
+                    await upgrade_demo_seed_v5_to_v6(session, marker, seeded_at)
+            elif marker.value.get("version") != 6:
                 raise RuntimeError("unsupported demo seed marker version")
             if settings.storage_provider == "mock":
                 await seed_review_e2e_fixture(session, seeded_at)

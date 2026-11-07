@@ -16,13 +16,14 @@ from pydantic import (
 )
 
 from app.schemas.common import APIModel
+from app.schemas.providers import CustomerPaymentSummary, CustomerShipmentSummary
 from app.utils.phone import BangladeshPhone
 
 OrderNumber = Annotated[
     str,
     StringConstraints(pattern=r"^BJ-[0-9]{4}-[0-9]{6}$"),
 ]
-PaymentMethodCode = Literal["cod"]
+PaymentMethodCode = Literal["cod", "bkash", "nagad", "sslcommerz"]
 
 
 class LocaleQuery(APIModel):
@@ -242,6 +243,8 @@ class OrderReceipt(APIModel):
     status: str
     payment_status: str
     payment_method: PaymentMethodCode
+    payment: CustomerPaymentSummary
+    latest_shipment: CustomerShipmentSummary | None
     subtotal_poisha: int = Field(ge=0)
     discount_poisha: int = Field(ge=0)
     shipping_poisha: int = Field(ge=0)
@@ -259,6 +262,7 @@ class OrderReceipt(APIModel):
 class OrderCreateResponse(APIModel):
     order: OrderReceipt
     replayed: bool
+    payment_required: bool
 
 
 class TrackingRequest(APIModel):
@@ -276,6 +280,8 @@ class TrackingResponse(APIModel):
     status: str
     payment_status: str
     payment_method: PaymentMethodCode
+    payment: CustomerPaymentSummary
+    latest_shipment: CustomerShipmentSummary | None
     placed_at: datetime
     updated_at: datetime
     item_count: int = Field(ge=0)

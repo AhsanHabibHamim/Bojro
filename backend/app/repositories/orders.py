@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.base import utc_now
@@ -15,6 +15,8 @@ from app.db.enums import (
     PaymentMethod,
     PaymentRecordStatus,
     PaymentStatus,
+    RefundMode,
+    RefundStatus,
 )
 from app.db.models import (
     AuditLog,
@@ -26,10 +28,12 @@ from app.db.models import (
     OrderItem,
     OrderStatusHistory,
     Payment,
+    PaymentRefund,
     Product,
     ProductVariant,
 )
 from app.utils.idempotency import scoped_idempotency_key
+from app.utils.uuid7 import uuid7
 
 
 class OrderRepositoryProtocol(Protocol):
@@ -218,12 +222,19 @@ class SQLAlchemyOrderRepository:
             )
         )
         if to_status == OrderStatus.CANCELLED:
-            order.payment_status = PaymentStatus.CANCELLED
+            if order.payment_status not in {
+                PaymentStatus.PAID,
+                PaymentStatus.PARTIALLY_REFUNDED,
+                PaymentStatus.REFUNDED,
+            }:
+                order.payment_status = PaymentStatus.CANCELLED
             for payment in payments:
                 if payment.status in {
                     PaymentRecordStatus.PENDING,
                     PaymentRecordStatus.INITIATED,
+                    PaymentRecordStatus.PROCESSING,
                     PaymentRecordStatus.AUTHORIZED,
+                    PaymentRecordStatus.UNKNOWN,
                 }:
                     payment.status = PaymentRecordStatus.CANCELLED
             return
@@ -250,6 +261,7 @@ class SQLAlchemyOrderRepository:
             if pending_payment is None:
                 raise RuntimeError("COD order has no pending payment record")
             pending_payment.status = PaymentRecordStatus.SUCCEEDED
+            pending_payment.provider_status = "cash_collected"
             pending_payment.provider_txn_id = (
                 pending_payment.provider_txn_id or f"COD-{order.number}"
             )
@@ -257,28 +269,75 @@ class SQLAlchemyOrderRepository:
                 **pending_payment.raw_payload,
                 "source": "delivery_confirmation",
             }
+            pending_payment.terminal_at = utc_now()
+            pending_payment.next_reconcile_at = None
+            pending_payment.revision += 1
             return
         if to_status == OrderStatus.REFUNDED:
             if refund_reference is None:
                 raise RuntimeError("refund reference missing after transition validation")
-            order.payment_status = PaymentStatus.REFUNDED
+            capture = next(
+                (
+                    payment
+                    for payment in payments
+                    if payment.status == PaymentRecordStatus.SUCCEEDED
+                ),
+                None,
+            )
+            if capture is None:
+                raise RuntimeError("refunded order has no successful payment capture")
+            refunded = int(
+                await self._session.scalar(
+                    select(func.coalesce(func.sum(PaymentRefund.amount_poisha), 0)).where(
+                        PaymentRefund.payment_id == capture.id,
+                        PaymentRefund.status == RefundStatus.SUCCEEDED,
+                    )
+                )
+                or 0
+            )
+            remaining = capture.amount_poisha - refunded
+            if remaining <= 0:
+                order.payment_status = PaymentStatus.REFUNDED
+                return
+            refund_no = (
+                int(
+                    await self._session.scalar(
+                        select(func.coalesce(func.max(PaymentRefund.refund_no), 0)).where(
+                            PaymentRefund.payment_id == capture.id
+                        )
+                    )
+                    or 0
+                )
+                + 1
+            )
+            refund_id = uuid7()
             self._session.add(
-                Payment(
+                PaymentRefund(
+                    id=refund_id,
+                    payment_id=capture.id,
                     order_id=order.id,
-                    provider=order.payment_method,
-                    provider_txn_id=refund_reference,
-                    amount=order.grand_total,
-                    currency=order.currency,
-                    status=PaymentRecordStatus.REFUNDED,
-                    raw_payload={"manual_confirmation": True},
+                    provider=capture.provider,
+                    refund_no=refund_no,
+                    merchant_reference=f"BR{refund_id.hex[:28]}",
                     idempotency_key=scoped_idempotency_key(
                         scope=order.user_id,
                         endpoint="order.payment.refund",
                         resource=order.id,
                         client_key=idempotency_key,
                     ),
+                    amount_poisha=remaining,
+                    currency=order.currency,
+                    status=RefundStatus.SUCCEEDED,
+                    mode=RefundMode.MANUAL,
+                    reason="Legacy manual refund confirmation",
+                    manual_reference=refund_reference,
+                    provider_status="manual_confirmed",
+                    provider_payload={"legacy_admin_transition": True},
+                    initiated_at=utc_now(),
+                    completed_at=utc_now(),
                 )
             )
+            order.payment_status = PaymentStatus.REFUNDED
 
     def add_status_history(
         self,

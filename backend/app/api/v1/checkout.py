@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 
-from app.api.dependencies import get_checkout_service
+from app.api.dependencies import get_checkout_service, get_payment_service
 from app.api.security import RequestIdentity, client_ip, require_json_unsafe_identity
 from app.core.errors import PHASE3_ERROR_RESPONSES
 from app.schemas.commerce import (
@@ -16,10 +16,13 @@ from app.schemas.commerce import (
     LocaleQuery,
     OrderCreateResponse,
 )
+from app.schemas.providers import PaymentMethodsResponse
 from app.services.checkout import CheckoutService
+from app.services.payments import PaymentService
 
 router = APIRouter(prefix="/checkout", tags=["checkout"], responses=PHASE3_ERROR_RESPONSES)
 Service = Annotated[CheckoutService, Depends(get_checkout_service)]
+PaymentServiceDependency = Annotated[PaymentService, Depends(get_payment_service)]
 UnsafeIdentity = Annotated[RequestIdentity, Depends(require_json_unsafe_identity)]
 IdempotencyKey = Annotated[
     str,
@@ -38,6 +41,15 @@ _REPLAY_HEADER = {
     "description": "True when a completed response is replayed for the same key and body.",
     "schema": {"type": "string", "enum": ["true"]},
 }
+
+
+@router.get(
+    "/payment-methods",
+    response_model=PaymentMethodsResponse,
+    operation_id="checkoutPaymentMethods",
+)
+async def payment_methods(service: PaymentServiceDependency) -> PaymentMethodsResponse:
+    return await service.methods()
 
 
 @router.post("/quote", response_model=CheckoutQuoteResponse)

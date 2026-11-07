@@ -1,0 +1,16 @@
+{
+  "provenance": {
+    "kind": "internal_deterministic_mock",
+    "official_wire_fidelity": false,
+    "note": "No public merchant documentation was available at the Phase 6 freeze."
+  },
+  "statuses": ["pending", "picked_up", "in_delivery", "delivered", "returned", "cancelled"],
+  "webhook": {
+    "event_id": "steadfast-event-001",
+    "event_type": "consignment.updated",
+    "merchant_reference": "BS0000000000000000000000000002",
+    "status": "in_delivery",
+    "consignment_id": "STD-C-DETERMINISTIC",
+    "tracking_code": "STDDETERMINISTIC"
+  }
+}

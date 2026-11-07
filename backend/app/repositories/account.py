@@ -219,7 +219,12 @@ class AccountRepository:
             await self.session.scalars(
                 select(Order)
                 .where(*conditions)
-                .options(selectinload(Order.items))
+                .options(
+                    selectinload(Order.items),
+                    selectinload(Order.payments),
+                    selectinload(Order.payment_refunds),
+                    selectinload(Order.shipments),
+                )
                 .order_by(Order.placed_at.desc(), Order.id.desc())
                 .limit(limit + 1)
             )
@@ -229,7 +234,13 @@ class AccountRepository:
         return await self.session.scalar(
             select(Order)
             .where(Order.number == number, Order.user_id == user_id)
-            .options(selectinload(Order.items), selectinload(Order.status_history))
+            .options(
+                selectinload(Order.items),
+                selectinload(Order.status_history),
+                selectinload(Order.payments),
+                selectinload(Order.payment_refunds),
+                selectinload(Order.shipments),
+            )
         )
 
     async def order_by_number_for_user(

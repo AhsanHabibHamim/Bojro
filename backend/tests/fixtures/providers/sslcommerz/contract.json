@@ -1,0 +1,32 @@
+{
+  "provenance": {
+    "kind": "official_documentation_example_adapted_and_sanitized",
+    "official_wire_fidelity": true,
+    "source": "https://developer.sslcommerz.com/doc/v4/",
+    "retrieved": "2026-11-07",
+    "note": "Credentials and transaction identifiers are synthetic; field semantics and endpoints are from official v4 documentation."
+  },
+  "session_response": {
+    "status": "SUCCESS",
+    "failedreason": "",
+    "sessionkey": "F298BC45B0688E02768900C4F6B28C8B",
+    "GatewayPageURL": "https://sandbox.sslcommerz.com/gwprocess/v4/gw.php?Q=PAY&SESSIONKEY=F298BC45B0688E02768900C4F6B28C8B"
+  },
+  "validation_response": {
+    "status": "VALIDATED",
+    "tran_id": "BP0000000000000000000000000003",
+    "val_id": "1709162025351ElIuHtUtFReBwE",
+    "amount": "125.00",
+    "currency": "BDT",
+    "bank_tran_id": "1709162025350IvUOK8nCTb6Uan",
+    "APIConnect": "DONE"
+  },
+  "refund_response": {
+    "APIConnect": "DONE",
+    "bank_tran_id": "1709162025350IvUOK8nCTb6Uan",
+    "trans_id": "BP0000000000000000000000000003",
+    "refund_ref_id": "59bd63fea5455",
+    "status": "success",
+    "errorReason": ""
+  }
+}

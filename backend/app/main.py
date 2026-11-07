@@ -25,6 +25,7 @@ from app.core.middleware import (
 )
 from app.core.security import TokenService
 from app.db.session import create_engine, create_session_factory
+from app.providers import create_courier_providers, create_payment_providers
 from app.services.cache import HotCache
 from app.services.courier import create_courier_gateways
 from app.services.otp import OTPService
@@ -86,6 +87,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.token_service = TokenService(resolved_settings)
     application.state.storage_provider = create_storage_provider(resolved_settings)
     application.state.courier_gateways = create_courier_gateways(resolved_settings)
+    application.state.payment_providers = create_payment_providers(resolved_settings)
+    application.state.courier_providers = create_courier_providers(resolved_settings)
     install_error_handlers(application)
     application.add_middleware(
         CORSMiddleware,

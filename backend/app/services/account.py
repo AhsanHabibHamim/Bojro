@@ -15,6 +15,8 @@ from app.core.errors import DomainError
 from app.db.enums import (
     MessageAuthor,
     OrderStatus,
+    PaymentRecordStatus,
+    RefundStatus,
     ReviewStatus,
     TicketPriority,
     TicketStatus,
@@ -88,6 +90,11 @@ from app.schemas.account import (
 )
 from app.schemas.catalog import ProductRef
 from app.schemas.commerce import AddressGeoSnapshot, OrderAddressResponse
+from app.schemas.providers import (
+    CustomerPaymentAttempt,
+    CustomerPaymentSummary,
+    CustomerShipmentSummary,
+)
 from app.services.catalog import CatalogService
 from app.services.rate_limit import RateLimiter, RateLimitExceeded, RateLimitUnavailable
 from app.services.storage import (
@@ -409,6 +416,8 @@ class AccountService:
             status=order.status.value,
             payment_status=order.payment_status.value,
             payment_method=order.payment_method.value,
+            payment=self._customer_payment(order),
+            latest_shipment=self._customer_shipment(order),
             subtotal_poisha=order.subtotal,
             discount_poisha=order.discount_total,
             shipping_poisha=order.shipping_total,
@@ -1314,12 +1323,69 @@ class AccountService:
             status=order.status.value,
             payment_status=order.payment_status.value,
             payment_method=order.payment_method.value,
+            payment=cls._customer_payment(order),
+            latest_shipment=cls._customer_shipment(order),
             placed_at=order.placed_at,
             updated_at=order.updated_at,
             grand_total_poisha=order.grand_total,
             item_count=sum(item.quantity for item in rows),
             items=[cls._order_item(item, locale) for item in rows[:3]],
             has_more_items=len(rows) > 3,
+        )
+
+    @staticmethod
+    def _customer_payment(order: Order) -> CustomerPaymentSummary:
+        capture = next(
+            (item for item in order.payments if item.status == PaymentRecordStatus.SUCCEEDED), None
+        )
+        refunded = sum(
+            item.amount_poisha
+            for item in order.payment_refunds
+            if item.status == RefundStatus.SUCCEEDED
+        )
+        pending = sum(
+            item.amount_poisha
+            for item in order.payment_refunds
+            if item.status in {RefundStatus.PENDING, RefundStatus.PROCESSING, RefundStatus.UNKNOWN}
+        )
+        latest = max(order.payments, key=lambda item: (item.attempt_no, item.id), default=None)
+        latest_response = None
+        if latest is not None:
+            latest_response = CustomerPaymentAttempt(
+                id=latest.id,
+                attempt_no=latest.attempt_no,
+                provider=latest.provider,
+                status=latest.status,
+                amount_poisha=latest.amount_poisha,
+                currency="BDT",
+                expires_at=latest.expires_at,
+                next_action=None,
+                can_retry=latest.status
+                in {
+                    PaymentRecordStatus.FAILED,
+                    PaymentRecordStatus.CANCELLED,
+                    PaymentRecordStatus.EXPIRED,
+                },
+                updated_at=latest.updated_at,
+            )
+        return CustomerPaymentSummary(
+            method=order.payment_method,
+            status=order.payment_status.value,
+            paid_amount_poisha=capture.amount_poisha if capture else 0,
+            refunded_amount_poisha=refunded,
+            pending_refund_amount_poisha=pending,
+            latest_attempt=latest_response,
+        )
+
+    @staticmethod
+    def _customer_shipment(order: Order) -> CustomerShipmentSummary | None:
+        latest = max(order.shipments, key=lambda item: (item.attempt_no, item.id), default=None)
+        if latest is None:
+            return None
+        return CustomerShipmentSummary(
+            courier=latest.courier,
+            status=latest.status,
+            tracking_code=latest.tracking_code,
         )
 
     @classmethod

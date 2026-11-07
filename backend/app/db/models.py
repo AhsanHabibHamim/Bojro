@@ -23,13 +23,15 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     func,
+    select,
     text,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, INET, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym, validates
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
 from app.db.enums import (
@@ -48,12 +50,19 @@ from app.db.enums import (
     PaymentRecordStatus,
     PaymentStatus,
     ProductStatus,
+    ProviderGeoLevel,
+    RefundMode,
+    RefundStatus,
     ReviewStatus,
     ShipmentStatus,
     TicketPriority,
     TicketStatus,
     UserRole,
+    WebhookKind,
+    WebhookProcessingStatus,
+    WebhookVerificationStatus,
 )
+from app.utils.uuid7 import uuid7
 
 
 def db_enum[EnumT: Enum](enum_class: type[EnumT], name: str) -> SAEnum:
@@ -836,6 +845,14 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_orders_user_status_placed_id", "user_id", "status", "placed_at", "id"),
         Index("ix_orders_status_placed_at", "status", "placed_at"),
         Index("ix_orders_payment_status_placed_at", "payment_status", "placed_at"),
+        Index(
+            "ix_orders_unpaid_payment_due",
+            "payment_due_at",
+            "id",
+            postgresql_where=text(
+                "payment_due_at IS NOT NULL AND payment_status NOT IN ('paid', 'refunded')"
+            ),
+        ),
         Index("ix_orders_phone_lookup", text("(address_snapshot ->> 'phone')")),
     )
 
@@ -881,6 +898,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     placed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
+    payment_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="orders")
     items: Mapped[list[OrderItem]] = relationship(
@@ -890,6 +908,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="order", cascade="all, delete-orphan"
     )
     payments: Mapped[list[Payment]] = relationship(back_populates="order")
+    payment_refunds: Mapped[list[PaymentRefund]] = relationship(back_populates="order")
     shipments: Mapped[list[Shipment]] = relationship(back_populates="order")
     admin_notes: Mapped[list[OrderNote]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
@@ -1053,11 +1072,43 @@ class OrderStatusHistory(UUIDPrimaryKeyMixin, Base):
 class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "payments"
     __table_args__ = (
-        CheckConstraint("amount >= 0", name="amount_nonnegative"),
+        CheckConstraint("amount_poisha > 0", name="amount_poisha_positive"),
         CheckConstraint("currency = 'BDT'", name="currency_bdt"),
-        UniqueConstraint("provider", "provider_txn_id"),
+        CheckConstraint("attempt_no > 0", name="attempt_no_positive"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        UniqueConstraint("order_id", "attempt_no", name="uq_payments_order_attempt_no"),
+        UniqueConstraint("merchant_reference", name="uq_payments_merchant_reference"),
         Index("ix_payments_order_created_at", "order_id", "created_at"),
         Index("ix_payments_status_created_at", "status", "created_at"),
+        Index(
+            "uq_payments_provider_payment_id",
+            "provider",
+            "provider_payment_id",
+            unique=True,
+            postgresql_where=text("provider_payment_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_payments_provider_txn_id",
+            "provider",
+            "provider_txn_id",
+            unique=True,
+            postgresql_where=text("provider_txn_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_payments_one_active_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text(
+                "status IN ('pending', 'initiated', 'processing', 'authorized', 'unknown')"
+            ),
+        ),
+        Index(
+            "uq_payments_one_succeeded_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text("status = 'succeeded'"),
+        ),
+        Index("ix_payments_reconcile_due", "next_reconcile_at", "id"),
     )
 
     order_id: Mapped[UUID] = mapped_column(
@@ -1066,8 +1117,17 @@ class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     provider: Mapped[PaymentMethod] = mapped_column(
         db_enum(PaymentMethod, "payment_method"), nullable=False
     )
+    attempt_no: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
+    merchant_reference: Mapped[str] = mapped_column(
+        String(128), default=lambda: f"BP{uuid7().hex[:28]}", nullable=False
+    )
+    provider_payment_id: Mapped[str | None] = mapped_column(String(255))
     provider_txn_id: Mapped[str | None] = mapped_column(String(255))
-    amount: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    amount_poisha: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Python-only compatibility for one release; the Phase 6 database column is amount_poisha.
+    amount = synonym("amount_poisha")
     currency: Mapped[str] = mapped_column(
         String(3), default="BDT", server_default=text("'BDT'"), nullable=False
     )
@@ -1076,22 +1136,141 @@ class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=PaymentRecordStatus.PENDING,
         nullable=False,
     )
-    raw_payload: Mapped[dict[str, object]] = mapped_column(
+    provider_status: Mapped[str | None] = mapped_column(String(120))
+    failure_code: Mapped[str | None] = mapped_column(String(120))
+    failure_reason: Mapped[str | None] = mapped_column(String(500))
+    next_action: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    action_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    initiated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_reconcile_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconcile_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    provider_payload: Mapped[dict[str, object]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
+    raw_payload = synonym("provider_payload")
     idempotency_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
 
     order: Mapped[Order] = relationship(back_populates="payments")
+    refunds: Mapped[list[PaymentRefund]] = relationship(back_populates="payment")
+
+
+class PaymentRefund(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "payment_refunds"
+    __table_args__ = (
+        CheckConstraint("refund_no > 0", name="refund_no_positive"),
+        CheckConstraint("amount_poisha > 0", name="amount_poisha_positive"),
+        CheckConstraint("currency = 'BDT'", name="currency_bdt"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint(
+            "mode <> 'manual' OR manual_reference IS NOT NULL",
+            name="manual_reference_required",
+        ),
+        UniqueConstraint("payment_id", "refund_no", name="uq_payment_refunds_payment_refund_no"),
+        UniqueConstraint("merchant_reference", name="uq_payment_refunds_merchant_reference"),
+        UniqueConstraint("idempotency_key", name="uq_payment_refunds_idempotency_key"),
+        Index(
+            "uq_payment_refunds_provider_refund_id",
+            "provider",
+            "provider_refund_id",
+            unique=True,
+            postgresql_where=text("provider_refund_id IS NOT NULL"),
+        ),
+        Index("ix_payment_refunds_order_created", "order_id", "created_at"),
+        Index("ix_payment_refunds_reconcile_due", "next_reconcile_at", "id"),
+    )
+
+    payment_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("payments.id", ondelete="RESTRICT"), nullable=False
+    )
+    order_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="RESTRICT"), nullable=False
+    )
+    provider: Mapped[PaymentMethod] = mapped_column(
+        db_enum(PaymentMethod, "payment_method"), nullable=False
+    )
+    refund_no: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    merchant_reference: Mapped[str] = mapped_column(String(128), nullable=False)
+    provider_refund_id: Mapped[str | None] = mapped_column(String(255))
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    amount_poisha: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(
+        String(3), default="BDT", server_default=text("'BDT'"), nullable=False
+    )
+    status: Mapped[RefundStatus] = mapped_column(
+        db_enum(RefundStatus, "refund_status"),
+        default=RefundStatus.PENDING,
+        server_default=text("'pending'"),
+        nullable=False,
+    )
+    mode: Mapped[RefundMode] = mapped_column(db_enum(RefundMode, "refund_mode"), nullable=False)
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    manual_reference: Mapped[str | None] = mapped_column(String(255))
+    requested_by: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    provider_status: Mapped[str | None] = mapped_column(String(120))
+    failure_code: Mapped[str | None] = mapped_column(String(120))
+    failure_reason: Mapped[str | None] = mapped_column(String(500))
+    provider_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    initiated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_reconcile_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconcile_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+    payment: Mapped[Payment] = relationship(back_populates="refunds")
+    order: Mapped[Order] = relationship(back_populates="payment_refunds")
+    requester: Mapped[User | None] = relationship()
 
 
 class Shipment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "shipments"
     __table_args__ = (
-        UniqueConstraint("courier", "consignment_id"),
+        CheckConstraint("attempt_no > 0", name="attempt_no_positive"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        UniqueConstraint("order_id", "attempt_no", name="uq_shipments_order_attempt_no"),
+        UniqueConstraint("merchant_reference", name="uq_shipments_merchant_reference"),
         Index("ix_shipments_order_created_at", "order_id", "created_at"),
-        Index("ix_shipments_tracking_code", "tracking_code"),
+        Index(
+            "uq_shipments_courier_consignment_id",
+            "courier",
+            "consignment_id",
+            unique=True,
+            postgresql_where=text("consignment_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_shipments_courier_tracking_code",
+            "courier",
+            "tracking_code",
+            unique=True,
+            postgresql_where=text("tracking_code IS NOT NULL"),
+        ),
         Index("ix_shipments_status_updated_at", "status", "updated_at"),
-        Index("ix_shipments_reconcile", "status", "updated_at"),
+        Index("ix_shipments_reconcile", "next_reconcile_at", "id"),
+        Index(
+            "uq_shipments_one_active_per_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text(
+                "courier <> 'mock' AND status IN "
+                "('pending', 'ready', 'unknown', 'booked', 'picked_up', 'in_transit')"
+            ),
+        ),
     )
 
     order_id: Mapped[UUID] = mapped_column(
@@ -1100,6 +1279,12 @@ class Shipment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     courier: Mapped[CourierProvider] = mapped_column(
         db_enum(CourierProvider, "courier_provider"), nullable=False
     )
+    attempt_no: Mapped[int] = mapped_column(
+        SmallInteger, default=1, server_default=text("1"), nullable=False
+    )
+    merchant_reference: Mapped[str] = mapped_column(
+        String(128), default=lambda: f"BS{uuid7().hex[:28]}", nullable=False
+    )
     consignment_id: Mapped[str | None] = mapped_column(String(255))
     tracking_code: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[ShipmentStatus] = mapped_column(
@@ -1107,16 +1292,117 @@ class Shipment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=ShipmentStatus.PENDING,
         nullable=False,
     )
-    raw: Mapped[dict[str, object]] = mapped_column(
+    provider_status: Mapped[str | None] = mapped_column(String(120))
+    provider_payload: Mapped[dict[str, object]] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
+    raw = synonym("provider_payload")
     booking_idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True)
+    failure_code: Mapped[str | None] = mapped_column(String(120))
     failure_reason: Mapped[str | None] = mapped_column(String(500))
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_reconcile_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconcile_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    booked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    returned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revision: Mapped[int] = mapped_column(
         Integer, default=1, server_default=text("1"), nullable=False
     )
 
     order: Mapped[Order] = relationship(back_populates="shipments")
+
+
+class ProviderLocationMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "provider_location_mappings"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(division_id, district_id, upazila_id) = 1",
+            name="exactly_one_local_location",
+        ),
+        CheckConstraint(
+            "(geo_level = 'division' AND division_id IS NOT NULL) OR "
+            "(geo_level = 'district' AND district_id IS NOT NULL) OR "
+            "(geo_level = 'upazila' AND upazila_id IS NOT NULL)",
+            name="geo_level_matches_location",
+        ),
+        Index(
+            "uq_provider_locations_division",
+            "courier",
+            "division_id",
+            unique=True,
+            postgresql_where=text("division_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_provider_locations_district",
+            "courier",
+            "district_id",
+            unique=True,
+            postgresql_where=text("district_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_provider_locations_upazila",
+            "courier",
+            "upazila_id",
+            unique=True,
+            postgresql_where=text("upazila_id IS NOT NULL"),
+        ),
+        UniqueConstraint(
+            "courier", "geo_level", "external_id", name="uq_provider_locations_external"
+        ),
+        Index("ix_provider_locations_active", "courier", "geo_level", "active"),
+    )
+
+    courier: Mapped[CourierProvider] = mapped_column(
+        db_enum(CourierProvider, "courier_provider"), nullable=False
+    )
+    geo_level: Mapped[ProviderGeoLevel] = mapped_column(
+        db_enum(ProviderGeoLevel, "provider_geo_level"), nullable=False
+    )
+    division_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("geo_divisions.id", ondelete="CASCADE")
+    )
+    district_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("geo_districts.id", ondelete="CASCADE")
+    )
+    upazila_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("geo_upazilas.id", ondelete="CASCADE")
+    )
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    external_parent_id: Mapped[str | None] = mapped_column(String(255))
+    active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    provider_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    last_synchronized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    division: Mapped[GeoDivision | None] = relationship()
+    district: Mapped[GeoDistrict | None] = relationship()
+    upazila: Mapped[GeoUpazila | None] = relationship()
+
+
+class ReconciliationConflict(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "reconciliation_conflicts"
+    __table_args__ = (
+        UniqueConstraint("resource_kind", "resource_id", "code", name="uq_reconcile_conflict"),
+        Index("ix_reconciliation_conflicts_open", "resolved_at", "created_at"),
+    )
+
+    resource_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    resource_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    order_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(String(120), nullable=False)
+    detail: Mapped[str] = mapped_column(String(500), nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class OrderNote(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -1718,6 +2004,9 @@ class OutboxEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     next_attempt_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    locked_by: Mapped[str | None] = mapped_column(String(128))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(String(500))
 
@@ -1765,15 +2054,78 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
 class WebhookEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "webhook_events"
     __table_args__ = (
-        Index("ix_webhook_events_provider_processed", "provider", "processed_at"),
+        UniqueConstraint("kind", "provider", "event_id", name="uq_webhook_events_identity"),
+        Index("ix_webhook_events_provider_processed", "kind", "provider", "processed_at"),
         Index(
-            "ix_webhook_events_unprocessed",
+            "ix_webhook_events_processing_due",
+            "processing_status",
+            "next_attempt_at",
             "created_at",
-            postgresql_where=text("processed_at IS NULL"),
+            postgresql_where=text("processing_status IN ('queued', 'retry', 'processing')"),
         ),
     )
 
+    kind: Mapped[WebhookKind] = mapped_column(db_enum(WebhookKind, "webhook_kind"), nullable=False)
     provider: Mapped[str] = mapped_column(String(80), nullable=False)
-    event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    event_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    raw_body_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    normalized_payload: Mapped[dict[str, object]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    verification_status: Mapped[WebhookVerificationStatus] = mapped_column(
+        db_enum(WebhookVerificationStatus, "webhook_verification_status"), nullable=False
+    )
+    verification_method: Mapped[str] = mapped_column(String(80), nullable=False)
+    processing_status: Mapped[WebhookProcessingStatus] = mapped_column(
+        db_enum(WebhookProcessingStatus, "webhook_processing_status"),
+        default=WebhookProcessingStatus.QUEUED,
+        server_default=text("'queued'"),
+        nullable=False,
+    )
+    payment_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("payments.id", ondelete="SET NULL")
+    )
+    refund_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("payment_refunds.id", ondelete="SET NULL")
+    )
+    shipment_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("shipments.id", ondelete="SET NULL")
+    )
+    provider_occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    last_error_code: Mapped[str | None] = mapped_column(String(120))
+    last_error: Mapped[str | None] = mapped_column(String(500))
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+@event.listens_for(Payment, "before_insert")
+def _legacy_payment_attempt_number(_mapper: object, connection: object, target: Payment) -> None:
+    """Allocate attempt numbers for one-release callers that omit the new field."""
+    if target.attempt_no is not None:
+        return
+    value = connection.scalar(
+        select(func.coalesce(func.max(Payment.__table__.c.attempt_no), 0)).where(
+            Payment.__table__.c.order_id == target.order_id
+        )
+    )
+    target.attempt_no = int(value or 0) + 1
+
+
+@event.listens_for(Shipment, "before_insert")
+def _legacy_shipment_attempt_number(_mapper: object, connection: object, target: Shipment) -> None:
+    """Allocate attempt numbers for one-release callers that omit the new field."""
+    if target.attempt_no is not None:
+        return
+    value = connection.scalar(
+        select(func.coalesce(func.max(Shipment.__table__.c.attempt_no), 0)).where(
+            Shipment.__table__.c.order_id == target.order_id
+        )
+    )
+    target.attempt_no = int(value or 0) + 1

@@ -63,11 +63,36 @@ class PaymentMethod(StrEnum):
 class PaymentRecordStatus(StrEnum):
     PENDING = "pending"
     INITIATED = "initiated"
+    PROCESSING = "processing"
     AUTHORIZED = "authorized"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    EXPIRED = "expired"
+    UNKNOWN = "unknown"
+    # Kept only so databases upgraded from Phase 5 can deserialize legacy rows.
     REFUNDED = "refunded"
+
+
+class RefundStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    UNKNOWN = "unknown"
+
+
+class RefundMode(StrEnum):
+    PROVIDER = "provider"
+    MANUAL = "manual"
+
+
+class ProviderMode(StrEnum):
+    DISABLED = "disabled"
+    MOCK = "mock"
+    SANDBOX = "sandbox"
+    LIVE = "live"
 
 
 class CourierProvider(StrEnum):
@@ -81,6 +106,7 @@ class CourierProvider(StrEnum):
 class ShipmentStatus(StrEnum):
     PENDING = "pending"
     READY = "ready"
+    UNKNOWN = "unknown"
     BOOKED = "booked"
     PICKED_UP = "picked_up"
     IN_TRANSIT = "in_transit"
@@ -163,3 +189,29 @@ class OutboxStatus(StrEnum):
     PROCESSING = "processing"
     DELIVERED = "delivered"
     FAILED = "failed"
+
+
+class WebhookKind(StrEnum):
+    PAYMENT = "payment"
+    COURIER = "courier"
+
+
+class WebhookVerificationStatus(StrEnum):
+    VERIFIED = "verified"
+    PENDING_VALIDATION = "pending_validation"
+    LEGACY_UNKNOWN = "legacy_unknown"
+
+
+class WebhookProcessingStatus(StrEnum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    IGNORED = "ignored"
+    RETRY = "retry"
+    DEAD_LETTER = "dead_letter"
+
+
+class ProviderGeoLevel(StrEnum):
+    DIVISION = "division"
+    DISTRICT = "district"
+    UPAZILA = "upazila"

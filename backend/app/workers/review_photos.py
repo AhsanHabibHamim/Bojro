@@ -3,19 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar
+from uuid import UUID
 
 from arq import cron
 from arq.connections import RedisSettings
+from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.db.models import Shipment
 from app.db.session import create_engine, create_session_factory
+from app.providers import create_courier_providers, create_payment_providers
+from app.repositories.admin import AdminRepository
+from app.repositories.providers import ProviderRepository
+from app.services.admin_orders import AdminOrderService
+from app.services.courier import create_courier_gateways
 from app.services.media_cleanup import MediaCleanupService
+from app.services.payments import PaymentService
+from app.services.rate_limit import RateLimiter
 from app.services.revalidation import OutboxDeliveryService, create_revalidation_sender
 from app.services.review_photo_cleanup import ReviewPhotoCleanupService
-from app.services.shipment_reconciliation import ShipmentReconciliationService
 from app.services.storage import create_storage_provider
+from app.services.webhooks import WebhookService
 
 
 async def startup(ctx: dict[str, Any]) -> None:
@@ -26,6 +36,9 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["storage_provider"] = create_storage_provider(settings)
     ctx["settings"] = settings
     ctx["revalidation_sender"] = create_revalidation_sender(settings)
+    ctx["payment_providers"] = create_payment_providers(settings)
+    ctx["courier_providers"] = create_courier_providers(settings)
+    ctx["courier_gateways"] = create_courier_gateways(settings)
     await _heartbeat(ctx)
 
 
@@ -54,18 +67,123 @@ async def cleanup_media_assets(ctx: dict[str, Any]) -> dict[str, int]:
 async def deliver_outbox(ctx: dict[str, Any]) -> dict[str, int]:
     await _heartbeat(ctx)
     settings = ctx["settings"]
+
+    async def payment_reconcile(payload: dict[str, object]) -> None:
+        await _payment_service(ctx, UUID(str(payload["payment_id"])), "payment")
+
+    async def refund_reconcile(payload: dict[str, object]) -> None:
+        await _payment_service(ctx, UUID(str(payload["refund_id"])), "refund")
+
+    async def webhook_process(payload: dict[str, object]) -> None:
+        async with ctx["session_factory"]() as session:
+            repository = ProviderRepository(session)
+            payments = PaymentService(repository, ctx["payment_providers"], settings)
+            webhooks = WebhookService(
+                repository,
+                ctx["payment_providers"],
+                ctx["courier_providers"],
+                payments,
+                RateLimiter(ctx.get("redis"), fail_closed=settings.is_production),
+                settings,
+            )
+            await webhooks.process(UUID(str(payload["event_id"])))
+
+    async def shipment_reconcile(payload: dict[str, object]) -> None:
+        await _reconcile_shipment(ctx, UUID(str(payload["shipment_id"])))
+
     service = OutboxDeliveryService(
         ctx["session_factory"],
         ctx["revalidation_sender"],
         settings.outbox_max_attempts,
+        {
+            "payment.reconcile": payment_reconcile,
+            "refund.reconcile": refund_reconcile,
+            "provider.webhook.process": webhook_process,
+            "shipment.reconcile": shipment_reconcile,
+        },
     )
-    return asdict(await service.run_once(limit=settings.outbox_batch_size))
+    result = asdict(
+        await service.run_once(
+            limit=settings.outbox_batch_size,
+            worker_id=str(ctx.get("job_id", "arq-outbox")),
+        )
+    )
+    await reconcile_provider_resources(ctx)
+    await expire_unpaid_orders(ctx)
+    return result
 
 
 async def reconcile_shipments(ctx: dict[str, Any]) -> dict[str, int]:
     await _heartbeat(ctx)
-    service = ShipmentReconciliationService(ctx["session_factory"])
-    return asdict(await service.run_once())
+    now = datetime.now(UTC)
+    async with ctx["session_factory"]() as session, session.begin():
+        shipments = list(
+            await session.scalars(
+                select(Shipment)
+                .where(
+                    Shipment.next_reconcile_at.is_not(None),
+                    Shipment.next_reconcile_at <= now,
+                )
+                .order_by(Shipment.next_reconcile_at, Shipment.id)
+                .limit(50)
+                .with_for_update(skip_locked=True)
+            )
+        )
+        shipment_ids = [shipment.id for shipment in shipments]
+        for shipment in shipments:
+            shipment.next_reconcile_at = now + timedelta(minutes=5)
+    processed = 0
+    for shipment_id in shipment_ids:
+        try:
+            await _reconcile_shipment(ctx, shipment_id)
+        except Exception:
+            continue
+        processed += 1
+    return {"scanned": len(shipment_ids), "updated": processed, "conflicts": 0}
+
+
+async def reconcile_provider_resources(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    async with ctx["session_factory"]() as session:
+        service = PaymentService(
+            ProviderRepository(session), ctx["payment_providers"], ctx["settings"]
+        )
+        payments, refunds = await service.reconcile_due(limit=50)
+    return {"payments": payments, "refunds": refunds}
+
+
+async def expire_unpaid_orders(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    async with ctx["session_factory"]() as session:
+        service = PaymentService(
+            ProviderRepository(session), ctx["payment_providers"], ctx["settings"]
+        )
+        expired = await service.expire_unpaid_orders(limit=50)
+    return {"expired": expired}
+
+
+async def _payment_service(ctx: dict[str, Any], resource_id: UUID, kind: str) -> None:
+    async with ctx["session_factory"]() as session:
+        service = PaymentService(
+            ProviderRepository(session), ctx["payment_providers"], ctx["settings"]
+        )
+        if kind == "payment":
+            await service.reconcile_payment(resource_id)
+        else:
+            await service.reconcile_refund(resource_id)
+
+
+async def _reconcile_shipment(ctx: dict[str, Any], shipment_id: UUID) -> None:
+    async with ctx["session_factory"]() as session:
+        service = AdminOrderService(
+            AdminRepository(session),
+            ctx["courier_gateways"],
+            False,
+            ctx["courier_providers"],
+            ctx["settings"],
+            ctx["payment_providers"],
+        )
+        await service.reconcile_shipment_state(shipment_id, None)
 
 
 async def _heartbeat(ctx: dict[str, Any]) -> None:

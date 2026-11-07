@@ -14,11 +14,14 @@ from app.db.enums import (
     PaymentMethod,
     PaymentRecordStatus,
     PaymentStatus,
+    RefundMode,
+    RefundStatus,
     ReviewStatus,
     ShipmentStatus,
 )
 from app.schemas.admin_common import AdminPageInfo
 from app.schemas.common import APIModel
+from app.schemas.providers import AdminPaymentAttemptResponse, AdminRefundResponse
 
 
 class DashboardSeriesPoint(APIModel):
@@ -119,11 +122,26 @@ class AdminOrderNoteResponse(APIModel):
 
 class AdminShipmentResponse(APIModel):
     id: UUID
+    order_id: UUID
+    attempt_no: int
+    merchant_reference: str
     courier: CourierProvider
     status: ShipmentStatus
+    provider_status: str | None
     consignment_id: str | None
     tracking_code: str | None
+    failure_code: str | None
     failure_reason: str | None
+    cancellation_reason: str | None = None
+    last_reconciled_at: datetime | None
+    reconcile_attempts: int
+    can_reconcile: bool = False
+    reconcile_unavailable_reason: str | None = None
+    can_cancel: bool = False
+    cancel_unavailable_reason: str | None = None
+    webhook_event_ids: list[UUID] = Field(default_factory=list)
+    audit_event_ids: list[UUID] = Field(default_factory=list)
+    webhook_dead_letter_count: int = 0
     revision: int
     created_at: datetime
     updated_at: datetime
@@ -131,11 +149,54 @@ class AdminShipmentResponse(APIModel):
 
 class AdminPaymentResponse(APIModel):
     id: UUID
+    attempt_no: int
+    merchant_reference: str
     provider: PaymentMethod
     status: PaymentRecordStatus
+    provider_status: str | None
+    provider_payment_id: str | None
     amount_poisha: int
     currency: str
     provider_transaction_id: str | None
+    failure_code: str | None
+    failure_reason: str | None
+    last_reconciled_at: datetime | None
+    reconcile_attempts: int
+    revision: int
+    can_reconcile: bool = False
+    reconcile_unavailable_reason: str | None = None
+    can_retry: bool = False
+    retry_unavailable_reason: str | None = None
+    can_refund: bool = False
+    refund_unavailable_reason: str | None = None
+    refundable_balance_poisha: int = 0
+    webhook_event_ids: list[UUID] = Field(default_factory=list)
+    audit_event_ids: list[UUID] = Field(default_factory=list)
+    webhook_dead_letter_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminRefundSummary(APIModel):
+    id: UUID
+    payment_id: UUID
+    refund_no: int
+    merchant_reference: str
+    provider: PaymentMethod
+    amount_poisha: int
+    currency: str
+    status: RefundStatus
+    mode: RefundMode
+    provider_refund_id: str | None
+    manual_reference: str | None
+    failure_code: str | None
+    failure_reason: str | None
+    revision: int
+    can_reconcile: bool = False
+    reconcile_unavailable_reason: str | None = None
+    webhook_event_ids: list[UUID] = Field(default_factory=list)
+    audit_event_ids: list[UUID] = Field(default_factory=list)
+    webhook_dead_letter_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -188,6 +249,18 @@ class AdminOrderResponse(APIModel):
     notes: list[AdminOrderNoteResponse]
     shipments: list[AdminShipmentResponse]
     payments: list[AdminPaymentResponse]
+    payment_attempts: list[AdminPaymentAttemptResponse]
+    refunds: list[AdminRefundResponse]
+    paid_amount_poisha: int
+    refunded_amount_poisha: int
+    pending_refund_amount_poisha: int
+    refundable_balance_poisha: int
+    can_refund: bool
+    refund_unavailable_reason: str | None
+    webhook_event_ids: list[UUID]
+    audit_event_ids: list[UUID]
+    webhook_dead_letter_count: int
+    latest_shipment: AdminShipmentResponse | None
     allowed_transitions: list[OrderStatus]
     actions: list[AdminOrderActionResponse]
     revision: int
@@ -233,10 +306,14 @@ class AdminShipmentCreate(APIModel):
     tracking_code: str | None = Field(default=None, max_length=255)
 
 
+class AdminShipmentCancel(APIModel):
+    reason: str = Field(min_length=2, max_length=500)
+
+
 class CourierCapability(APIModel):
     provider: CourierProvider
     available: bool
-    mode: Literal["manual", "mock", "not_configured"]
+    mode: Literal["manual", "disabled", "mock", "sandbox", "live", "not_configured"]
     supports_booking: bool
     supports_tracking: bool
     supports_cancel: bool

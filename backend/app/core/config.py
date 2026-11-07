@@ -10,6 +10,8 @@ from urllib.parse import urlsplit
 from pydantic import EmailStr, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.db.enums import ProviderMode
+
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -99,6 +101,44 @@ class Settings(BaseSettings):
     review_upload_cleanup_hours: int = Field(default=24, ge=1, le=168)
     media_upload_signature_seconds: int = Field(default=300, ge=60, le=300)
     media_upload_cleanup_hours: int = Field(default=24, ge=1, le=168)
+    public_api_base_url: str = "https://api.bojro.test"
+    public_storefront_base_url: str = "https://storefront.bojro.test"
+    bkash_mode: ProviderMode = ProviderMode.DISABLED
+    nagad_mode: ProviderMode = ProviderMode.DISABLED
+    sslcommerz_mode: ProviderMode = ProviderMode.DISABLED
+    pathao_mode: ProviderMode = ProviderMode.DISABLED
+    steadfast_mode: ProviderMode = ProviderMode.DISABLED
+    redx_mode: ProviderMode = ProviderMode.DISABLED
+    # Public merchant documentation was unavailable for these providers at the Phase 6 freeze.
+    # These gates deliberately avoid pretending that an undocumented credential shape is known.
+    bkash_configured: bool = False
+    bkash_documentation_verified: bool = False
+    nagad_configured: bool = False
+    nagad_documentation_verified: bool = False
+    pathao_configured: bool = False
+    pathao_documentation_verified: bool = False
+    steadfast_configured: bool = False
+    steadfast_documentation_verified: bool = False
+    redx_configured: bool = False
+    redx_documentation_verified: bool = False
+    sslcommerz_store_id: SecretStr | None = None
+    sslcommerz_store_password: SecretStr | None = None
+    provider_mock_signing_secret: SecretStr = SecretStr(
+        "development-provider-mock-secret-change-me-32-characters"
+    )
+    provider_connect_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
+    provider_read_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    provider_write_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    provider_pool_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
+    provider_response_max_bytes: int = Field(default=512 * 1024, ge=1024, le=2 * 1024 * 1024)
+    webhook_body_max_bytes: int = Field(default=256 * 1024, ge=1024, le=1024 * 1024)
+    webhook_timestamp_tolerance_seconds: int = Field(default=300, ge=30, le=900)
+    webhook_ip_rate_limit: int = Field(default=120, ge=1, le=5000)
+    webhook_rate_window_seconds: int = Field(default=60, ge=10, le=3600)
+    online_order_ttl_minutes: int = Field(default=30, ge=5, le=24 * 60)
+    provider_reconcile_interval_seconds: int = Field(default=120, ge=30, le=3600)
+    provider_reconcile_max_attempts: int = Field(default=24, ge=1, le=100)
+    phase6_e2e_reset_token: SecretStr | None = None
     courier_provider: Literal["manual", "mock"] = "manual"
     revalidation_url: str | None = None
     revalidation_secret: SecretStr | None = None
@@ -142,6 +182,9 @@ class Settings(BaseSettings):
         "otp_external_api_key",
         "revalidation_url",
         "revalidation_secret",
+        "sslcommerz_store_id",
+        "sslcommerz_store_password",
+        "phase6_e2e_reset_token",
         mode="before",
     )
     @classmethod
@@ -175,8 +218,67 @@ class Settings(BaseSettings):
             raise ValueError("TRUSTED_HOSTS must contain hostnames only")
         return cleaned
 
+    @field_validator("public_api_base_url", "public_storefront_base_url")
+    @classmethod
+    def validate_public_base_url(cls, value: str) -> str:
+        cleaned = value.strip().rstrip("/")
+        parsed = urlsplit(cleaned)
+        local_http = parsed.scheme == "http" and parsed.hostname in {
+            "localhost",
+            "127.0.0.1",
+            "::1",
+        }
+        if (
+            (parsed.scheme != "https" and not local_http)
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "public base URLs must be HTTPS origins; local HTTP is reserved for explicit mocks"
+            )
+        return cleaned
+
     @model_validator(mode="after")
     def validate_environment(self) -> Settings:
+        payment_modes = (self.bkash_mode, self.nagad_mode, self.sslcommerz_mode)
+        provider_modes = (
+            *payment_modes,
+            self.pathao_mode,
+            self.steadfast_mode,
+            self.redx_mode,
+        )
+        api_url = urlsplit(self.public_api_base_url)
+        storefront_url = urlsplit(self.public_storefront_base_url)
+        if api_url.scheme == "http" and not (
+            not self.is_production
+            and api_url.hostname in {"localhost", "127.0.0.1", "::1"}
+            and ProviderMode.MOCK in provider_modes
+        ):
+            raise ValueError(
+                "local HTTP API origin is allowed only for an explicit non-production provider mock"
+            )
+        if storefront_url.scheme == "http" and not (
+            not self.is_production
+            and storefront_url.hostname in {"localhost", "127.0.0.1", "::1"}
+            and ProviderMode.MOCK in payment_modes
+        ):
+            raise ValueError(
+                "local HTTP storefront is allowed only for an explicit non-production payment mock"
+            )
+        if ProviderMode.MOCK in payment_modes and (storefront_url.hostname or "").endswith(".test"):
+            raise ValueError("payment mocks require a real storefront origin, never a .test host")
+        if self.is_production and self.phase6_e2e_reset_token is not None:
+            raise ValueError("PHASE6_E2E_RESET_TOKEN is forbidden in production")
+        if self.phase6_e2e_reset_token is not None and any(
+            mode != ProviderMode.MOCK for mode in provider_modes
+        ):
+            raise ValueError(
+                "PHASE6_E2E_RESET_TOKEN requires explicit mock mode for all Phase 6 providers"
+            )
         has_admin_email = self.seed_admin_email is not None
         has_admin_password = self.seed_admin_password is not None
         if has_admin_email != has_admin_password:
@@ -259,12 +361,85 @@ class Settings(BaseSettings):
                 raise ValueError("Cloudinary configuration is required in production")
             if self.courier_provider == "mock":
                 raise ValueError("mock courier provider is forbidden in production")
+            modes = {
+                "BKASH_MODE": self.bkash_mode,
+                "NAGAD_MODE": self.nagad_mode,
+                "SSLCOMMERZ_MODE": self.sslcommerz_mode,
+                "PATHAO_MODE": self.pathao_mode,
+                "STEADFAST_MODE": self.steadfast_mode,
+                "REDX_MODE": self.redx_mode,
+            }
+            for name, mode in modes.items():
+                if mode in {ProviderMode.MOCK, ProviderMode.SANDBOX}:
+                    raise ValueError(f"{name}={mode.value} is forbidden in production")
+            if any(not origin.startswith("https://") for origin in self.cors_origins):
+                raise ValueError("production CORS origins must use HTTPS")
+            if self.public_storefront_base_url not in self.cors_origins:
+                raise ValueError("PUBLIC_STOREFRONT_BASE_URL must be an allowed CORS origin")
+            for name, value in (
+                ("PUBLIC_API_BASE_URL", self.public_api_base_url),
+                ("PUBLIC_STOREFRONT_BASE_URL", self.public_storefront_base_url),
+            ):
+                hostname = urlsplit(value).hostname or ""
+                if hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".test"):
+                    raise ValueError(f"{name} must use a public production hostname")
+            mock_secret = self.provider_mock_signing_secret.get_secret_value()
+            if mock_secret.startswith(("development-", "replace-with-")):
+                raise ValueError("PROVIDER_MOCK_SIGNING_SECRET must not use a placeholder")
             if self.revalidation_url is None or self.revalidation_secret is None:
                 raise ValueError(
                     "REVALIDATION_URL and REVALIDATION_SECRET are required in production"
                 )
             if not self.revalidation_url.startswith("https://"):
                 raise ValueError("REVALIDATION_URL must use HTTPS in production")
+        documentation_gates = {
+            "bkash": (
+                self.bkash_mode,
+                self.bkash_configured,
+                self.bkash_documentation_verified,
+            ),
+            "nagad": (
+                self.nagad_mode,
+                self.nagad_configured,
+                self.nagad_documentation_verified,
+            ),
+            "pathao": (
+                self.pathao_mode,
+                self.pathao_configured,
+                self.pathao_documentation_verified,
+            ),
+            "steadfast": (
+                self.steadfast_mode,
+                self.steadfast_configured,
+                self.steadfast_documentation_verified,
+            ),
+            "redx": (
+                self.redx_mode,
+                self.redx_configured,
+                self.redx_documentation_verified,
+            ),
+        }
+        for provider, (mode, configured, documentation_verified) in documentation_gates.items():
+            if mode in {ProviderMode.SANDBOX, ProviderMode.LIVE} and not (
+                configured and documentation_verified
+            ):
+                raise ValueError(
+                    f"{provider.upper()} real mode requires explicit CONFIGURED and "
+                    "DOCUMENTATION_VERIFIED gates"
+                )
+        if self.sslcommerz_mode in {ProviderMode.SANDBOX, ProviderMode.LIVE}:
+            if self.sslcommerz_store_id is None or self.sslcommerz_store_password is None:
+                raise ValueError("SSLCOMMERZ store ID and password are required in real mode")
+            ssl_values = (
+                self.sslcommerz_store_id.get_secret_value(),
+                self.sslcommerz_store_password.get_secret_value(),
+            )
+            if any(
+                not value.strip()
+                or value.casefold().startswith(("replace", "change-me", "placeholder"))
+                for value in ssl_values
+            ):
+                raise ValueError("SSLCOMMERZ credentials must not be blank or placeholders")
         mock_code = self.otp_mock_code.get_secret_value()
         if len(mock_code) != 6 or not mock_code.isascii() or not mock_code.isdigit():
             raise ValueError("OTP_MOCK_CODE must contain exactly six ASCII digits")

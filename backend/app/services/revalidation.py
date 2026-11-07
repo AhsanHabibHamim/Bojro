@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
@@ -89,13 +90,20 @@ class OutboxDeliveryService:
         session_factory: async_sessionmaker[AsyncSession],
         sender: RevalidationSender,
         max_attempts: int,
+        handlers: dict[str, Callable[[dict[str, object]], Awaitable[None]]] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._sender = sender
         self._max_attempts = max_attempts
+        self._handlers = handlers or {}
 
     async def run_once(
-        self, *, limit: int = 50, now: datetime | None = None
+        self,
+        *,
+        limit: int = 50,
+        now: datetime | None = None,
+        worker_id: str = "outbox-worker",
+        lease_seconds: int = 300,
     ) -> OutboxDeliveryResult:
         delivery_time = now or datetime.now(UTC)
         claimed: list[tuple[UUID, str, dict[str, object], int]] = []
@@ -111,6 +119,10 @@ class OutboxDeliveryService:
                             OutboxEvent.status == OutboxStatus.PROCESSING,
                         ),
                         OutboxEvent.delivered_at.is_(None),
+                        or_(
+                            OutboxEvent.lease_expires_at.is_(None),
+                            OutboxEvent.lease_expires_at <= delivery_time,
+                        ),
                     )
                     .order_by(OutboxEvent.created_at, OutboxEvent.id)
                     .limit(limit)
@@ -121,15 +133,22 @@ class OutboxDeliveryService:
                 event.status = OutboxStatus.PROCESSING
                 event.attempts += 1
                 event.next_attempt_at = delivery_time + timedelta(minutes=5)
+                event.locked_at = delivery_time
+                event.lease_expires_at = delivery_time + timedelta(seconds=lease_seconds)
+                event.locked_by = worker_id
                 claimed.append((event.id, event.topic, event.payload, event.attempts))
         results: list[tuple[UUID, str | None, int]] = []
         for event_id, topic, payload, attempts in claimed:
             error: str | None = None
             try:
-                if topic != "next.revalidate":
-                    raise ValueError(f"unsupported outbox topic: {topic}")
-                revalidation_event = RevalidationEvent.model_validate(payload)
-                await self._sender.send(revalidation_event)
+                if topic == "next.revalidate":
+                    revalidation_event = RevalidationEvent.model_validate(payload)
+                    await self._sender.send(revalidation_event)
+                else:
+                    handler = self._handlers.get(topic)
+                    if handler is None:
+                        raise ValueError(f"unsupported outbox topic: {topic}")
+                    await handler(payload)
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"[:500]
             results.append((event_id, error, attempts))
@@ -140,8 +159,15 @@ class OutboxDeliveryService:
                 claimed_event = await session.scalar(
                     select(OutboxEvent).where(OutboxEvent.id == event_id).with_for_update()
                 )
-                if claimed_event is None or claimed_event.delivered_at is not None:
+                if (
+                    claimed_event is None
+                    or claimed_event.delivered_at is not None
+                    or claimed_event.locked_by != worker_id
+                ):
                     continue
+                claimed_event.locked_at = None
+                claimed_event.lease_expires_at = None
+                claimed_event.locked_by = None
                 if error is None:
                     claimed_event.status = OutboxStatus.DELIVERED
                     claimed_event.delivered_at = delivery_time

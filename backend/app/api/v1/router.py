@@ -17,6 +17,7 @@ from app.api.v1.content import router as content_router
 from app.api.v1.geo import router as geo_router
 from app.api.v1.health import router as health_router
 from app.api.v1.orders import router as orders_router
+from app.api.v1.providers import router as providers_router
 from app.api.v1.storefront import router as storefront_router
 
 router = APIRouter()
@@ -34,5 +35,6 @@ router.include_router(content_router)
 router.include_router(cart_router)
 router.include_router(checkout_router)
 router.include_router(orders_router)
+router.include_router(providers_router)
 router.include_router(catalog_router)
 router.include_router(storefront_router)

@@ -15,12 +15,14 @@ from app.api.admin_security import (
     AuthenticatedAdmin,
     require_authenticated_admin,
     require_json_unsafe_admin,
+    require_unsafe_admin,
 )
 from app.api.dependencies import (
     get_admin_customer_review_service,
     get_admin_dashboard_service,
     get_admin_order_service,
     get_order_pdf_service,
+    get_payment_service,
 )
 from app.core.errors import PHASE3_ERROR_RESPONSES, DomainError
 from app.db.enums import OrderStatus, PaymentStatus, ReviewStatus
@@ -36,29 +38,39 @@ from app.schemas.admin_commerce import (
     AdminReviewListResponse,
     AdminReviewModerationRequest,
     AdminReviewResponse,
+    AdminShipmentCancel,
     AdminShipmentCreate,
     AdminShipmentResponse,
     CourierCapabilitiesResponse,
     DashboardResponse,
+)
+from app.schemas.providers import (
+    AdminPaymentAttemptResponse,
+    AdminRefundCreate,
+    AdminRefundResponse,
 )
 from app.services.admin_common import AdminCommandContext, AdminCommandResult
 from app.services.admin_customers_reviews import AdminCustomerReviewService
 from app.services.admin_dashboard import AdminDashboardService
 from app.services.admin_orders import AdminOrderService
 from app.services.order_pdf import OrderPDFService
+from app.services.payments import PaymentService
 from app.utils.account_http import representation_etag, strong_etag
 
 router = APIRouter(prefix="/admin", tags=["admin-commerce"], responses=PHASE3_ERROR_RESPONSES)
 Admin = Annotated[AuthenticatedAdmin, Depends(require_authenticated_admin)]
 UnsafeAdmin = Annotated[AuthenticatedAdmin, Depends(require_json_unsafe_admin)]
+BodylessUnsafeAdmin = Annotated[AuthenticatedAdmin, Depends(require_unsafe_admin)]
 OrderService = Annotated[AdminOrderService, Depends(get_admin_order_service)]
 DashboardService = Annotated[AdminDashboardService, Depends(get_admin_dashboard_service)]
 CustomerReviewService = Annotated[
     AdminCustomerReviewService, Depends(get_admin_customer_review_service)
 ]
 PDFService = Annotated[OrderPDFService, Depends(get_order_pdf_service)]
+PaymentServiceDependency = Annotated[PaymentService, Depends(get_payment_service)]
 IdempotencyKey = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=128)]
 IfMatch = Annotated[str | None, Header(alias="If-Match")]
+RequiredIfMatch = Annotated[str, Header(alias="If-Match", min_length=1)]
 Limit = Annotated[Literal[25, 50, 100], BeforeValidator(int), Query()]
 
 
@@ -292,6 +304,140 @@ async def book_order_shipment(
             _context(request, admin),
         ),
     )
+
+
+@router.post(
+    "/shipments/{shipment_id}/reconcile",
+    response_model=AdminShipmentResponse,
+    operation_id="adminReconcileShipment",
+)
+async def reconcile_shipment(
+    shipment_id: UUID,
+    request: Request,
+    response: Response,
+    admin: BodylessUnsafeAdmin,
+    service: OrderService,
+    idempotency_key: IdempotencyKey,
+    if_match: RequiredIfMatch,
+) -> dict[str, object]:
+    return _apply(
+        response,
+        await service.reconcile_shipment(
+            shipment_id,
+            if_match,
+            idempotency_key,
+            _context(request, admin),
+        ),
+    )
+
+
+@router.post(
+    "/shipments/{shipment_id}/cancel",
+    response_model=AdminShipmentResponse,
+    operation_id="adminCancelShipment",
+)
+async def cancel_shipment(
+    shipment_id: UUID,
+    payload: AdminShipmentCancel,
+    request: Request,
+    response: Response,
+    admin: UnsafeAdmin,
+    service: OrderService,
+    idempotency_key: IdempotencyKey,
+    if_match: RequiredIfMatch,
+) -> dict[str, object]:
+    return _apply(
+        response,
+        await service.cancel_shipment(
+            shipment_id,
+            payload,
+            if_match,
+            idempotency_key,
+            _context(request, admin),
+        ),
+    )
+
+
+@router.post(
+    "/orders/{order_id}/refunds",
+    response_model=AdminRefundResponse,
+    status_code=202,
+    operation_id="adminCreateRefund",
+    responses={201: {"model": AdminRefundResponse, "description": "Manual refund recorded."}},
+)
+async def create_refund(
+    order_id: str,
+    payload: AdminRefundCreate,
+    response: Response,
+    admin: UnsafeAdmin,
+    service: PaymentServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: RequiredIfMatch,
+) -> AdminRefundResponse:
+    result = await service.create_refund(
+        order_id,
+        payload,
+        actor_id=admin.user_id,
+        idempotency_key=idempotency_key,
+        if_match=if_match,
+    )
+    response.status_code = result.status_code
+    response.headers["ETag"] = result.etag
+    if result.replayed:
+        response.headers["Idempotent-Replayed"] = "true"
+    return result.response
+
+
+@router.post(
+    "/payments/{payment_id}/reconcile",
+    response_model=AdminPaymentAttemptResponse,
+    operation_id="adminReconcilePayment",
+)
+async def reconcile_payment(
+    payment_id: UUID,
+    response: Response,
+    admin: BodylessUnsafeAdmin,
+    service: PaymentServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: RequiredIfMatch,
+) -> AdminPaymentAttemptResponse:
+    result = await service.reconcile_payment_command(
+        payment_id,
+        actor_id=admin.user_id,
+        idempotency_key=idempotency_key,
+        if_match=if_match,
+    )
+    response.status_code = result.status_code
+    response.headers["ETag"] = result.etag
+    if result.replayed:
+        response.headers["Idempotent-Replayed"] = "true"
+    return result.response
+
+
+@router.post(
+    "/refunds/{refund_id}/reconcile",
+    response_model=AdminRefundResponse,
+    operation_id="adminReconcileRefund",
+)
+async def reconcile_refund(
+    refund_id: UUID,
+    response: Response,
+    admin: BodylessUnsafeAdmin,
+    service: PaymentServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: RequiredIfMatch,
+) -> AdminRefundResponse:
+    result = await service.reconcile_refund_command(
+        refund_id,
+        actor_id=admin.user_id,
+        idempotency_key=idempotency_key,
+        if_match=if_match,
+    )
+    response.status_code = result.status_code
+    response.headers["ETag"] = result.etag
+    if result.replayed:
+        response.headers["Idempotent-Replayed"] = "true"
+    return result.response
 
 
 @router.get(

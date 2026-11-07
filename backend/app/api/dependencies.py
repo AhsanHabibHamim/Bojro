@@ -18,6 +18,7 @@ from app.repositories.checkout import CheckoutRepository
 from app.repositories.commerce import CommerceRepository
 from app.repositories.geo import GeoRepository
 from app.repositories.health import HealthRepository
+from app.repositories.providers import ProviderRepository
 from app.repositories.storefront import StorefrontRepository
 from app.services.account import AccountService
 from app.services.admin_auth import AdminAuthService
@@ -35,10 +36,13 @@ from app.services.cart import CartService
 from app.services.catalog import CatalogService
 from app.services.checkout import CheckoutService
 from app.services.content import ContentService
+from app.services.e2e_phase6 import Phase6E2EResetService
 from app.services.geo import GeoService
 from app.services.health import HealthService
 from app.services.order_pdf import OrderPDFService
+from app.services.payments import PaymentService
 from app.services.storefront import StorefrontService
+from app.services.webhooks import WebhookService
 
 
 def get_health_service(request: Request) -> HealthService:
@@ -50,7 +54,14 @@ def get_health_service(request: Request) -> HealthService:
         redis_required=settings.is_production,
         timeout_seconds=settings.readiness_timeout_seconds,
     )
-    return HealthService(repository, settings)
+    capabilities = [
+        gateway.capabilities
+        for gateway in (
+            *request.app.state.payment_providers.values(),
+            *request.app.state.courier_providers.values(),
+        )
+    ]
+    return HealthService(repository, settings, capabilities)
 
 
 def get_catalog_service(
@@ -104,10 +115,53 @@ def get_checkout_service(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CheckoutService:
+    payment_service = PaymentService(
+        ProviderRepository(session),
+        request.app.state.payment_providers,
+        request.app.state.settings,
+    )
     return CheckoutService(
         CheckoutRepository(session),
         CommerceRepository(session),
         request.app.state.token_service,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+        payment_service,
+    )
+
+
+def get_payment_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PaymentService:
+    return PaymentService(
+        ProviderRepository(session),
+        request.app.state.payment_providers,
+        request.app.state.settings,
+    )
+
+
+def get_phase6_e2e_reset_service(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Phase6E2EResetService:
+    return Phase6E2EResetService(session)
+
+
+def get_webhook_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WebhookService:
+    repository = ProviderRepository(session)
+    payment_service = PaymentService(
+        repository,
+        request.app.state.payment_providers,
+        request.app.state.settings,
+    )
+    return WebhookService(
+        repository,
+        request.app.state.payment_providers,
+        request.app.state.courier_providers,
+        payment_service,
         request.app.state.rate_limiter,
         request.app.state.settings,
     )
@@ -183,6 +237,9 @@ def get_admin_order_service(
         AdminRepository(session),
         request.app.state.courier_gateways,
         not settings.is_production and settings.courier_provider == "mock",
+        request.app.state.courier_providers,
+        settings,
+        request.app.state.payment_providers,
     )
 
 

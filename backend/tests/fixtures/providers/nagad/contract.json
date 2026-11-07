@@ -1,0 +1,18 @@
+{
+  "provenance": {
+    "kind": "internal_deterministic_mock",
+    "official_wire_fidelity": false,
+    "note": "No public merchant documentation was available at the Phase 6 freeze."
+  },
+  "initiation_scenarios": ["processing", "success", "cancelled", "failed", "timeout"],
+  "webhook": {
+    "event_id": "nagad-event-001",
+    "event_type": "payment.success",
+    "merchant_reference": "BP0000000000000000000000000002",
+    "status": "success",
+    "amount_poisha": 12500,
+    "currency": "BDT",
+    "provider_payment_id": "NAGAD-DETERMINISTIC",
+    "provider_transaction_id": "TXN-NAGAD-DETERMINISTIC"
+  }
+}

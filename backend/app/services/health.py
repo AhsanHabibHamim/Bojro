@@ -7,15 +7,22 @@ import asyncio
 from app import __version__
 from app.core.config import Settings
 from app.db.base import utc_now
+from app.providers.types import ProviderCapabilities
 from app.repositories.health import HealthRepository
-from app.schemas.health import HealthResponse, ReadinessResponse
+from app.schemas.health import ComponentHealth, HealthResponse, ReadinessResponse
 
 
 class HealthService:
-    def __init__(self, repository: HealthRepository, settings: Settings) -> None:
+    def __init__(
+        self,
+        repository: HealthRepository,
+        settings: Settings,
+        provider_capabilities: list[ProviderCapabilities] | None = None,
+    ) -> None:
         self._repository = repository
         self._settings = settings
         self._service_name = settings.app_name
+        self._provider_capabilities = provider_capabilities or []
 
     def liveness(self) -> HealthResponse:
         return HealthResponse(
@@ -46,6 +53,20 @@ class HealthService:
             "admin": admin,
             "worker": worker,
         }
+        for capability in self._provider_capabilities:
+            checks[f"provider:{capability.kind}:{capability.provider}"] = ComponentHealth(
+                status=(
+                    "ok"
+                    if capability.available or capability.unavailable_reason == "disabled"
+                    else "unavailable"
+                ),
+                required=False,
+                detail=(
+                    f"mode={capability.mode.value}"
+                    if capability.available
+                    else capability.unavailable_reason
+                ),
+            )
         if any(check.status != "ok" and check.required for check in checks.values()):
             status = "unavailable"
         elif any(check.status != "ok" for check in checks.values()):

@@ -306,4 +306,7 @@ class CheckoutRepository:
             joinedload(Order.source_cart),
             selectinload(Order.items),
             selectinload(Order.status_history),
+            selectinload(Order.payments),
+            selectinload(Order.payment_refunds),
+            selectinload(Order.shipments),
         )

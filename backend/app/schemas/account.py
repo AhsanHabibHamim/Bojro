@@ -18,6 +18,7 @@ from app.schemas.catalog import (
 )
 from app.schemas.commerce import AddressGeoSnapshot, OrderAddressResponse, OrderNumber
 from app.schemas.common import APIModel
+from app.schemas.providers import CustomerPaymentSummary, CustomerShipmentSummary
 from app.utils.phone import BangladeshPhone
 
 Locale = Literal["bn", "en"]
@@ -86,6 +87,8 @@ class AccountOrderSummary(APIModel):
     status: str
     payment_status: str
     payment_method: str
+    payment: CustomerPaymentSummary
+    latest_shipment: CustomerShipmentSummary | None
     placed_at: datetime
     updated_at: datetime
     grand_total_poisha: int = Field(ge=0)
@@ -204,6 +207,8 @@ class AccountOrderDetail(APIModel):
     status: str
     payment_status: str
     payment_method: str
+    payment: CustomerPaymentSummary
+    latest_shipment: CustomerShipmentSummary | None
     subtotal_poisha: int = Field(ge=0)
     discount_poisha: int = Field(ge=0)
     shipping_poisha: int = Field(ge=0)

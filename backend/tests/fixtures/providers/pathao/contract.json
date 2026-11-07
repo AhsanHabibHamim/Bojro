@@ -1,0 +1,16 @@
+{
+  "provenance": {
+    "kind": "internal_deterministic_mock",
+    "official_wire_fidelity": false,
+    "note": "No public merchant documentation was available at the Phase 6 freeze."
+  },
+  "statuses": ["Pending", "Picked", "InTransit", "Delivered", "Returned", "Cancelled"],
+  "webhook": {
+    "event_id": "pathao-event-001",
+    "event_type": "delivery.updated",
+    "merchant_reference": "BS0000000000000000000000000001",
+    "status": "InTransit",
+    "consignment_id": "PTH-C-DETERMINISTIC",
+    "tracking_code": "PTHDETERMINISTIC"
+  }
+}

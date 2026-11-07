@@ -38,6 +38,16 @@
             "title": "Items",
             "type": "array"
           },
+          "latest_shipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerShipmentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notes": {
             "anyOf": [
               {
@@ -53,6 +63,9 @@
             "pattern": "^BJ-[0-9]{4}-[0-9]{6}$",
             "title": "Number",
             "type": "string"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/CustomerPaymentSummary"
           },
           "payment_method": {
             "title": "Payment Method",
@@ -102,6 +115,8 @@
           "status",
           "payment_status",
           "payment_method",
+          "payment",
+          "latest_shipment",
           "subtotal_poisha",
           "discount_poisha",
           "shipping_poisha",
@@ -257,10 +272,23 @@
             "title": "Items",
             "type": "array"
           },
+          "latest_shipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerShipmentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "number": {
             "pattern": "^BJ-[0-9]{4}-[0-9]{6}$",
             "title": "Number",
             "type": "string"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/CustomerPaymentSummary"
           },
           "payment_method": {
             "title": "Payment Method",
@@ -290,6 +318,8 @@
           "status",
           "payment_status",
           "payment_method",
+          "payment",
+          "latest_shipment",
           "placed_at",
           "updated_at",
           "grand_total_poisha",
@@ -1859,6 +1889,18 @@
             "title": "Allowed Transitions",
             "type": "array"
           },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_refund": {
+            "title": "Can Refund",
+            "type": "boolean"
+          },
           "coupon_code": {
             "anyOf": [
               {
@@ -1943,6 +1985,16 @@
             "title": "Items",
             "type": "array"
           },
+          "latest_shipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminShipmentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "merchant_snapshot": {
             "additionalProperties": true,
             "title": "Merchant Snapshot",
@@ -1959,6 +2011,17 @@
             "title": "Number",
             "type": "string"
           },
+          "paid_amount_poisha": {
+            "title": "Paid Amount Poisha",
+            "type": "integer"
+          },
+          "payment_attempts": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPaymentAttemptResponse"
+            },
+            "title": "Payment Attempts",
+            "type": "array"
+          },
           "payment_method": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
@@ -1972,10 +2035,40 @@
             "title": "Payments",
             "type": "array"
           },
+          "pending_refund_amount_poisha": {
+            "title": "Pending Refund Amount Poisha",
+            "type": "integer"
+          },
           "placed_at": {
             "format": "date-time",
             "title": "Placed At",
             "type": "string"
+          },
+          "refund_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Unavailable Reason"
+          },
+          "refundable_balance_poisha": {
+            "title": "Refundable Balance Poisha",
+            "type": "integer"
+          },
+          "refunded_amount_poisha": {
+            "title": "Refunded Amount Poisha",
+            "type": "integer"
+          },
+          "refunds": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRefundResponse"
+            },
+            "title": "Refunds",
+            "type": "array"
           },
           "revision": {
             "title": "Revision",
@@ -2003,6 +2096,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "webhook_dead_letter_count": {
+            "title": "Webhook Dead Letter Count",
+            "type": "integer"
+          },
+          "webhook_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Webhook Event Ids",
+            "type": "array"
           }
         },
         "required": [
@@ -2029,6 +2134,18 @@
           "notes",
           "shipments",
           "payments",
+          "payment_attempts",
+          "refunds",
+          "paid_amount_poisha",
+          "refunded_amount_poisha",
+          "pending_refund_amount_poisha",
+          "refundable_balance_poisha",
+          "can_refund",
+          "refund_unavailable_reason",
+          "webhook_event_ids",
+          "audit_event_ids",
+          "webhook_dead_letter_count",
+          "latest_shipment",
           "allowed_transitions",
           "actions",
           "revision",
@@ -2158,12 +2275,41 @@
         "title": "AdminPasswordChangeRequest",
         "type": "object"
       },
-      "AdminPaymentResponse": {
+      "AdminPaymentAttemptResponse": {
         "additionalProperties": false,
         "properties": {
           "amount_poisha": {
+            "exclusiveMinimum": 0.0,
             "title": "Amount Poisha",
             "type": "integer"
+          },
+          "attempt_no": {
+            "exclusiveMinimum": 0.0,
+            "title": "Attempt No",
+            "type": "integer"
+          },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_reconcile": {
+            "default": false,
+            "title": "Can Reconcile",
+            "type": "boolean"
+          },
+          "can_refund": {
+            "default": false,
+            "title": "Can Refund",
+            "type": "boolean"
+          },
+          "can_retry": {
+            "default": false,
+            "title": "Can Retry",
+            "type": "boolean"
           },
           "created_at": {
             "format": "date-time",
@@ -2171,16 +2317,106 @@
             "type": "string"
           },
           "currency": {
+            "const": "BDT",
             "title": "Currency",
             "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
           },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
+          "initiated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiated At"
+          },
+          "last_reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reconciled At"
+          },
+          "merchant_reference": {
+            "title": "Merchant Reference",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
           "provider": {
             "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "provider_payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Payment Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
           },
           "provider_transaction_id": {
             "anyOf": [
@@ -2193,6 +2429,284 @@
             ],
             "title": "Provider Transaction Id"
           },
+          "reconcile_attempts": {
+            "minimum": 0.0,
+            "title": "Reconcile Attempts",
+            "type": "integer"
+          },
+          "reconcile_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconcile Unavailable Reason"
+          },
+          "refund_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Unavailable Reason"
+          },
+          "refundable_balance_poisha": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Refundable Balance Poisha",
+            "type": "integer"
+          },
+          "retry_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Unavailable Reason"
+          },
+          "revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentRecordStatus"
+          },
+          "terminal_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminal At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "webhook_dead_letter_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Webhook Dead Letter Count",
+            "type": "integer"
+          },
+          "webhook_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Webhook Event Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "order_id",
+          "attempt_no",
+          "merchant_reference",
+          "provider",
+          "provider_payment_id",
+          "provider_transaction_id",
+          "status",
+          "provider_status",
+          "amount_poisha",
+          "currency",
+          "failure_code",
+          "failure_reason",
+          "initiated_at",
+          "terminal_at",
+          "expires_at",
+          "last_reconciled_at",
+          "reconcile_attempts",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdminPaymentAttemptResponse",
+        "type": "object"
+      },
+      "AdminPaymentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_poisha": {
+            "title": "Amount Poisha",
+            "type": "integer"
+          },
+          "attempt_no": {
+            "title": "Attempt No",
+            "type": "integer"
+          },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_reconcile": {
+            "default": false,
+            "title": "Can Reconcile",
+            "type": "boolean"
+          },
+          "can_refund": {
+            "default": false,
+            "title": "Can Refund",
+            "type": "boolean"
+          },
+          "can_retry": {
+            "default": false,
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reconciled At"
+          },
+          "merchant_reference": {
+            "title": "Merchant Reference",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "provider_payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Payment Id"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "provider_transaction_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Transaction Id"
+          },
+          "reconcile_attempts": {
+            "title": "Reconcile Attempts",
+            "type": "integer"
+          },
+          "reconcile_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconcile Unavailable Reason"
+          },
+          "refund_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Unavailable Reason"
+          },
+          "refundable_balance_poisha": {
+            "default": 0,
+            "title": "Refundable Balance Poisha",
+            "type": "integer"
+          },
+          "retry_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Unavailable Reason"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
           "status": {
             "$ref": "#/components/schemas/PaymentRecordStatus"
           },
@@ -2200,15 +2714,37 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "webhook_dead_letter_count": {
+            "default": 0,
+            "title": "Webhook Dead Letter Count",
+            "type": "integer"
+          },
+          "webhook_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Webhook Event Ids",
+            "type": "array"
           }
         },
         "required": [
           "id",
+          "attempt_no",
+          "merchant_reference",
           "provider",
           "status",
+          "provider_status",
+          "provider_payment_id",
           "amount_poisha",
           "currency",
           "provider_transaction_id",
+          "failure_code",
+          "failure_reason",
+          "last_reconciled_at",
+          "reconcile_attempts",
+          "revision",
           "created_at",
           "updated_at"
         ],
@@ -3160,6 +3696,386 @@
         "title": "AdminProductVariantUpdate",
         "type": "object"
       },
+      "AdminProviderCapabilitiesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminProviderCapability"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AdminProviderCapabilitiesResponse",
+        "type": "object"
+      },
+      "AdminProviderCapability": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "health": {
+            "enum": [
+              "ok",
+              "degraded",
+              "unavailable",
+              "not_configured"
+            ],
+            "title": "Health",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "payment",
+              "courier"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderMode"
+              },
+              {
+                "const": "manual",
+                "type": "string"
+              }
+            ],
+            "title": "Mode"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "supports_booking": {
+            "title": "Supports Booking",
+            "type": "boolean"
+          },
+          "supports_cancel": {
+            "title": "Supports Cancel",
+            "type": "boolean"
+          },
+          "supports_refund": {
+            "title": "Supports Refund",
+            "type": "boolean"
+          },
+          "supports_tracking": {
+            "title": "Supports Tracking",
+            "type": "boolean"
+          },
+          "supports_webhooks": {
+            "title": "Supports Webhooks",
+            "type": "boolean"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "disabled",
+                  "not_configured",
+                  "temporarily_unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "required": [
+          "kind",
+          "provider",
+          "mode",
+          "configured",
+          "enabled",
+          "available",
+          "health",
+          "supports_booking",
+          "supports_tracking",
+          "supports_cancel",
+          "supports_refund",
+          "supports_webhooks",
+          "unavailable_reason"
+        ],
+        "title": "AdminProviderCapability",
+        "type": "object"
+      },
+      "AdminRefundCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_poisha": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Poisha",
+            "type": "integer"
+          },
+          "manual_reference": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Reference"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RefundMode"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount_poisha",
+          "reason",
+          "mode"
+        ],
+        "title": "AdminRefundCreate",
+        "type": "object"
+      },
+      "AdminRefundResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_poisha": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Poisha",
+            "type": "integer"
+          },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_reconcile": {
+            "default": false,
+            "title": "Can Reconcile",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "const": "BDT",
+            "title": "Currency",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "initiated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initiated At"
+          },
+          "manual_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual Reference"
+          },
+          "merchant_reference": {
+            "title": "Merchant Reference",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RefundMode"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "payment_id": {
+            "format": "uuid",
+            "title": "Payment Id",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "provider_refund_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Refund Id"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reconcile_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconcile Unavailable Reason"
+          },
+          "refund_no": {
+            "exclusiveMinimum": 0.0,
+            "title": "Refund No",
+            "type": "integer"
+          },
+          "revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RefundStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "webhook_dead_letter_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Webhook Dead Letter Count",
+            "type": "integer"
+          },
+          "webhook_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Webhook Event Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "order_id",
+          "refund_no",
+          "merchant_reference",
+          "provider",
+          "provider_refund_id",
+          "amount_poisha",
+          "currency",
+          "status",
+          "mode",
+          "reason",
+          "manual_reference",
+          "failure_code",
+          "failure_reason",
+          "initiated_at",
+          "completed_at",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AdminRefundResponse",
+        "type": "object"
+      },
       "AdminReviewListItem": {
         "additionalProperties": false,
         "properties": {
@@ -3544,6 +4460,22 @@
         "title": "AdminSessionResponse",
         "type": "object"
       },
+      "AdminShipmentCancel": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminShipmentCancel",
+        "type": "object"
+      },
       "AdminShipmentCreate": {
         "additionalProperties": false,
         "properties": {
@@ -3584,6 +4516,50 @@
       "AdminShipmentResponse": {
         "additionalProperties": false,
         "properties": {
+          "attempt_no": {
+            "title": "Attempt No",
+            "type": "integer"
+          },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_cancel": {
+            "default": false,
+            "title": "Can Cancel",
+            "type": "boolean"
+          },
+          "can_reconcile": {
+            "default": false,
+            "title": "Can Reconcile",
+            "type": "boolean"
+          },
+          "cancel_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Unavailable Reason"
+          },
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Reason"
+          },
           "consignment_id": {
             "anyOf": [
               {
@@ -3603,6 +4579,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
           "failure_reason": {
             "anyOf": [
               {
@@ -3618,6 +4605,53 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "last_reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reconciled At"
+          },
+          "merchant_reference": {
+            "title": "Merchant Reference",
+            "type": "string"
+          },
+          "order_id": {
+            "format": "uuid",
+            "title": "Order Id",
+            "type": "string"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
+          },
+          "reconcile_attempts": {
+            "title": "Reconcile Attempts",
+            "type": "integer"
+          },
+          "reconcile_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconcile Unavailable Reason"
           },
           "revision": {
             "title": "Revision",
@@ -3641,15 +4675,35 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "webhook_dead_letter_count": {
+            "default": 0,
+            "title": "Webhook Dead Letter Count",
+            "type": "integer"
+          },
+          "webhook_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Webhook Event Ids",
+            "type": "array"
           }
         },
         "required": [
           "id",
+          "order_id",
+          "attempt_no",
+          "merchant_reference",
           "courier",
           "status",
+          "provider_status",
           "consignment_id",
           "tracking_code",
+          "failure_code",
           "failure_reason",
+          "last_reconciled_at",
+          "reconcile_attempts",
           "revision",
           "created_at",
           "updated_at"
@@ -3840,6 +4894,379 @@
           "email"
         ],
         "title": "AdminUserResponse",
+        "type": "object"
+      },
+      "AdminWebhookEventDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "minimum": 0.0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "audit_event_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Audit Event Ids",
+            "type": "array"
+          },
+          "can_retry": {
+            "default": false,
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WebhookKind"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "normalized": {
+            "additionalProperties": true,
+            "title": "Normalized",
+            "type": "object"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          },
+          "processing_status": {
+            "$ref": "#/components/schemas/WebhookProcessingStatus"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Occurred At"
+          },
+          "raw_body_sha256": {
+            "title": "Raw Body Sha256",
+            "type": "string"
+          },
+          "refund_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Id"
+          },
+          "retry_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Unavailable Reason"
+          },
+          "shipment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipment Id"
+          },
+          "verification_method": {
+            "title": "Verification Method",
+            "type": "string"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/WebhookVerificationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "provider",
+          "event_id",
+          "event_type",
+          "raw_body_sha256",
+          "verification_status",
+          "verification_method",
+          "processing_status",
+          "payment_id",
+          "refund_id",
+          "shipment_id",
+          "provider_occurred_at",
+          "attempts",
+          "last_error_code",
+          "last_error",
+          "processed_at",
+          "created_at",
+          "normalized"
+        ],
+        "title": "AdminWebhookEventDetail",
+        "type": "object"
+      },
+      "AdminWebhookEventListItem": {
+        "additionalProperties": false,
+        "properties": {
+          "attempts": {
+            "minimum": 0.0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "can_retry": {
+            "default": false,
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WebhookKind"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error Code"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At"
+          },
+          "processing_status": {
+            "$ref": "#/components/schemas/WebhookProcessingStatus"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Occurred At"
+          },
+          "raw_body_sha256": {
+            "title": "Raw Body Sha256",
+            "type": "string"
+          },
+          "refund_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refund Id"
+          },
+          "retry_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry Unavailable Reason"
+          },
+          "shipment_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipment Id"
+          },
+          "verification_method": {
+            "title": "Verification Method",
+            "type": "string"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/WebhookVerificationStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "provider",
+          "event_id",
+          "event_type",
+          "raw_body_sha256",
+          "verification_status",
+          "verification_method",
+          "processing_status",
+          "payment_id",
+          "refund_id",
+          "shipment_id",
+          "provider_occurred_at",
+          "attempts",
+          "last_error_code",
+          "last_error",
+          "processed_at",
+          "created_at"
+        ],
+        "title": "AdminWebhookEventListItem",
+        "type": "object"
+      },
+      "AdminWebhookEventPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminWebhookEventListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page_info": {
+            "$ref": "#/components/schemas/AdminPageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page_info"
+        ],
+        "title": "AdminWebhookEventPage",
         "type": "object"
       },
       "AnalyticsSettings": {
@@ -6132,8 +7559,13 @@
             "title": "Notes"
           },
           "payment_method": {
-            "const": "cod",
             "default": "cod",
+            "enum": [
+              "cod",
+              "bkash",
+              "nagad",
+              "sslcommerz"
+            ],
             "title": "Payment Method",
             "type": "string"
           },
@@ -6174,8 +7606,13 @@
             "title": "Notes"
           },
           "payment_method": {
-            "const": "cod",
             "default": "cod",
+            "enum": [
+              "cod",
+              "bkash",
+              "nagad",
+              "sslcommerz"
+            ],
             "title": "Payment Method",
             "type": "string"
           },
@@ -7138,7 +8575,10 @@
           "mode": {
             "enum": [
               "manual",
+              "disabled",
               "mock",
+              "sandbox",
+              "live",
               "not_configured"
             ],
             "title": "Mode",
@@ -7244,6 +8684,158 @@
           "customer_note"
         ],
         "title": "CustomerOrderTimelineItem",
+        "type": "object"
+      },
+      "CustomerPaymentAttempt": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_poisha": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Poisha",
+            "type": "integer"
+          },
+          "attempt_no": {
+            "exclusiveMinimum": 0.0,
+            "title": "Attempt No",
+            "type": "integer"
+          },
+          "can_retry": {
+            "title": "Can Retry",
+            "type": "boolean"
+          },
+          "currency": {
+            "const": "BDT",
+            "title": "Currency",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaymentNextAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PaymentRecordStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "attempt_no",
+          "provider",
+          "status",
+          "amount_poisha",
+          "currency",
+          "expires_at",
+          "next_action",
+          "can_retry",
+          "updated_at"
+        ],
+        "title": "CustomerPaymentAttempt",
+        "type": "object"
+      },
+      "CustomerPaymentSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "latest_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerPaymentAttempt"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "paid_amount_poisha": {
+            "minimum": 0.0,
+            "title": "Paid Amount Poisha",
+            "type": "integer"
+          },
+          "pending_refund_amount_poisha": {
+            "minimum": 0.0,
+            "title": "Pending Refund Amount Poisha",
+            "type": "integer"
+          },
+          "refunded_amount_poisha": {
+            "minimum": 0.0,
+            "title": "Refunded Amount Poisha",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "status",
+          "paid_amount_poisha",
+          "refunded_amount_poisha",
+          "pending_refund_amount_poisha",
+          "latest_attempt"
+        ],
+        "title": "CustomerPaymentSummary",
+        "type": "object"
+      },
+      "CustomerShipmentSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "courier": {
+            "$ref": "#/components/schemas/CourierProvider"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "tracking_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tracking Code"
+          }
+        },
+        "required": [
+          "courier",
+          "status",
+          "tracking_code"
+        ],
+        "title": "CustomerShipmentSummary",
         "type": "object"
       },
       "DashboardCounts": {
@@ -10224,6 +11816,10 @@
           "order": {
             "$ref": "#/components/schemas/OrderReceipt"
           },
+          "payment_required": {
+            "title": "Payment Required",
+            "type": "boolean"
+          },
           "replayed": {
             "title": "Replayed",
             "type": "boolean"
@@ -10231,7 +11827,8 @@
         },
         "required": [
           "order",
-          "replayed"
+          "replayed",
+          "payment_required"
         ],
         "title": "OrderCreateResponse",
         "type": "object"
@@ -10389,6 +11986,16 @@
             "title": "Items",
             "type": "array"
           },
+          "latest_shipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerShipmentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "notes": {
             "anyOf": [
               {
@@ -10405,8 +12012,16 @@
             "title": "Number",
             "type": "string"
           },
+          "payment": {
+            "$ref": "#/components/schemas/CustomerPaymentSummary"
+          },
           "payment_method": {
-            "const": "cod",
+            "enum": [
+              "cod",
+              "bkash",
+              "nagad",
+              "sslcommerz"
+            ],
             "title": "Payment Method",
             "type": "string"
           },
@@ -10454,6 +12069,8 @@
           "status",
           "payment_status",
           "payment_method",
+          "payment",
+          "latest_shipment",
           "subtotal_poisha",
           "discount_poisha",
           "shipping_poisha",
@@ -10632,6 +12249,43 @@
         "title": "PageInfo",
         "type": "object"
       },
+      "PaymentAttemptCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "enum": [
+              "bkash",
+              "nagad",
+              "sslcommerz"
+            ],
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "title": "PaymentAttemptCreate",
+        "type": "object"
+      },
+      "PaymentAttemptCreateResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/CustomerPaymentAttempt"
+          },
+          "replayed": {
+            "title": "Replayed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "attempt",
+          "replayed"
+        ],
+        "title": "PaymentAttemptCreateResponse",
+        "type": "object"
+      },
       "PaymentMethod": {
         "enum": [
           "cod",
@@ -10641,6 +12295,55 @@
         ],
         "title": "PaymentMethod",
         "type": "string"
+      },
+      "PaymentMethodAvailability": {
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "code": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "flow": {
+            "enum": [
+              "cash_on_delivery",
+              "hosted_redirect"
+            ],
+            "title": "Flow",
+            "type": "string"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "disabled",
+                  "not_configured",
+                  "temporarily_unavailable"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          }
+        },
+        "required": [
+          "code",
+          "flow",
+          "enabled",
+          "available",
+          "unavailable_reason"
+        ],
+        "title": "PaymentMethodAvailability",
+        "type": "object"
       },
       "PaymentMethodSettings": {
         "additionalProperties": false,
@@ -10669,14 +12372,70 @@
         "title": "PaymentMethodSettings",
         "type": "object"
       },
+      "PaymentMethodsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodAvailability"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PaymentMethodsResponse",
+        "type": "object"
+      },
+      "PaymentNextAction": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "type": {
+            "const": "redirect",
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "url",
+          "expires_at"
+        ],
+        "title": "PaymentNextAction",
+        "type": "object"
+      },
       "PaymentRecordStatus": {
         "enum": [
           "pending",
           "initiated",
+          "processing",
           "authorized",
           "succeeded",
           "failed",
           "cancelled",
+          "expired",
+          "unknown",
           "refunded"
         ],
         "title": "PaymentRecordStatus",
@@ -11337,6 +13096,16 @@
         "title": "ProfileUpdateRequest",
         "type": "object"
       },
+      "ProviderMode": {
+        "enum": [
+          "disabled",
+          "mock",
+          "sandbox",
+          "live"
+        ],
+        "title": "ProviderMode",
+        "type": "string"
+      },
       "PublicBlogListItem": {
         "additionalProperties": false,
         "properties": {
@@ -11668,6 +13437,26 @@
         ],
         "title": "ReadinessResponse",
         "type": "object"
+      },
+      "RefundMode": {
+        "enum": [
+          "provider",
+          "manual"
+        ],
+        "title": "RefundMode",
+        "type": "string"
+      },
+      "RefundStatus": {
+        "enum": [
+          "pending",
+          "processing",
+          "succeeded",
+          "failed",
+          "cancelled",
+          "unknown"
+        ],
+        "title": "RefundStatus",
+        "type": "string"
       },
       "ReorderRequest": {
         "additionalProperties": false,
@@ -12509,6 +14298,7 @@
         "enum": [
           "pending",
           "ready",
+          "unknown",
           "booked",
           "picked_up",
           "in_transit",
@@ -13406,6 +15196,16 @@
             "title": "Item Count",
             "type": "integer"
           },
+          "latest_shipment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerShipmentSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "location": {
             "$ref": "#/components/schemas/TrackingLocation"
           },
@@ -13418,8 +15218,16 @@
             "title": "Number",
             "type": "string"
           },
+          "payment": {
+            "$ref": "#/components/schemas/CustomerPaymentSummary"
+          },
           "payment_method": {
-            "const": "cod",
+            "enum": [
+              "cod",
+              "bkash",
+              "nagad",
+              "sslcommerz"
+            ],
             "title": "Payment Method",
             "type": "string"
           },
@@ -13454,6 +15262,8 @@
           "status",
           "payment_status",
           "payment_method",
+          "payment",
+          "latest_shipment",
           "placed_at",
           "updated_at",
           "item_count",
@@ -13553,6 +15363,35 @@
         ],
         "title": "VariantStock",
         "type": "object"
+      },
+      "WebhookKind": {
+        "enum": [
+          "payment",
+          "courier"
+        ],
+        "title": "WebhookKind",
+        "type": "string"
+      },
+      "WebhookProcessingStatus": {
+        "enum": [
+          "queued",
+          "processing",
+          "processed",
+          "ignored",
+          "retry",
+          "dead_letter"
+        ],
+        "title": "WebhookProcessingStatus",
+        "type": "string"
+      },
+      "WebhookVerificationStatus": {
+        "enum": [
+          "verified",
+          "pending_validation",
+          "legacy_unknown"
+        ],
+        "title": "WebhookVerificationStatus",
+        "type": "string"
       },
       "WhatsAppSettings": {
         "additionalProperties": false,
@@ -33977,6 +35816,274 @@
         ]
       }
     },
+    "/api/v1/admin/orders/{order_id}/refunds": {
+      "post": {
+        "operationId": "adminCreateRefund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRefundCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRefundResponse"
+                }
+              }
+            },
+            "description": "Manual refund recorded.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRefundResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Create Refund",
+        "tags": [
+          "admin-commerce"
+        ]
+      }
+    },
     "/api/v1/admin/orders/{order_id}/shipments": {
       "post": {
         "operationId": "adminBookOrderShipment",
@@ -35952,6 +38059,221 @@
         "summary": "Unpublish Page",
         "tags": [
           "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/{payment_id}/reconcile": {
+      "post": {
+        "operationId": "adminReconcilePayment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Payment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPaymentAttemptResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Reconcile Payment",
+        "tags": [
+          "admin-commerce"
         ]
       }
     },
@@ -39810,6 +42132,376 @@
         ]
       }
     },
+    "/api/v1/admin/providers/capabilities": {
+      "get": {
+        "operationId": "adminProviderCapabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminProviderCapabilitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Admin Provider Capabilities",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/admin/refunds/{refund_id}/reconcile": {
+      "post": {
+        "operationId": "adminReconcileRefund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "refund_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Refund Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRefundResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Reconcile Refund",
+        "tags": [
+          "admin-commerce"
+        ]
+      }
+    },
     "/api/v1/admin/reviews": {
       "get": {
         "operationId": "adminListReviews",
@@ -40928,6 +43620,1069 @@
         "summary": "Update Setting",
         "tags": [
           "admin-content"
+        ]
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}/cancel": {
+      "post": {
+        "operationId": "adminCancelShipment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "shipment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Shipment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminShipmentCancel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShipmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Cancel Shipment",
+        "tags": [
+          "admin-commerce"
+        ]
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}/reconcile": {
+      "post": {
+        "operationId": "adminReconcileShipment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "shipment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Shipment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "If-Match",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminShipmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Reconcile Shipment",
+        "tags": [
+          "admin-commerce"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks": {
+      "get": {
+        "operationId": "adminListWebhooks",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/WebhookKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/WebhookProcessingStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWebhookEventPage"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Admin List Webhooks",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{event_id}": {
+      "get": {
+        "operationId": "adminGetWebhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWebhookEventDetail"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Admin Get Webhook",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{event_id}/retry": {
+      "post": {
+        "operationId": "adminRetryWebhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminWebhookEventDetail"
+                }
+              }
+            },
+            "description": "Successful Response",
+            "headers": {
+              "Cache-Control": {
+                "description": "Admin responses are never cacheable.",
+                "schema": {
+                  "example": "no-store",
+                  "type": "string"
+                }
+              },
+              "Idempotent-Replayed": {
+                "description": "True when the exact stored command response was replayed.",
+                "schema": {
+                  "enum": [
+                    "true"
+                  ],
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AdminAccessCookie": []
+          }
+        ],
+        "summary": "Admin Retry Webhook",
+        "tags": [
+          "providers"
         ]
       }
     },
@@ -44513,6 +48268,147 @@
         ]
       }
     },
+    "/api/v1/checkout/payment-methods": {
+      "get": {
+        "operationId": "checkoutPaymentMethods",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "summary": "Payment Methods",
+        "tags": [
+          "checkout"
+        ]
+      }
+    },
     "/api/v1/checkout/quote": {
       "post": {
         "operationId": "quote_api_v1_checkout_quote_post",
@@ -46127,6 +50023,722 @@
         ]
       }
     },
+    "/api/v1/orders/{number}/payment-attempts": {
+      "post": {
+        "operationId": "createPaymentAttempt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "pattern": "^BJ-[0-9]{4}-[0-9]{6}$",
+              "title": "Number",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Content-Type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Content-Type"
+            }
+          },
+          {
+            "description": "Exact storefront origin from the configured allowlist.",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Exact storefront origin from the configured allowlist.",
+              "title": "Origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Constant-time matched against the signed cookie CSRF claim.",
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": true,
+            "schema": {
+              "description": "Constant-time matched against the signed cookie CSRF claim.",
+              "title": "X-Csrf-Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentAttemptCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentAttemptCreateResponse"
+                }
+              }
+            },
+            "description": "Idempotent replay."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentAttemptCreateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentAttemptCreateResponse"
+                }
+              }
+            },
+            "description": "Provider outcome is processing or unknown; do not retry blindly."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessCookie": []
+          },
+          {
+            "GuestCookie": []
+          }
+        ],
+        "summary": "Create Payment Attempt",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{number}/payment-attempts/latest": {
+      "get": {
+        "operationId": "latestPaymentAttempt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "pattern": "^BJ-[0-9]{4}-[0-9]{6}$",
+              "title": "Number",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPaymentAttempt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "security": [
+          {
+            "AccessCookie": []
+          },
+          {
+            "GuestCookie": []
+          }
+        ],
+        "summary": "Latest Payment Attempt",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/payment-returns/{provider}/{outcome}": {
+      "get": {
+        "operationId": "paymentBrowserReturnGet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            }
+          },
+          {
+            "in": "path",
+            "name": "outcome",
+            "required": true,
+            "schema": {
+              "enum": [
+                "success",
+                "fail",
+                "cancel"
+              ],
+              "title": "Outcome",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "summary": "Payment Return Get",
+        "tags": [
+          "providers"
+        ]
+      },
+      "post": {
+        "operationId": "paymentBrowserReturnPost",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            }
+          },
+          {
+            "in": "path",
+            "name": "outcome",
+            "required": true,
+            "schema": {
+              "enum": [
+                "success",
+                "fail",
+                "cancel"
+              ],
+              "title": "Outcome",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "summary": "Payment Return Post",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/api/v1/storefront/home": {
       "get": {
         "operationId": "home_api_v1_storefront_home_get",
@@ -46218,6 +50830,294 @@
         "summary": "Shell",
         "tags": [
           "storefront"
+        ]
+      }
+    },
+    "/api/v1/webhooks/couriers/{provider}": {
+      "post": {
+        "operationId": "courierWebhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CourierProvider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "summary": "Courier Webhook",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/webhooks/payments/{provider}": {
+      "post": {
+        "operationId": "paymentWebhook",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Invalid domain request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Authentication required or invalid"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Origin, CSRF, or account policy rejection"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Current state conflicts with the request"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "The supplied resource revision is stale"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "JSON content type required"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "A required precondition header is missing"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Unexpected server failure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Required dependency or configuration unavailable"
+          }
+        },
+        "summary": "Payment Webhook",
+        "tags": [
+          "providers"
         ]
       }
     },

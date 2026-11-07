@@ -1,0 +1,16 @@
+{
+  "provenance": {
+    "kind": "internal_deterministic_mock",
+    "official_wire_fidelity": false,
+    "note": "No public merchant documentation was available at the Phase 6 freeze."
+  },
+  "statuses": ["pickup-pending", "picked-up", "in-transit", "delivered", "returned", "cancelled"],
+  "webhook": {
+    "event_id": "redx-event-001",
+    "event_type": "parcel.updated",
+    "merchant_reference": "BS0000000000000000000000000003",
+    "status": "in-transit",
+    "consignment_id": "RDX-C-DETERMINISTIC",
+    "tracking_code": "RDXDETERMINISTIC"
+  }
+}

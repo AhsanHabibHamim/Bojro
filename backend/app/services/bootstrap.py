@@ -13,7 +13,7 @@ from app.core.security import PasswordService
 from app.db.enums import AuthSessionKind, HomepageSectionType, UserRole
 from app.db.models import AuditLog, AuthSession, HomepageSection, SiteSetting, User
 
-SCHEMA_HEAD = "0009_phase5_hardening"
+SCHEMA_HEAD = "0012_phase6_contract"
 
 
 @dataclass(frozen=True, slots=True)
