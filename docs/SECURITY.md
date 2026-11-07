@@ -21,6 +21,10 @@
 - TOTP seeds use versioned AES-GCM encryption keys; recovery codes are hashed and timestep replay is rejected.
 - CSV imports use fixed columns, size/row limits, full validation-before-commit, and spreadsheet-formula neutralization on export.
 - Audit diffs redact sensitive keys/PII, and database triggers maintain tamper-evident hashes and append-only behavior.
+- Provider HTTP clients use fixed official origins, TLS verification, no redirects, bounded payloads and strict connect/read/write/pool timeouts.
+- Online payment redirects are API-supplied and allowlisted; Bojro never collects provider card/PIN/OTP credentials.
+- Webhooks require provider verification or official validation calls before storage/processing, and provider payloads remain database-only/redacted.
+- Unknown payment/refund/courier outcomes are reconciled before retry to prevent duplicate external effects.
 
 ## Pending Feature Reviews
 

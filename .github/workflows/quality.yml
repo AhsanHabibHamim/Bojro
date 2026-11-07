@@ -159,6 +159,9 @@ jobs:
           E2E_ADMIN_PASSWORD: ${{ env.E2E_ADMIN_PASSWORD }}
           E2E_ADMIN_ORDER_NUMBER: ${{ env.E2E_ADMIN_ORDER_NUMBER }}
           NEXT_PUBLIC_E2E_STORAGE_MOCK: "1"
+          NEXT_PUBLIC_E2E_PROVIDER_MOCK: "1"
+          NEXT_PUBLIC_E2E_SEED_RESET_URL: http://localhost:8000/api/v1/e2e/phase6/reset
+          PHASE6_E2E_RESET_TOKEN: local-phase6-e2e-reset-token
         run: pnpm --filter @bojro/frontend test:e2e
 
       - name: Upload Playwright report on failure

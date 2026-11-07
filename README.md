@@ -89,4 +89,4 @@ OpenAPI is the contract. Regenerate the committed typed client after an API sche
 pnpm api:generate
 ```
 
-See `docs/ARCHITECTURE.md`, `docs/API.md`, and `docs/DEPLOYMENT.md` for details.
+See `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/PROVIDERS.md`, and `docs/DEPLOYMENT.md` for details.

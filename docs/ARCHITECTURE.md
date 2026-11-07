@@ -21,6 +21,8 @@ PostgreSQL is authoritative. Monetary values are integer poisha with ISO currenc
 
 Redis supports rate limits, OTPs, cart sessions, catalog caching, and ARQ. Development remains usable without Redis; features explicitly requiring it report a degraded state instead of crashing.
 
+Provider commands persist an attempt/refund/shipment intent before external I/O. Network calls happen outside database locks; unknown outcomes are reconciled before retry. Verified webhook events and durable outbox jobs drive idempotent state-machine updates under row locks.
+
 ## Security
 
 Authentication will use short access JWTs and rotating refresh tokens in `httpOnly`, `Secure`, `SameSite=Lax` cookies with a CSRF token for mutations. Passwords use Argon2id. CORS is allowlisted, request IDs are returned, logs are structured, and secrets are environment-only.

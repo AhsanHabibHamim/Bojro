@@ -70,3 +70,13 @@ Mutable revisioned resources return strong `ETag` values. Missing `If-Match` is 
 - Public blog/static-page rendering consumes structured rich-document blocks; arbitrary HTML, scripts, and unsafe links are rejected.
 
 Admin mutations append redacted audit records and durable revalidation/outbox rows in the same transaction. The ARQ worker performs external delivery and cleanup outside database locks.
+
+## Payments And Couriers
+
+- `GET /api/v1/checkout/payment-methods` returns effective COD/bKash/Nagad/SSLCOMMERZ capabilities and reason codes without credentials.
+- Online order creation remains inventory-authoritative and returns `payment_required`; `POST /orders/{number}/payment-attempts` creates one replay-safe hosted payment attempt.
+- Payment status/return routes expose normalized states only. Browser returns never mark money paid.
+- Verified payment/courier webhook endpoints capture exact raw-body hashes, deduplicate by kind/provider/event ID, queue processing, and validate reference, amount, currency and resource identity before mutation.
+- Admin provider capabilities, refunds, reconcile/cancel commands, shipment attempts and webhook dead-letter operations require ETags plus idempotency keys.
+
+Payment attempts, refunds, shipments and order aggregates are separate state machines. `unknown` outcomes cannot be blindly retried; workers reconcile them by stable merchant reference. Customer responses never expose provider credentials, raw payloads or internal transaction identifiers.

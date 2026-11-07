@@ -28,3 +28,5 @@ Vercel preview domains cannot validate production cookie auth against Railway. U
 Run a separate Railway worker service with `arq app.workers.review_photos.WorkerSettings`. Production readiness should require its Redis health heartbeat. Configure independent `ADMIN_JWT_SECRET_KEY`, versioned `ADMIN_TOTP_KEYRING`, revalidation URL/secret, and a real storage/courier provider before enabling those features; local `mock` providers are rejected in production.
 
 Use `backend/scripts/bootstrap_admin.py` after migrations for an existing production database. It provisions only one environment-supplied admin and required system defaults; it never loads the demo catalog or rewrites an existing admin password.
+
+Configure stable public HTTPS API/storefront callback origins before enabling any provider. Each payment/courier has an independent `disabled|mock|sandbox|live` mode; production rejects mock/sandbox and incomplete credentials. Follow `docs/PROVIDERS.md` for the evidence and activation gate. Monitor unknown attempts, reconciliation lag, verification failures, refund errors, shipment lag and dead letters.

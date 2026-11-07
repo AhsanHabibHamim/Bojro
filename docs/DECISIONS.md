@@ -101,3 +101,15 @@
 **Decision:** Generate immutable order-snapshot invoice and packing-slip PDFs for operations and label them non-fiscal.
 
 **Reason:** A production tax/fiscal invoice requires jurisdiction-specific legal review beyond a generic commerce implementation.
+
+## 2026-11-07: Unknown provider outcomes dominate retry
+
+**Decision:** Timeouts or malformed provider responses produce a durable `unknown` attempt rather than `failed`. A query/reconciliation by stable merchant reference must resolve it before another create/refund/booking command.
+
+**Reason:** A provider may have committed while its response was lost. Blind retry can double-charge, over-refund or create duplicate consignments.
+
+## 2026-11-07: Verified events before mutation
+
+**Decision:** Reject unauthenticated webhooks before insertion; store verified raw-body digests and provider event IDs; process normalized events asynchronously under resource locks.
+
+**Reason:** Browser callbacks and unverified JSON cannot establish payment or delivery truth. Durable verified events support replay, ordering, reconciliation and dead-letter operations safely.

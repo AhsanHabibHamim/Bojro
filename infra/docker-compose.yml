@@ -53,6 +53,16 @@ services:
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-mock}
       STORAGE_MOCK_SECRET: ${STORAGE_MOCK_SECRET:-local-storage-mock-secret-change-me-32-characters}
       COURIER_PROVIDER: ${COURIER_PROVIDER:-mock}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8000}
+      PUBLIC_STOREFRONT_BASE_URL: ${PUBLIC_STOREFRONT_BASE_URL:-http://localhost:3000}
+      BKASH_MODE: ${BKASH_MODE:-mock}
+      NAGAD_MODE: ${NAGAD_MODE:-mock}
+      SSLCOMMERZ_MODE: ${SSLCOMMERZ_MODE:-mock}
+      PATHAO_MODE: ${PATHAO_MODE:-mock}
+      STEADFAST_MODE: ${STEADFAST_MODE:-mock}
+      REDX_MODE: ${REDX_MODE:-mock}
+      PROVIDER_MOCK_SIGNING_SECRET: ${PROVIDER_MOCK_SIGNING_SECRET:-local-provider-mock-signing-secret-32-characters}
+      PHASE6_E2E_RESET_TOKEN: ${PHASE6_E2E_RESET_TOKEN:-local-phase6-e2e-reset-token}
       REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bojro}:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/${POSTGRES_DB:-bojro}
@@ -98,6 +108,16 @@ services:
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-mock}
       STORAGE_MOCK_SECRET: ${STORAGE_MOCK_SECRET:-local-storage-mock-secret-change-me-32-characters}
       COURIER_PROVIDER: ${COURIER_PROVIDER:-mock}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8000}
+      PUBLIC_STOREFRONT_BASE_URL: ${PUBLIC_STOREFRONT_BASE_URL:-http://localhost:3000}
+      BKASH_MODE: ${BKASH_MODE:-mock}
+      NAGAD_MODE: ${NAGAD_MODE:-mock}
+      SSLCOMMERZ_MODE: ${SSLCOMMERZ_MODE:-mock}
+      PATHAO_MODE: ${PATHAO_MODE:-mock}
+      STEADFAST_MODE: ${STEADFAST_MODE:-mock}
+      REDX_MODE: ${REDX_MODE:-mock}
+      PROVIDER_MOCK_SIGNING_SECRET: ${PROVIDER_MOCK_SIGNING_SECRET:-local-provider-mock-signing-secret-32-characters}
+      PHASE6_E2E_RESET_TOKEN: ${PHASE6_E2E_RESET_TOKEN:-local-phase6-e2e-reset-token}
       REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
     command: [".venv/bin/arq", "app.workers.review_photos.WorkerSettings"]
@@ -115,12 +135,14 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXT_PUBLIC_E2E_STORAGE_MOCK: ${NEXT_PUBLIC_E2E_STORAGE_MOCK:-1}
+        NEXT_PUBLIC_E2E_PROVIDER_MOCK: ${NEXT_PUBLIC_E2E_PROVIDER_MOCK:-1}
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       INTERNAL_API_URL: http://backend:8000
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
       NEXT_PUBLIC_E2E_STORAGE_MOCK: ${NEXT_PUBLIC_E2E_STORAGE_MOCK:-1}
+      NEXT_PUBLIC_E2E_PROVIDER_MOCK: ${NEXT_PUBLIC_E2E_PROVIDER_MOCK:-1}
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
