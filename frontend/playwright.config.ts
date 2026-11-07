@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const adminAuthFile = "test-results/.auth/admin.json";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -15,14 +17,42 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "admin-setup",
+      testMatch: /admin\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "chromium",
-      grepInvert: /@mobile-dashboard/,
+      grepInvert: /@mobile-dashboard|@admin/,
+      testIgnore: /admin\.setup\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "mobile-account-dashboard",
       grep: /@mobile-dashboard/,
+      testIgnore: /admin\.setup\.ts/,
       use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "admin-auth",
+      grep: /@admin-auth/,
+      testIgnore: /admin\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "admin-chromium",
+      dependencies: ["admin-setup"],
+      grep: /@admin/,
+      grepInvert: /@admin-auth|@admin-mobile/,
+      testIgnore: /admin\.setup\.ts/,
+      use: { ...devices["Desktop Chrome"], storageState: adminAuthFile },
+    },
+    {
+      name: "admin-mobile",
+      dependencies: ["admin-setup"],
+      grep: /@admin-mobile/,
+      testIgnore: /admin\.setup\.ts/,
+      use: { ...devices["Pixel 7"], storageState: adminAuthFile },
     },
   ],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER

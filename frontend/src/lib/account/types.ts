@@ -20,7 +20,10 @@ export type Versioned<T> = {
 
 export type AccountProfile = Schema["ProfileResponse"];
 
-export type AccountDashboard = Omit<Schema["DashboardResponse"], "latest_orders" | "profile"> & {
+export type AccountDashboard = Omit<
+  Schema["app__schemas__account__DashboardResponse"],
+  "latest_orders" | "profile"
+> & {
   profile: AccountProfile;
   latest_orders: AccountOrderSummary[];
 };

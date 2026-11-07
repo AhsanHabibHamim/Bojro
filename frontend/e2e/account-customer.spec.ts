@@ -85,8 +85,9 @@ test("customer account covers promotion, profile, addresses, wishlist, coupons, 
 
   await page.goto(`/en/product/${productSlug}`);
   await page.getByRole("button", { name: "Save to wishlist" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove from wishlist" }).first()).toBeVisible();
   await page.goto("/en/account/wishlist");
-  await expect(page.getByRole("heading", { name: /wishlist/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Wishlist", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Remove" }).first().click();
 
   await page.goto(`/en/product/${productSlug}`);
