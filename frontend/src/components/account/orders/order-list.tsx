@@ -36,6 +36,7 @@ const statuses: AccountOrderStatus[] = [
 export function OrderList({ locale }: { locale: AppLocale }) {
   const t = useTranslations("account.orders");
   const tStatus = useTranslations("order.statuses");
+  const tOrder = useTranslations("order");
   const api = useAccountApi();
   const [status, setStatus] = useState<AccountOrderStatus | "">("");
   const load = useCallback(
@@ -136,6 +137,12 @@ export function OrderList({ locale }: { locale: AppLocale }) {
                 </strong>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
+                <span className="rounded-full border border-brand-purple/10 px-3 py-1 font-bold text-deep-indigo">
+                  {tOrder(`paymentMethods.${order.payment_method}` as never)} ·{" "}
+                  {tOrder(
+                    `paymentStatuses.${order.payment_status === "partially_refunded" ? "partiallyRefunded" : order.payment_status}` as never,
+                  )}
+                </span>
                 {order.items.map((item) => (
                   <span
                     key={item.id}

@@ -13,6 +13,7 @@ import {
 } from "@/lib/commerce/checkout";
 import type { TrackingResponse } from "@/lib/commerce/types";
 import { formatNumber } from "@/lib/format-number";
+import type { CourierProvider, PaymentMethod } from "@/lib/providers/types";
 
 import { OrderTimeline } from "./order-timeline";
 
@@ -37,16 +38,22 @@ export type TrackOrderLabels = {
     title: string;
     status: string;
     payment: string;
-    cod: string;
+    paymentMethods: Record<PaymentMethod, string>;
+    couriers: Record<CourierProvider, string>;
     items: string;
     phone: string;
     area: string;
     estimated: string;
     estimatedDays: string;
     timeline: string;
+    shipment: string;
+    courier: string;
+    trackingCode: string;
+    notAvailable: string;
   };
   statuses: Record<string, string>;
   paymentStatuses: Record<string, string>;
+  shipmentStatuses: Record<string, string>;
 };
 
 export function TrackOrderClient({
@@ -204,15 +211,15 @@ export function TrackOrderClient({
               <h2 className="mt-1 text-2xl font-extrabold">{result.number}</h2>
             </div>
             <span className="rounded-full bg-soft-lavender px-4 py-2 text-sm font-extrabold text-brand-purple">
-              {labels.statuses[result.status] ?? result.status}
+              {labels.statuses[result.status] ?? labels.result.notAvailable}
             </span>
           </div>
           <dl className="mt-6 grid gap-3 rounded-2xl bg-soft-lavender/45 p-5 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-muted">{labels.result.payment}</dt>
               <dd className="font-extrabold text-deep-indigo">
-                {labels.result.cod} ·{" "}
-                {labels.paymentStatuses[result.payment_status] ?? result.payment_status}
+                {labels.result.paymentMethods[result.payment_method]} ·{" "}
+                {labels.paymentStatuses[result.payment_status] ?? labels.result.notAvailable}
               </dd>
             </div>
             <div>
@@ -245,6 +252,21 @@ export function TrackOrderClient({
                   )}
               </dd>
             </div>
+            {result.latest_shipment ? (
+              <div className="sm:col-span-2">
+                <dt className="text-muted">{labels.result.shipment}</dt>
+                <dd className="font-extrabold text-deep-indigo">
+                  {labels.result.courier}: {labels.result.couriers[result.latest_shipment.courier]}{" "}
+                  ·{" "}
+                  {labels.shipmentStatuses[result.latest_shipment.status] ??
+                    labels.result.notAvailable}
+                </dd>
+                <dd className="mt-1 break-all text-muted">
+                  {labels.result.trackingCode}:{" "}
+                  {result.latest_shipment.tracking_code ?? labels.result.notAvailable}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           <h3 className="mt-7 text-lg font-extrabold">{labels.result.timeline}</h3>
           <OrderTimeline events={result.timeline} locale={locale} statuses={labels.statuses} />

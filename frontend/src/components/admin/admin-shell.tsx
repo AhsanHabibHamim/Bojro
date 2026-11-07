@@ -77,6 +77,8 @@ export function AdminShell({ children, locale }: { children: ReactNode; locale: 
       items: [
         { href: `${base}/settings`, label: t("settings"), icon: Gear },
         { href: `${base}/settings/security`, label: t("security"), icon: ShieldCheck },
+        { href: `${base}/providers`, label: t("providers"), icon: Storefront },
+        { href: `${base}/webhooks`, label: t("webhooks"), icon: List },
         { href: `${base}/audit`, label: t("audit"), icon: Megaphone },
       ],
     },

@@ -1,5 +1,11 @@
 import type { AppLocale } from "@/i18n/routing";
 import type { components } from "@/lib/api/schema";
+import type {
+  CustomerPaymentSummary,
+  CustomerShipmentSummary,
+  PaymentMethod,
+  PaymentStatus,
+} from "@/lib/providers/types";
 
 type Schema = components["schemas"];
 
@@ -44,18 +50,38 @@ export type GeoListResponse = Schema["GeoListResponse"];
 
 export type CheckoutCustomer = Schema["CheckoutCustomer"];
 export type CheckoutAddress = Schema["CheckoutAddress"];
-export type CheckoutDetails = Omit<Schema["CheckoutQuoteRequest"], never>;
-export type CheckoutQuoteRequest = Schema["CheckoutQuoteRequest"];
+export type CheckoutDetails = Omit<Schema["CheckoutQuoteRequest"], "payment_method"> & {
+  payment_method: PaymentMethod;
+};
+export type CheckoutQuoteRequest = CheckoutDetails;
 export type CheckoutQuoteResponse = Schema["CheckoutQuoteResponse"];
-export type PlaceOrderRequest = Schema["CheckoutOrderRequest"];
+export type PlaceOrderRequest = Omit<Schema["CheckoutOrderRequest"], "payment_method"> & {
+  payment_method: PaymentMethod;
+};
 
 export type OrderItem = Schema["OrderItemResponse"];
 export type OrderLocation = Schema["AddressGeoSnapshot"];
 export type OrderAddress = Schema["OrderAddressResponse"];
 export type OrderTimelineEvent = Schema["OrderTimelineItem"];
-export type OrderReceipt = Schema["OrderReceipt"];
-export type PlaceOrderResponse = Schema["OrderCreateResponse"];
+export type OrderReceipt = Omit<Schema["OrderReceipt"], "payment_method" | "payment_status"> & {
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  payment: CustomerPaymentSummary;
+  latest_shipment: CustomerShipmentSummary | null;
+};
+export type PlaceOrderResponse = Omit<Schema["OrderCreateResponse"], "order"> & {
+  order: OrderReceipt;
+  payment_required: boolean;
+};
 
 export type TrackOrderRequest = Schema["TrackingRequest"];
 export type TrackingTimelineEvent = Schema["OrderTimelineItem"];
-export type TrackingResponse = Schema["TrackingResponse"];
+export type TrackingResponse = Omit<
+  Schema["TrackingResponse"],
+  "payment_method" | "payment_status"
+> & {
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  payment: CustomerPaymentSummary;
+  latest_shipment: CustomerShipmentSummary | null;
+};

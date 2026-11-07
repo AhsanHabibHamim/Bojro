@@ -23,7 +23,7 @@ export function AdminStatusBadge({ status }: { status: string }) {
         : "border-brand-purple/15 bg-soft-lavender text-brand-purple";
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${tone}`}>
-      {t.has(normalized as never) ? t(normalized as never) : status.replaceAll("_", " ")}
+      {t.has(normalized as never) ? t(normalized as never) : t("unknown")}
     </span>
   );
 }

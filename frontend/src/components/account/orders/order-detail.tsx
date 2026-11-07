@@ -26,6 +26,19 @@ const statusKeys = [
   "refunded",
 ] as const;
 
+const shipmentStatusKeys: Record<string, string> = {
+  pending: "pending",
+  ready: "ready",
+  unknown: "unknown",
+  booked: "booked",
+  picked_up: "pickedUp",
+  in_transit: "inTransit",
+  delivered: "delivered",
+  failed: "failed",
+  returned: "returned",
+  cancelled: "cancelled",
+};
+
 export function OrderDetail({ locale, number }: { locale: AppLocale; number: string }) {
   const t = useTranslations("account.orders.detail");
   const tOrder = useTranslations("order");
@@ -150,12 +163,30 @@ export function OrderDetail({ locale, number }: { locale: AppLocale; number: str
           <dl className="mt-4 space-y-2.5 text-sm">
             <div className="flex justify-between gap-3">
               <dt className="text-muted">{tOrder("payment")}</dt>
-              <dd className="font-bold">{tOrder("cod")}</dd>
+              <dd className="font-bold">
+                {tOrder(`paymentMethods.${order.payment_method}` as never)}
+              </dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-muted">{tOrder("paymentStatus")}</dt>
               <dd className="font-bold">{t(`paymentStatuses.${order.payment_status}`)}</dd>
             </div>
+            {order.payment?.paid_amount_poisha ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">{tOrder("paidAmount")}</dt>
+                <dd className="font-bold text-success">
+                  {formatPrice(order.payment.paid_amount_poisha, locale)}
+                </dd>
+              </div>
+            ) : null}
+            {order.payment?.refunded_amount_poisha ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">{tOrder("refundedAmount")}</dt>
+                <dd className="font-bold">
+                  {formatPrice(order.payment.refunded_amount_poisha, locale)}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-3 border-t border-brand-purple/10 pt-3">
               <dt className="text-muted">{t("subtotal")}</dt>
               <dd className="font-bold">{formatPrice(order.subtotal_poisha, locale)}</dd>
@@ -177,6 +208,21 @@ export function OrderDetail({ locale, number }: { locale: AppLocale; number: str
               </dd>
             </div>
           </dl>
+          {order.latest_shipment ? (
+            <div className="mt-5 rounded-2xl border border-brand-purple/10 p-4 text-sm">
+              <h4 className="font-extrabold">{tOrder("shipment")}</h4>
+              <p className="mt-2 font-bold text-deep-indigo">
+                {tOrder(`couriers.${order.latest_shipment.courier}` as never)} ·{" "}
+                {tOrder(
+                  `shipmentStatuses.${shipmentStatusKeys[order.latest_shipment.status] ?? "unknown"}` as never,
+                )}
+              </p>
+              <p className="mt-1 break-all text-muted">
+                {tOrder("trackingCode")}:{" "}
+                {order.latest_shipment.tracking_code ?? tOrder("notAvailable")}
+              </p>
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>

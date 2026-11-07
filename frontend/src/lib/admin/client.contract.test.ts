@@ -140,4 +140,63 @@ describe("AdminClient generated contract mapping", () => {
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
     expect(body).toEqual({ image_ids: ["image-1", "image-2"] });
   });
+
+  it("maps Phase 6 refund, reconciliation, capability, and webhook operations", async () => {
+    const key = "123e4567-e89b-42d3-a456-426614174007";
+    await client.refundOrder(
+      "BJ-2026-000123",
+      {
+        amount_poisha: 50_025,
+        reason: "Customer adjustment",
+        mode: "provider",
+        manual_reference: null,
+      },
+      '"order-etag"',
+      key,
+    );
+    await client.reconcilePayment("payment-1", '"order-etag"', key);
+    await client.reconcileRefund("refund-1", '"order-etag"', key);
+    await client.reconcileShipment("shipment-1", '"order-etag"', key);
+    await client.cancelShipment(
+      "shipment-1",
+      { reason: "Customer cancellation" },
+      '"order-etag"',
+      key,
+    );
+    await client.providerCapabilities();
+    await client.webhookEvents({ status: "dead_letter", limit: 25 });
+    await client.webhookEvent("event-1");
+    await client.retryWebhookEvent("event-1", key);
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://api.test/api/v1/admin/orders/BJ-2026-000123/refunds",
+      "https://api.test/api/v1/admin/payments/payment-1/reconcile",
+      "https://api.test/api/v1/admin/refunds/refund-1/reconcile",
+      "https://api.test/api/v1/admin/shipments/shipment-1/reconcile",
+      "https://api.test/api/v1/admin/shipments/shipment-1/cancel",
+      "https://api.test/api/v1/admin/providers/capabilities",
+      "https://api.test/api/v1/admin/webhooks?status=dead_letter&limit=25",
+      "https://api.test/api/v1/admin/webhooks/event-1",
+      "https://api.test/api/v1/admin/webhooks/event-1/retry",
+    ]);
+    for (const callIndex of [0, 1, 2, 3, 4]) {
+      const headers = new Headers((fetchMock.mock.calls[callIndex]?.[1] as RequestInit).headers);
+      expect(headers.get("If-Match")).toBe('"order-etag"');
+      expect(headers.get("Idempotency-Key")).toBe(key);
+    }
+    const refundInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(refundInit.headers).get("If-Match")).toBe('"order-etag"');
+    expect(JSON.parse(String(refundInit.body))).toEqual({
+      amount_poisha: 50_025,
+      reason: "Customer adjustment",
+      mode: "provider",
+      manual_reference: null,
+    });
+    expect(JSON.parse(String((fetchMock.mock.calls[4]?.[1] as RequestInit).body))).toEqual({
+      reason: "Customer cancellation",
+    });
+    expect(
+      new Headers((fetchMock.mock.calls[8]?.[1] as RequestInit).headers).get("Idempotency-Key"),
+    ).toBe(key);
+  });
 });

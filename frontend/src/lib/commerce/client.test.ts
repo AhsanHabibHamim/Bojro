@@ -289,4 +289,57 @@ describe("CommerceClient", () => {
       expect(new Headers(init.headers).get("X-CSRF-Token")).toBe("csrf-delete");
     }
   });
+
+  it("maps effective methods and separate payment-attempt endpoints", async () => {
+    const paymentAttempt = {
+      id: "123e4567-e89b-42d3-a456-426614174001",
+      attempt_no: 1,
+      provider: "bkash",
+      status: "initiated",
+      amount_poisha: 209_000,
+      currency: "BDT",
+      expires_at: null,
+      next_action: null,
+      can_retry: false,
+      updated_at: "2026-11-07T08:00:00Z",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            {
+              code: "bkash",
+              flow: "hosted_redirect",
+              enabled: true,
+              available: true,
+              unavailable_reason: null,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ attempt: paymentAttempt, replayed: false }, 201))
+      .mockResolvedValueOnce(jsonResponse(paymentAttempt));
+    const client = new CommerceClient({ baseUrl: "https://api.example.test", fetch: fetchMock });
+    client.setCsrfToken("csrf-token");
+
+    await client.paymentMethods();
+    await client.initiatePayment(
+      "BJ-2026-000123",
+      { provider: "bkash" },
+      "123e4567-e89b-42d3-a456-426614174009",
+    );
+    await client.latestPaymentAttempt("BJ-2026-000123");
+
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://api.example.test/api/v1/checkout/payment-methods",
+      "https://api.example.test/api/v1/orders/BJ-2026-000123/payment-attempts",
+      "https://api.example.test/api/v1/orders/BJ-2026-000123/payment-attempts/latest",
+    ]);
+    const init = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("Idempotency-Key")).toBe(
+      "123e4567-e89b-42d3-a456-426614174009",
+    );
+    expect(JSON.parse(String(init.body))).toEqual({ provider: "bkash" });
+  });
 });

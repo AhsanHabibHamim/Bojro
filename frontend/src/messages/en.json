@@ -411,9 +411,32 @@
     },
     "payment": {
       "title": "Payment method",
-      "cod": "Cash on delivery",
-      "codDescription": "Pay in cash when your order arrives.",
-      "onlyCod": "Cash on delivery is the available payment method for this checkout."
+      "loading": "Checking available payment methods…",
+      "error": "Payment methods could not be loaded. No order has been created.",
+      "retry": "Check methods again",
+      "methods": {
+        "cod": {
+          "name": "Cash on delivery",
+          "description": "Pay in cash when your order arrives."
+        },
+        "bkash": {
+          "name": "bKash",
+          "description": "Complete payment on bKash's secure hosted page."
+        },
+        "nagad": {
+          "name": "Nagad",
+          "description": "Complete payment on Nagad's secure hosted page."
+        },
+        "sslcommerz": {
+          "name": "Card or mobile banking",
+          "description": "Pay through SSLCommerz's secure hosted checkout."
+        }
+      },
+      "unavailable": {
+        "disabled": "This method is not accepting new checkouts.",
+        "notConfigured": "This method is not configured yet.",
+        "temporarilyUnavailable": "This method is temporarily unavailable."
+      }
     },
     "review": {
       "title": "Order review",
@@ -422,7 +445,9 @@
       "expires": "Your server-verified total is ready.",
       "expiresIn": "This total expires in {seconds}s.",
       "place": "Place COD order",
+      "placeOnline": "Place order and continue to payment",
       "placing": "Placing order…",
+      "openingProvider": "Opening secure payment…",
       "editNotice": "Editing any field will require a fresh verified total.",
       "itemCount": "Quantity: {count}"
     },
@@ -444,10 +469,62 @@
       "generic": "Checkout could not be completed. Review the details and try again.",
       "unknown": "The connection ended before Bojro could confirm the result. Retry without editing to safely use the same order reference.",
       "quoteExpired": "The verified total expired. Verify the latest total before placing the order.",
-      "retryQuote": "Review the form, then verify the total again."
+      "retryQuote": "Review the form, then verify the total again.",
+      "payment": "Choose an available payment method before verifying the total.",
+      "unsafeRedirect": "The payment provider returned an unsafe destination. Bojro did not open it and will verify the attempt securely."
     },
     "secure": "Your idempotency key protects network retries from creating a duplicate order. Prices and stock are never trusted from the browser.",
     "serverVerified": "Server verified"
+  },
+  "paymentReturn": {
+    "metaTitle": "Payment status | Bojro",
+    "metaDescription": "A clean, server-verified status page for your Bojro payment.",
+    "eyebrow": "Secure payment status",
+    "loading": "Verifying your payment…",
+    "missing": "This tab no longer has the non-sensitive order reference needed to check the payment. Open the order from your account or receipt.",
+    "unavailable": "The latest status could not be checked. No status from the return URL has been trusted.",
+    "unsafeRedirect": "The provider returned an unsafe destination, so Bojro did not open it.",
+    "orderNumber": "Order number",
+    "paymentMethod": "Payment method",
+    "amount": "Amount",
+    "checkAgain": "Check server status again",
+    "retry": "Try payment again",
+    "retrying": "Preparing a new attempt…",
+    "receipt": "View order receipt",
+    "shop": "Continue shopping",
+    "refunded": "Refunded",
+    "methods": {
+      "cod": "Cash on delivery",
+      "bkash": "bKash",
+      "nagad": "Nagad",
+      "sslcommerz": "SSLCommerz"
+    },
+    "states": {
+      "success": {
+        "title": "Payment confirmed",
+        "description": "Bojro verified the payment with the authoritative order record."
+      },
+      "processing": {
+        "title": "Payment is still processing",
+        "description": "Keep this page open while Bojro checks the provider. Do not start another payment."
+      },
+      "unknown": {
+        "title": "Payment result is not confirmed yet",
+        "description": "The provider result is delayed or ambiguous. Bojro will not mark it failed or retry it blindly."
+      },
+      "failed": {
+        "title": "Payment was not completed",
+        "description": "The provider reported a conclusive failure. A retry appears only when the API says it is safe."
+      },
+      "cancelled": {
+        "title": "Payment was cancelled",
+        "description": "Your payment was cancelled. A new attempt is available only when the server allows it."
+      },
+      "expired": {
+        "title": "Payment time expired",
+        "description": "The payment window or unpaid order expired. Check your account before placing another order."
+      }
+    }
   },
   "account": {
     "shell": {
@@ -812,11 +889,40 @@
     },
     "eyebrow": "Order confirmed",
     "title": "Thank you for choosing Bojro",
-    "description": "Your cash-on-delivery order is safely recorded. Keep the order number for delivery updates.",
+    "description": "Your order is safely recorded. Keep the order number for payment and delivery updates.",
+    "processing": {
+      "eyebrow": "Order saved",
+      "title": "Your payment is being verified",
+      "description": "The order exists, but payment is not confirmed yet. This is not a paid-order confirmation."
+    },
+    "resolved": {
+      "eyebrow": "Order record",
+      "title": "Your payment status was updated",
+      "description": "This is not a new payment confirmation. Review the verified payment and refund amounts below."
+    },
     "number": "Order number",
     "payment": "Payment",
     "paymentStatus": "Payment status",
     "cod": "Cash on delivery",
+    "paymentMethods": {
+      "cod": "Cash on delivery",
+      "bkash": "bKash",
+      "nagad": "Nagad",
+      "sslcommerz": "SSLCommerz"
+    },
+    "couriers": {
+      "manual": "Manual courier",
+      "mock": "Mock courier",
+      "pathao": "Pathao",
+      "steadfast": "Steadfast",
+      "redx": "RedX"
+    },
+    "paidAmount": "Paid amount",
+    "refundedAmount": "Refunded amount",
+    "shipment": "Latest shipment",
+    "courier": "Courier",
+    "trackingCode": "Tracking code",
+    "notAvailable": "Not available",
     "items": "Order items",
     "address": "Delivery address",
     "timeline": "Order timeline",
@@ -842,6 +948,18 @@
       "cancelled": "Cancelled",
       "refunded": "Refunded",
       "partiallyRefunded": "Partially refunded"
+    },
+    "shipmentStatuses": {
+      "pending": "Pending booking",
+      "ready": "Ready to book",
+      "unknown": "Status being reconciled",
+      "booked": "Booked",
+      "pickedUp": "Picked up",
+      "inTransit": "In transit",
+      "delivered": "Delivered",
+      "failed": "Booking failed",
+      "returned": "Returned",
+      "cancelled": "Cancelled"
     }
   },
   "tracking": {
@@ -871,7 +989,11 @@
       "area": "Delivery area",
       "estimated": "Estimated delivery",
       "estimatedDays": "{minimum}–{maximum} business days",
-      "timeline": "Latest updates"
+      "timeline": "Latest updates",
+      "shipment": "Latest shipment",
+      "courier": "Courier",
+      "trackingCode": "Tracking code",
+      "notAvailable": "Not available"
     }
   },
   "errors": {
@@ -953,6 +1075,8 @@
       "blog": "Blog",
       "settings": "Settings",
       "security": "Security",
+      "providers": "Providers",
+      "webhooks": "Webhooks",
       "audit": "Audit trail",
       "media": "Media",
       "storefront": "Open storefront",
@@ -993,6 +1117,9 @@
       "view": "View",
       "yes": "Yes",
       "no": "No",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "notAvailable": "Not available",
       "active": "Active",
       "inactive": "Inactive",
       "draft": "Draft",
@@ -1104,7 +1231,85 @@
       "deleted": "Deleted",
       "manual": "Manual",
       "mock": "Mock development provider",
-      "not_configured": "Not configured"
+      "not_configured": "Not configured",
+      "unknown": "Unknown",
+      "succeeded": "Succeeded",
+      "expired": "Expired",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "degraded": "Degraded",
+      "ok": "Healthy",
+      "live": "Live",
+      "manual": "Manual",
+      "sandbox": "Sandbox",
+      "queued": "Queued",
+      "processed": "Processed",
+      "ignored": "Ignored",
+      "retry": "Retry scheduled",
+      "dead_letter": "Dead letter",
+      "verified": "Verified",
+      "pending_validation": "Pending validation",
+      "legacy_unknown": "Legacy unknown"
+    },
+    "providers": {
+      "cod": "Cash on delivery",
+      "bkash": "bKash",
+      "nagad": "Nagad",
+      "sslcommerz": "SSLCommerz",
+      "manual": "Manual courier",
+      "mock": "Mock courier",
+      "pathao": "Pathao",
+      "steadfast": "Steadfast",
+      "redx": "RedX"
+    },
+    "providersPage": {
+      "title": "Provider capabilities",
+      "description": "Effective payment and courier readiness without exposing credentials or secret configuration.",
+      "noSecrets": "This page intentionally shows capability state only. Provider credentials, signing secrets, webhook secrets, and raw configuration are never accepted or displayed.",
+      "attention": "A provider is configured to accept new work but is not effectively available. Check health before retrying operations.",
+      "kinds": {
+        "payment": "Payment providers",
+        "courier": "Courier providers"
+      },
+      "mode": "Mode",
+      "configured": "Configured",
+      "acceptNew": "Accept new",
+      "effective": "Effective state",
+      "unavailableReason": "This provider is not effectively available. Secret or raw provider details are intentionally hidden.",
+      "capabilities": "Capabilities",
+      "features": {
+        "booking": "Booking",
+        "tracking": "Tracking",
+        "cancel": "Cancellation",
+        "refund": "Refund",
+        "webhooks": "Webhooks"
+      },
+      "lastSuccess": "Last successful provider contact: {date}"
+    },
+    "webhooks": {
+      "title": "Webhook operations",
+      "description": "Inspect normalized payment and courier events, retries, duplicates, ordering, and dead-letter outcomes.",
+      "detail": "Webhook event",
+      "kind": "Provider kind",
+      "provider": "Provider",
+      "providerTime": "Provider occurred at",
+      "receivedTime": "Received at",
+      "processedTime": "Processed at",
+      "nextAttempt": "Next attempt",
+      "attempts": "Processing attempts",
+      "bodyHash": "Payload SHA-256",
+      "verificationMethod": "Verification method",
+      "processingError": "The event has a normalized processing error. Raw error text and payload content are intentionally hidden.",
+      "deadLetterWarning": "{count} visible event(s) require dead-letter review.",
+      "deadLetterDetail": "This event exhausted automatic processing. Review audit links, reconcile the resource, then retry only if allowed.",
+      "legacyWarning": "This imported legacy event has unknown verification provenance and is not treated as verified.",
+      "ignoredExplanation": "This event was safely ignored, such as a duplicate or an older out-of-order update.",
+      "view": "View event",
+      "empty": "No webhook events match these filters.",
+      "retry": "Retry event processing",
+      "retrying": "Queueing retry…",
+      "retryQueued": "Webhook retry queued.",
+      "auditLinks": "Related audit events"
     },
     "dashboard": {
       "title": "Operations dashboard",
@@ -1205,6 +1410,43 @@
       "trackingUrl": "Tracking URL",
       "courierReference": "Courier reference",
       "courierCapabilities": "Courier capabilities",
+      "operatorOwnedCourierReference": "The courier creates and owns the consignment and tracking identifiers. No operator-entered ID is sent.",
+      "paymentAttempts": "Payment attempts",
+      "noPaymentAttempts": "No payment attempts have been recorded.",
+      "refundableBalance": "Refundable balance",
+      "updatedAt": "Updated",
+      "internalReference": "Internal reference",
+      "providerReference": "Provider reference",
+      "reconcile": "Reconcile with provider",
+      "cancelShipment": "Cancel shipment",
+      "cancelShipmentDescription": "Cancellation is sent to the courier only after the server rechecks the shipment state.",
+      "cancelShipmentReason": "Cancellation reason",
+      "confirmCancelShipment": "Confirm shipment cancellation",
+      "noShipments": "No shipment attempts have been recorded.",
+      "webhookEvent": "Webhook event",
+      "auditEvent": "Audit event",
+      "attention": {
+        "title": "Operator attention required",
+        "unknown": "One or more provider operations have an unknown outcome. Reconcile instead of repeating the mutation.",
+        "deadLetter": "{count} webhook event(s) reached the dead-letter queue."
+      },
+      "refund": {
+        "title": "Refunds",
+        "create": "Create refund",
+        "description": "Up to {amount} remains refundable. The server rechecks this balance when submitted.",
+        "empty": "No refunds have been recorded.",
+        "unavailable": "A balance remains, but the server does not currently allow a new refund.",
+        "number": "Refund #{number}",
+        "manual": "Manual COD refund",
+        "provider": "Provider refund",
+        "manualDescription": "Record a completed manual COD refund with its auditable external reference.",
+        "providerDescription": "The payment provider will receive this idempotent refund request.",
+        "amountBdt": "Refund amount (BDT)",
+        "full": "Full balance",
+        "manualReference": "Manual refund reference",
+        "reason": "Refund reason",
+        "submit": "Submit refund"
+      },
       "invoice": "Invoice PDF",
       "packingSlip": "Packing slip PDF",
       "documents": "Order documents",

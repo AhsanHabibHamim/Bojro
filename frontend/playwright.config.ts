@@ -58,7 +58,7 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
     : {
-        command: "NEXT_PUBLIC_E2E_STORAGE_MOCK=1 pnpm dev",
+        command: `NEXT_PUBLIC_E2E_STORAGE_MOCK=1 NEXT_PUBLIC_E2E_PROVIDER_MOCK=${process.env.NEXT_PUBLIC_E2E_PROVIDER_MOCK === "1" ? "1" : "0"} pnpm dev`,
         url: "http://localhost:3000/en",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

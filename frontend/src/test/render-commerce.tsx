@@ -51,12 +51,52 @@ export function createFakeCommerceApi(overrides: Partial<CommerceApi> = {}): Com
         name_en: "Dhanmondi",
       },
     ]),
+    paymentMethods: vi.fn().mockResolvedValue({
+      items: [
+        {
+          code: "cod",
+          flow: "cash_on_delivery",
+          enabled: true,
+          available: true,
+          unavailable_reason: null,
+        },
+      ],
+    }),
     quote: vi.fn().mockResolvedValue({
       quote_token: "quote-token",
       expires_at: new Date(Date.now() + 300_000).toISOString(),
       cart,
     }),
-    placeOrder: vi.fn().mockResolvedValue({ order: orderFixture(), replayed: false }),
+    placeOrder: vi
+      .fn()
+      .mockResolvedValue({ order: orderFixture(), replayed: false, payment_required: false }),
+    initiatePayment: vi.fn().mockResolvedValue({
+      attempt: {
+        id: "123e4567-e89b-42d3-a456-426614174001",
+        attempt_no: 1,
+        provider: "bkash",
+        status: "initiated",
+        amount_poisha: 209_000,
+        currency: "BDT",
+        expires_at: new Date(Date.now() + 300_000).toISOString(),
+        next_action: null,
+        can_retry: false,
+        updated_at: new Date().toISOString(),
+      },
+      replayed: false,
+    }),
+    latestPaymentAttempt: vi.fn().mockResolvedValue({
+      id: "123e4567-e89b-42d3-a456-426614174001",
+      attempt_no: 1,
+      provider: "bkash",
+      status: "processing",
+      amount_poisha: 209_000,
+      currency: "BDT",
+      expires_at: new Date(Date.now() + 300_000).toISOString(),
+      next_action: null,
+      can_retry: false,
+      updated_at: new Date().toISOString(),
+    }),
     order: vi.fn().mockResolvedValue(orderFixture()),
     track: vi.fn().mockResolvedValue(trackingFixture()),
     ...overrides,

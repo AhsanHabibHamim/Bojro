@@ -14,8 +14,15 @@ import {
   validateCheckoutForm,
 } from "./checkout-client";
 
-const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }));
+const { navigateMock, pushMock } = vi.hoisted(() => ({
+  navigateMock: vi.fn(),
+  pushMock: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: pushMock }) }));
+vi.mock("@/lib/providers/payment", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/providers/payment")>()),
+  navigateTopLevel: navigateMock,
+}));
 
 const labels: CheckoutLabels = {
   title: "Checkout",
@@ -57,9 +64,20 @@ const labels: CheckoutLabels = {
   },
   payment: {
     title: "Payment",
-    cod: "Cash on delivery",
-    codDescription: "Pay later",
-    onlyCod: "COD only",
+    loading: "Loading payment methods",
+    error: "Payment methods failed",
+    retry: "Retry payment methods",
+    methods: {
+      cod: { name: "Cash on delivery", description: "Pay later" },
+      bkash: { name: "bKash", description: "Pay with bKash" },
+      nagad: { name: "Nagad", description: "Pay with Nagad" },
+      sslcommerz: { name: "Card or mobile banking", description: "Pay with SSLCommerz" },
+    },
+    unavailableReasons: {
+      disabled: "Disabled",
+      not_configured: "Not configured",
+      temporarily_unavailable: "Temporarily unavailable",
+    },
   },
   review: {
     title: "Review",
@@ -68,7 +86,9 @@ const labels: CheckoutLabels = {
     expires: "Verified total ready",
     expiresIn: "Expires in {seconds}s",
     place: "Place COD order",
+    placeOnline: "Place order and continue to payment",
     placing: "Placing",
+    openingProvider: "Opening payment",
     editNotice: "Edits require quote",
     itemCount: "Quantity: {count}",
   },
@@ -91,6 +111,8 @@ const labels: CheckoutLabels = {
     unknown: "Order result unknown; retry safely",
     quoteExpired: "Quote expired",
     retryQuote: "Verify again",
+    payment: "Choose payment",
+    unsafeRedirect: "Unsafe redirect",
   },
   secure: "Secure retry",
   serverVerified: "Server verified",
@@ -120,6 +142,8 @@ async function completeForm(user: UserEvent) {
 describe("CheckoutClient", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    navigateMock.mockReset();
+    pushMock.mockReset();
   });
 
   it("mirrors backend minimum field lengths before quoting", () => {
@@ -241,4 +265,136 @@ describe("CheckoutClient", () => {
     expect(await screen.findByText("Quote expired", {}, { timeout: 2_000 })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Place COD order" })).not.toBeInTheDocument();
   });
+
+  it("renders effective method cards and changing method invalidates the quote and order key", async () => {
+    const cart = cartFixture();
+    const quote = vi.fn().mockResolvedValue({
+      quote_token: "quote-token",
+      expires_at: new Date(Date.now() + 300_000).toISOString(),
+      cart,
+    });
+    const placeOrder = vi
+      .fn()
+      .mockRejectedValue(new CommerceError("Offline", { code: "NETWORK_ERROR" }));
+    const api = createFakeCommerceApi({
+      paymentMethods: vi.fn().mockResolvedValue({
+        items: [
+          {
+            code: "cod",
+            flow: "cash_on_delivery",
+            enabled: true,
+            available: true,
+            unavailable_reason: null,
+          },
+          {
+            code: "bkash",
+            flow: "hosted_redirect",
+            enabled: true,
+            available: false,
+            unavailable_reason: "temporarily_unavailable",
+          },
+          {
+            code: "nagad",
+            flow: "hosted_redirect",
+            enabled: true,
+            available: true,
+            unavailable_reason: null,
+          },
+        ],
+      }),
+      quote,
+      placeOrder,
+    });
+    const user = userEvent.setup();
+    renderWithCommerce(<CheckoutClient labels={labels} locale="en" />, { api, cart });
+
+    await completeForm(user);
+    expect(await screen.findByRole("radio", { name: /bKash/ })).toBeDisabled();
+    expect(screen.getByText("Temporarily unavailable")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Verify total" }));
+    await user.click(await screen.findByRole("button", { name: "Place COD order" }));
+    await screen.findByText("Order result unknown; retry safely");
+    expect(sessionStorage.getItem("bojro:checkout-submission:v1")).not.toBeNull();
+
+    await user.click(screen.getByRole("radio", { name: /Nagad/ }));
+    expect(sessionStorage.getItem("bojro:checkout-submission:v1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Place COD order" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Verify total" }));
+    await waitFor(() =>
+      expect(quote).toHaveBeenLastCalledWith(
+        expect.objectContaining({ payment_method: "nagad" }),
+        "en",
+      ),
+    );
+  }, 15_000);
+
+  it("uses distinct order and payment keys before a validated online top-level redirect", async () => {
+    const cart = cartFixture();
+    const orderKeys: string[] = [];
+    const paymentKeys: string[] = [];
+    const api = createFakeCommerceApi({
+      paymentMethods: vi.fn().mockResolvedValue({
+        items: [
+          {
+            code: "sslcommerz",
+            flow: "hosted_redirect",
+            enabled: true,
+            available: true,
+            unavailable_reason: null,
+          },
+        ],
+      }),
+      placeOrder: vi.fn(async (_request, key) => {
+        orderKeys.push(key);
+        return {
+          order: orderFixture({ payment_method: "sslcommerz" }),
+          replayed: false,
+          payment_required: true,
+        };
+      }),
+      initiatePayment: vi.fn(async (_number, _input, key) => {
+        paymentKeys.push(key);
+        return {
+          attempt: {
+            id: "123e4567-e89b-42d3-a456-426614174001",
+            attempt_no: 1,
+            provider: "sslcommerz" as const,
+            status: "initiated" as const,
+            amount_poisha: 209_000,
+            currency: "BDT" as const,
+            expires_at: new Date(Date.now() + 300_000).toISOString(),
+            next_action: {
+              type: "redirect" as const,
+              url: "https://sandbox.sslcommerz.com/gwprocess/v4/gw.php",
+              expires_at: new Date(Date.now() + 60_000).toISOString(),
+            },
+            can_retry: false,
+            updated_at: new Date().toISOString(),
+          },
+          replayed: false,
+        };
+      }),
+    });
+    const user = userEvent.setup();
+    renderWithCommerce(<CheckoutClient labels={labels} locale="en" />, { api, cart });
+
+    await completeForm(user);
+    await user.click(await screen.findByRole("radio", { name: /Card or mobile banking/ }));
+    await user.click(screen.getByRole("button", { name: "Verify total" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Place order and continue to payment" }),
+    );
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledTimes(1));
+    expect(orderKeys).toHaveLength(1);
+    expect(paymentKeys).toHaveLength(1);
+    expect(paymentKeys[0]).not.toBe(orderKeys[0]);
+    expect(navigateMock.mock.calls[0]?.[0].toString()).toBe(
+      "https://sandbox.sslcommerz.com/gwprocess/v4/gw.php",
+    );
+    const continuation = sessionStorage.getItem("bojro:payment-continuation:v1") ?? "";
+    expect(continuation).toContain("BJ-2026-000123");
+    expect(continuation).not.toContain("Asha");
+    expect(sessionStorage.getItem("bojro:checkout-submission:v1")).toBeNull();
+  }, 15_000);
 });

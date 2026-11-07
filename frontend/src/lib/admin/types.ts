@@ -1,4 +1,21 @@
 import type { components } from "@/lib/api/schema";
+import type {
+  AdminShipmentAttempt,
+  AdminShipmentCreateRequest,
+  ProviderCapability,
+} from "@/lib/providers/types";
+
+export type {
+  AdminPaymentAttempt,
+  AdminPaymentRefund,
+  AdminRefundCreateRequest,
+  AdminShipmentCancelRequest,
+  AdminShipmentAttempt,
+  AdminWebhookEvent,
+  AdminWebhookEventListResponse,
+  AdminWebhookEventSummary,
+  ProviderCapability,
+} from "@/lib/providers/types";
 
 type Schema = components["schemas"];
 
@@ -68,12 +85,13 @@ export type AdminOrderSummary = Schema["AdminOrderListItem"];
 export type AdminOrderAction = Schema["AdminOrderActionResponse"];
 export type AdminOrderTimeline = Schema["AdminOrderHistoryResponse"];
 export type AdminOrderNote = Schema["AdminOrderNoteResponse"];
-export type AdminShipment = Schema["AdminShipmentResponse"];
+export type AdminShipment = AdminShipmentAttempt;
 export type AdminOrderDetail = Schema["AdminOrderResponse"];
 export type AdminOrderTransitionInput = Schema["AdminOrderTransitionRequest"];
 export type AdminOrderNoteInput = Schema["AdminOrderNoteCreate"];
-export type AdminShipmentInput = Schema["AdminShipmentCreate"];
+export type AdminShipmentInput = AdminShipmentCreateRequest;
 export type CourierCapability = Schema["CourierCapability"];
+export type AdminProviderCapability = ProviderCapability;
 
 export type AdminCustomerSummary = Schema["AdminCustomerListItem"];
 export type AdminCustomerDetail = Schema["AdminCustomerResponse"];

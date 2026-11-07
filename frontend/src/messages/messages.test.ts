@@ -52,4 +52,17 @@ describe("message catalogs", () => {
       expect(placeholders(bn[key] ?? ""), key).toEqual(placeholders(en[key]!));
     }
   });
+
+  it("keeps Phase 6 payment, refund, courier, and webhook UX translated", () => {
+    expect(bnMessages.paymentReturn.states.unknown.title).not.toBe(
+      enMessages.paymentReturn.states.unknown.title,
+    );
+    expect(bnMessages.checkout.payment.methods.bkash.description).not.toBe(
+      enMessages.checkout.payment.methods.bkash.description,
+    );
+    expect(bnMessages.admin.orders.refund.submit).not.toBe(enMessages.admin.orders.refund.submit);
+    expect(bnMessages.admin.webhooks.deadLetterDetail).not.toBe(
+      enMessages.admin.webhooks.deadLetterDetail,
+    );
+  });
 });

@@ -1189,6 +1189,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{order_id}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Refund */
+        post: operations["adminCreateRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{order_id}/shipments": {
         parameters: {
             query?: never;
@@ -1288,6 +1305,23 @@ export interface paths {
         put?: never;
         /** Unpublish Page */
         post: operations["adminUnpublishPage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{payment_id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Payment */
+        post: operations["adminReconcilePayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1503,6 +1537,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/providers/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Provider Capabilities */
+        get: operations["adminProviderCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refunds/{refund_id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Refund */
+        post: operations["adminReconcileRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/reviews": {
         parameters: {
             query?: never;
@@ -1582,6 +1650,91 @@ export interface paths {
         /** Update Setting */
         put: operations["adminUpdateSetting"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Shipment */
+        post: operations["adminCancelShipment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Shipment */
+        post: operations["adminReconcileShipment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin List Webhooks */
+        get: operations["adminListWebhooks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhooks/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Get Webhook */
+        get: operations["adminGetWebhook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/webhooks/{event_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Retry Webhook */
+        post: operations["adminRetryWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1930,6 +2083,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checkout/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment Methods */
+        get: operations["checkoutPaymentMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/checkout/quote": {
         parameters: {
             query?: never;
@@ -2100,6 +2270,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{number}/payment-attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Payment Attempt */
+        post: operations["createPaymentAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{number}/payment-attempts/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Latest Payment Attempt */
+        get: operations["latestPaymentAttempt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-returns/{provider}/{outcome}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment Return Get */
+        get: operations["paymentBrowserReturnGet"];
+        put?: never;
+        /** Payment Return Post */
+        post: operations["paymentBrowserReturnPost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/storefront/home": {
         parameters: {
             query?: never;
@@ -2128,6 +2350,40 @@ export interface paths {
         get: operations["shell_api_v1_storefront_shell_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/couriers/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Courier Webhook */
+        post: operations["courierWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/payments/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Payment Webhook */
+        post: operations["paymentWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2188,10 +2444,12 @@ export interface components {
             grand_total_poisha: number;
             /** Items */
             items: components["schemas"]["AccountOrderItem"][];
+            latest_shipment: components["schemas"]["CustomerShipmentSummary"] | null;
             /** Notes */
             notes: string | null;
             /** Number */
             number: string;
+            payment: components["schemas"]["CustomerPaymentSummary"];
             /** Payment Method */
             payment_method: string;
             /** Payment Status */
@@ -2269,8 +2527,10 @@ export interface components {
             item_count: number;
             /** Items */
             items: components["schemas"]["OrderSummaryItem"][];
+            latest_shipment: components["schemas"]["CustomerShipmentSummary"] | null;
             /** Number */
             number: string;
+            payment: components["schemas"]["CustomerPaymentSummary"];
             /** Payment Method */
             payment_method: string;
             /** Payment Status */
@@ -2833,6 +3093,10 @@ export interface components {
             };
             /** Allowed Transitions */
             allowed_transitions: components["schemas"]["OrderStatus"][];
+            /** Audit Event Ids */
+            audit_event_ids: string[];
+            /** Can Refund */
+            can_refund: boolean;
             /** Coupon Code */
             coupon_code: string | null;
             /** Currency */
@@ -2863,6 +3127,7 @@ export interface components {
             id: string;
             /** Items */
             items: components["schemas"]["AdminOrderItemResponse"][];
+            latest_shipment: components["schemas"]["AdminShipmentResponse"] | null;
             /** Merchant Snapshot */
             merchant_snapshot: {
                 [key: string]: unknown;
@@ -2871,15 +3136,29 @@ export interface components {
             notes: components["schemas"]["AdminOrderNoteResponse"][];
             /** Number */
             number: string;
+            /** Paid Amount Poisha */
+            paid_amount_poisha: number;
+            /** Payment Attempts */
+            payment_attempts: components["schemas"]["AdminPaymentAttemptResponse"][];
             payment_method: components["schemas"]["PaymentMethod"];
             payment_status: components["schemas"]["PaymentStatus"];
             /** Payments */
             payments: components["schemas"]["AdminPaymentResponse"][];
+            /** Pending Refund Amount Poisha */
+            pending_refund_amount_poisha: number;
             /**
              * Placed At
              * Format: date-time
              */
             placed_at: string;
+            /** Refund Unavailable Reason */
+            refund_unavailable_reason: string | null;
+            /** Refundable Balance Poisha */
+            refundable_balance_poisha: number;
+            /** Refunded Amount Poisha */
+            refunded_amount_poisha: number;
+            /** Refunds */
+            refunds: components["schemas"]["AdminRefundResponse"][];
             /** Revision */
             revision: number;
             /** Shipments */
@@ -2894,6 +3173,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /** Webhook Dead Letter Count */
+            webhook_dead_letter_count: number;
+            /** Webhook Event Ids */
+            webhook_event_ids: string[];
         };
         /** AdminOrderTransitionRequest */
         AdminOrderTransitionRequest: {
@@ -2928,10 +3211,122 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** AdminPaymentAttemptResponse */
+        AdminPaymentAttemptResponse: {
+            /** Amount Poisha */
+            amount_poisha: number;
+            /** Attempt No */
+            attempt_no: number;
+            /** Audit Event Ids */
+            audit_event_ids?: string[];
+            /**
+             * Can Reconcile
+             * @default false
+             */
+            can_reconcile: boolean;
+            /**
+             * Can Refund
+             * @default false
+             */
+            can_refund: boolean;
+            /**
+             * Can Retry
+             * @default false
+             */
+            can_retry: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Currency
+             * @constant
+             */
+            currency: "BDT";
+            /** Expires At */
+            expires_at: string | null;
+            /** Failure Code */
+            failure_code: string | null;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Initiated At */
+            initiated_at: string | null;
+            /** Last Reconciled At */
+            last_reconciled_at: string | null;
+            /** Merchant Reference */
+            merchant_reference: string;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            provider: components["schemas"]["PaymentMethod"];
+            /** Provider Payment Id */
+            provider_payment_id: string | null;
+            /** Provider Status */
+            provider_status: string | null;
+            /** Provider Transaction Id */
+            provider_transaction_id: string | null;
+            /** Reconcile Attempts */
+            reconcile_attempts: number;
+            /** Reconcile Unavailable Reason */
+            reconcile_unavailable_reason?: string | null;
+            /** Refund Unavailable Reason */
+            refund_unavailable_reason?: string | null;
+            /**
+             * Refundable Balance Poisha
+             * @default 0
+             */
+            refundable_balance_poisha: number;
+            /** Retry Unavailable Reason */
+            retry_unavailable_reason?: string | null;
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["PaymentRecordStatus"];
+            /** Terminal At */
+            terminal_at: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Webhook Dead Letter Count
+             * @default 0
+             */
+            webhook_dead_letter_count: number;
+            /** Webhook Event Ids */
+            webhook_event_ids?: string[];
+        };
         /** AdminPaymentResponse */
         AdminPaymentResponse: {
             /** Amount Poisha */
             amount_poisha: number;
+            /** Attempt No */
+            attempt_no: number;
+            /** Audit Event Ids */
+            audit_event_ids?: string[];
+            /**
+             * Can Reconcile
+             * @default false
+             */
+            can_reconcile: boolean;
+            /**
+             * Can Refund
+             * @default false
+             */
+            can_refund: boolean;
+            /**
+             * Can Retry
+             * @default false
+             */
+            can_retry: boolean;
             /**
              * Created At
              * Format: date-time
@@ -2939,20 +3334,54 @@ export interface components {
             created_at: string;
             /** Currency */
             currency: string;
+            /** Failure Code */
+            failure_code: string | null;
+            /** Failure Reason */
+            failure_reason: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Last Reconciled At */
+            last_reconciled_at: string | null;
+            /** Merchant Reference */
+            merchant_reference: string;
             provider: components["schemas"]["PaymentMethod"];
+            /** Provider Payment Id */
+            provider_payment_id: string | null;
+            /** Provider Status */
+            provider_status: string | null;
             /** Provider Transaction Id */
             provider_transaction_id: string | null;
+            /** Reconcile Attempts */
+            reconcile_attempts: number;
+            /** Reconcile Unavailable Reason */
+            reconcile_unavailable_reason?: string | null;
+            /** Refund Unavailable Reason */
+            refund_unavailable_reason?: string | null;
+            /**
+             * Refundable Balance Poisha
+             * @default 0
+             */
+            refundable_balance_poisha: number;
+            /** Retry Unavailable Reason */
+            retry_unavailable_reason?: string | null;
+            /** Revision */
+            revision: number;
             status: components["schemas"]["PaymentRecordStatus"];
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Webhook Dead Letter Count
+             * @default 0
+             */
+            webhook_dead_letter_count: number;
+            /** Webhook Event Ids */
+            webhook_event_ids?: string[];
         };
         /** AdminProductCreate */
         AdminProductCreate: {
@@ -3248,6 +3677,134 @@ export interface components {
             /** Weight G */
             weight_g?: number | null;
         };
+        /** AdminProviderCapabilitiesResponse */
+        AdminProviderCapabilitiesResponse: {
+            /** Items */
+            items: components["schemas"]["AdminProviderCapability"][];
+        };
+        /** AdminProviderCapability */
+        AdminProviderCapability: {
+            /** Available */
+            available: boolean;
+            /** Configured */
+            configured: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Health
+             * @enum {string}
+             */
+            health: "ok" | "degraded" | "unavailable" | "not_configured";
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "payment" | "courier";
+            /** Last Error Code */
+            last_error_code?: string | null;
+            /** Last Success At */
+            last_success_at?: string | null;
+            /** Mode */
+            mode: components["schemas"]["ProviderMode"] | "manual";
+            /** Provider */
+            provider: string;
+            /** Supports Booking */
+            supports_booking: boolean;
+            /** Supports Cancel */
+            supports_cancel: boolean;
+            /** Supports Refund */
+            supports_refund: boolean;
+            /** Supports Tracking */
+            supports_tracking: boolean;
+            /** Supports Webhooks */
+            supports_webhooks: boolean;
+            /** Unavailable Reason */
+            unavailable_reason: ("disabled" | "not_configured" | "temporarily_unavailable") | null;
+        };
+        /** AdminRefundCreate */
+        AdminRefundCreate: {
+            /** Amount Poisha */
+            amount_poisha: number;
+            /** Manual Reference */
+            manual_reference?: string | null;
+            mode: components["schemas"]["RefundMode"];
+            /** Reason */
+            reason: string;
+        };
+        /** AdminRefundResponse */
+        AdminRefundResponse: {
+            /** Amount Poisha */
+            amount_poisha: number;
+            /** Audit Event Ids */
+            audit_event_ids?: string[];
+            /**
+             * Can Reconcile
+             * @default false
+             */
+            can_reconcile: boolean;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Currency
+             * @constant
+             */
+            currency: "BDT";
+            /** Failure Code */
+            failure_code: string | null;
+            /** Failure Reason */
+            failure_reason: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Initiated At */
+            initiated_at: string | null;
+            /** Manual Reference */
+            manual_reference: string | null;
+            /** Merchant Reference */
+            merchant_reference: string;
+            mode: components["schemas"]["RefundMode"];
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /**
+             * Payment Id
+             * Format: uuid
+             */
+            payment_id: string;
+            provider: components["schemas"]["PaymentMethod"];
+            /** Provider Refund Id */
+            provider_refund_id: string | null;
+            /** Reason */
+            reason: string;
+            /** Reconcile Unavailable Reason */
+            reconcile_unavailable_reason?: string | null;
+            /** Refund No */
+            refund_no: number;
+            /** Revision */
+            revision: number;
+            status: components["schemas"]["RefundStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Webhook Dead Letter Count
+             * @default 0
+             */
+            webhook_dead_letter_count: number;
+            /** Webhook Event Ids */
+            webhook_event_ids?: string[];
+        };
         /** AdminReviewListItem */
         AdminReviewListItem: {
             /** Author Name */
@@ -3385,6 +3942,11 @@ export interface components {
             mfa: components["schemas"]["AdminMFAResponse"];
             user: components["schemas"]["AdminUserResponse"] | null;
         };
+        /** AdminShipmentCancel */
+        AdminShipmentCancel: {
+            /** Reason */
+            reason: string;
+        };
         /** AdminShipmentCreate */
         AdminShipmentCreate: {
             /** Consignment Id */
@@ -3395,6 +3957,24 @@ export interface components {
         };
         /** AdminShipmentResponse */
         AdminShipmentResponse: {
+            /** Attempt No */
+            attempt_no: number;
+            /** Audit Event Ids */
+            audit_event_ids?: string[];
+            /**
+             * Can Cancel
+             * @default false
+             */
+            can_cancel: boolean;
+            /**
+             * Can Reconcile
+             * @default false
+             */
+            can_reconcile: boolean;
+            /** Cancel Unavailable Reason */
+            cancel_unavailable_reason?: string | null;
+            /** Cancellation Reason */
+            cancellation_reason?: string | null;
             /** Consignment Id */
             consignment_id: string | null;
             courier: components["schemas"]["CourierProvider"];
@@ -3403,6 +3983,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Failure Code */
+            failure_code: string | null;
             /** Failure Reason */
             failure_reason: string | null;
             /**
@@ -3410,6 +3992,21 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Last Reconciled At */
+            last_reconciled_at: string | null;
+            /** Merchant Reference */
+            merchant_reference: string;
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Provider Status */
+            provider_status: string | null;
+            /** Reconcile Attempts */
+            reconcile_attempts: number;
+            /** Reconcile Unavailable Reason */
+            reconcile_unavailable_reason?: string | null;
             /** Revision */
             revision: number;
             status: components["schemas"]["ShipmentStatus"];
@@ -3420,6 +4017,13 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Webhook Dead Letter Count
+             * @default 0
+             */
+            webhook_dead_letter_count: number;
+            /** Webhook Event Ids */
+            webhook_event_ids?: string[];
         };
         /** AdminStockAdjustmentRequest */
         AdminStockAdjustmentRequest: {
@@ -3491,6 +4095,116 @@ export interface components {
              * @constant
              */
             role: "admin";
+        };
+        /** AdminWebhookEventDetail */
+        AdminWebhookEventDetail: {
+            /** Attempts */
+            attempts: number;
+            /** Audit Event Ids */
+            audit_event_ids?: string[];
+            /**
+             * Can Retry
+             * @default false
+             */
+            can_retry: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["WebhookKind"];
+            /** Last Error */
+            last_error: string | null;
+            /** Last Error Code */
+            last_error_code: string | null;
+            /** Normalized */
+            normalized: {
+                [key: string]: unknown;
+            };
+            /** Payment Id */
+            payment_id: string | null;
+            /** Processed At */
+            processed_at: string | null;
+            processing_status: components["schemas"]["WebhookProcessingStatus"];
+            /** Provider */
+            provider: string;
+            /** Provider Occurred At */
+            provider_occurred_at: string | null;
+            /** Raw Body Sha256 */
+            raw_body_sha256: string;
+            /** Refund Id */
+            refund_id: string | null;
+            /** Retry Unavailable Reason */
+            retry_unavailable_reason?: string | null;
+            /** Shipment Id */
+            shipment_id: string | null;
+            /** Verification Method */
+            verification_method: string;
+            verification_status: components["schemas"]["WebhookVerificationStatus"];
+        };
+        /** AdminWebhookEventListItem */
+        AdminWebhookEventListItem: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Can Retry
+             * @default false
+             */
+            can_retry: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["WebhookKind"];
+            /** Last Error */
+            last_error: string | null;
+            /** Last Error Code */
+            last_error_code: string | null;
+            /** Payment Id */
+            payment_id: string | null;
+            /** Processed At */
+            processed_at: string | null;
+            processing_status: components["schemas"]["WebhookProcessingStatus"];
+            /** Provider */
+            provider: string;
+            /** Provider Occurred At */
+            provider_occurred_at: string | null;
+            /** Raw Body Sha256 */
+            raw_body_sha256: string;
+            /** Refund Id */
+            refund_id: string | null;
+            /** Retry Unavailable Reason */
+            retry_unavailable_reason?: string | null;
+            /** Shipment Id */
+            shipment_id: string | null;
+            /** Verification Method */
+            verification_method: string;
+            verification_status: components["schemas"]["WebhookVerificationStatus"];
+        };
+        /** AdminWebhookEventPage */
+        AdminWebhookEventPage: {
+            /** Items */
+            items: components["schemas"]["AdminWebhookEventListItem"][];
+            page_info: components["schemas"]["AdminPageInfo"];
         };
         /** AnalyticsSettings */
         AnalyticsSettings: {
@@ -4210,9 +4924,9 @@ export interface components {
             /**
              * Payment Method
              * @default cod
-             * @constant
+             * @enum {string}
              */
-            payment_method: "cod";
+            payment_method: "cod" | "bkash" | "nagad" | "sslcommerz";
             /** Quote Token */
             quote_token: string;
             shipping_address: components["schemas"]["CheckoutAddress"];
@@ -4225,9 +4939,9 @@ export interface components {
             /**
              * Payment Method
              * @default cod
-             * @constant
+             * @enum {string}
              */
-            payment_method: "cod";
+            payment_method: "cod" | "bkash" | "nagad" | "sslcommerz";
             shipping_address: components["schemas"]["CheckoutAddress"];
         };
         /** CheckoutQuoteResponse */
@@ -4547,7 +5261,7 @@ export interface components {
              * Mode
              * @enum {string}
              */
-            mode: "manual" | "mock" | "not_configured";
+            mode: "manual" | "disabled" | "mock" | "sandbox" | "live" | "not_configured";
             provider: components["schemas"]["CourierProvider"];
             /** Supports Booking */
             supports_booking: boolean;
@@ -4584,6 +5298,55 @@ export interface components {
             id: string;
             /** Status */
             status: string;
+        };
+        /** CustomerPaymentAttempt */
+        CustomerPaymentAttempt: {
+            /** Amount Poisha */
+            amount_poisha: number;
+            /** Attempt No */
+            attempt_no: number;
+            /** Can Retry */
+            can_retry: boolean;
+            /**
+             * Currency
+             * @constant
+             */
+            currency: "BDT";
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            next_action: components["schemas"]["PaymentNextAction"] | null;
+            provider: components["schemas"]["PaymentMethod"];
+            status: components["schemas"]["PaymentRecordStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** CustomerPaymentSummary */
+        CustomerPaymentSummary: {
+            latest_attempt: components["schemas"]["CustomerPaymentAttempt"] | null;
+            method: components["schemas"]["PaymentMethod"];
+            /** Paid Amount Poisha */
+            paid_amount_poisha: number;
+            /** Pending Refund Amount Poisha */
+            pending_refund_amount_poisha: number;
+            /** Refunded Amount Poisha */
+            refunded_amount_poisha: number;
+            /** Status */
+            status: string;
+        };
+        /** CustomerShipmentSummary */
+        CustomerShipmentSummary: {
+            courier: components["schemas"]["CourierProvider"];
+            status: components["schemas"]["ShipmentStatus"];
+            /** Tracking Code */
+            tracking_code: string | null;
         };
         /** DashboardCounts */
         DashboardCounts: {
@@ -5437,6 +6200,8 @@ export interface components {
         /** OrderCreateResponse */
         OrderCreateResponse: {
             order: components["schemas"]["OrderReceipt"];
+            /** Payment Required */
+            payment_required: boolean;
             /** Replayed */
             replayed: boolean;
         };
@@ -5493,15 +6258,17 @@ export interface components {
             grand_total_poisha: number;
             /** Items */
             items: components["schemas"]["OrderItemResponse"][];
+            latest_shipment: components["schemas"]["CustomerShipmentSummary"] | null;
             /** Notes */
             notes: string | null;
             /** Number */
             number: string;
+            payment: components["schemas"]["CustomerPaymentSummary"];
             /**
              * Payment Method
-             * @constant
+             * @enum {string}
              */
-            payment_method: "cod";
+            payment_method: "cod" | "bkash" | "nagad" | "sslcommerz";
             /** Payment Status */
             payment_status: string;
             /**
@@ -5580,11 +6347,40 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** PaymentAttemptCreate */
+        PaymentAttemptCreate: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "bkash" | "nagad" | "sslcommerz";
+        };
+        /** PaymentAttemptCreateResponse */
+        PaymentAttemptCreateResponse: {
+            attempt: components["schemas"]["CustomerPaymentAttempt"];
+            /** Replayed */
+            replayed: boolean;
+        };
         /**
          * PaymentMethod
          * @enum {string}
          */
         PaymentMethod: "cod" | "bkash" | "nagad" | "sslcommerz";
+        /** PaymentMethodAvailability */
+        PaymentMethodAvailability: {
+            /** Available */
+            available: boolean;
+            code: components["schemas"]["PaymentMethod"];
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Flow
+             * @enum {string}
+             */
+            flow: "cash_on_delivery" | "hosted_redirect";
+            /** Unavailable Reason */
+            unavailable_reason: ("disabled" | "not_configured" | "temporarily_unavailable") | null;
+        };
         /** PaymentMethodSettings */
         PaymentMethodSettings: {
             /**
@@ -5608,11 +6404,31 @@ export interface components {
              */
             sslcommerz: boolean;
         };
+        /** PaymentMethodsResponse */
+        PaymentMethodsResponse: {
+            /** Items */
+            items: components["schemas"]["PaymentMethodAvailability"][];
+        };
+        /** PaymentNextAction */
+        PaymentNextAction: {
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Type
+             * @constant
+             */
+            type: "redirect";
+            /**
+             * Url
+             * Format: uri
+             */
+            url: string;
+        };
         /**
          * PaymentRecordStatus
          * @enum {string}
          */
-        PaymentRecordStatus: "pending" | "initiated" | "authorized" | "succeeded" | "failed" | "cancelled" | "refunded";
+        PaymentRecordStatus: "pending" | "initiated" | "processing" | "authorized" | "succeeded" | "failed" | "cancelled" | "expired" | "unknown" | "refunded";
         /**
          * PaymentStatus
          * @enum {string}
@@ -5848,6 +6664,11 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * ProviderMode
+         * @enum {string}
+         */
+        ProviderMode: "disabled" | "mock" | "sandbox" | "live";
         /** PublicBlogListItem */
         PublicBlogListItem: {
             /** Cover Url */
@@ -5966,6 +6787,16 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * RefundMode
+         * @enum {string}
+         */
+        RefundMode: "provider" | "manual";
+        /**
+         * RefundStatus
+         * @enum {string}
+         */
+        RefundStatus: "pending" | "processing" | "succeeded" | "failed" | "cancelled" | "unknown";
         /** ReorderRequest */
         ReorderRequest: {
             /** Ids */
@@ -6296,7 +7127,7 @@ export interface components {
          * ShipmentStatus
          * @enum {string}
          */
-        ShipmentStatus: "pending" | "ready" | "booked" | "picked_up" | "in_transit" | "delivered" | "failed" | "returned" | "cancelled";
+        ShipmentStatus: "pending" | "ready" | "unknown" | "booked" | "picked_up" | "in_transit" | "delivered" | "failed" | "returned" | "cancelled";
         /** ShippingEstimateRequest */
         ShippingEstimateRequest: {
             /**
@@ -6642,16 +7473,18 @@ export interface components {
             estimated_delivery_minimum_days: number;
             /** Item Count */
             item_count: number;
+            latest_shipment: components["schemas"]["CustomerShipmentSummary"] | null;
             location: components["schemas"]["TrackingLocation"];
             /** Masked Phone */
             masked_phone: string;
             /** Number */
             number: string;
+            payment: components["schemas"]["CustomerPaymentSummary"];
             /**
              * Payment Method
-             * @constant
+             * @enum {string}
              */
-            payment_method: "cod";
+            payment_method: "cod" | "bkash" | "nagad" | "sslcommerz";
             /** Payment Status */
             payment_status: string;
             /**
@@ -6698,6 +7531,21 @@ export interface components {
             /** Reserved */
             reserved: number;
         };
+        /**
+         * WebhookKind
+         * @enum {string}
+         */
+        WebhookKind: "payment" | "courier";
+        /**
+         * WebhookProcessingStatus
+         * @enum {string}
+         */
+        WebhookProcessingStatus: "queued" | "processing" | "processed" | "ignored" | "retry" | "dead_letter";
+        /**
+         * WebhookVerificationStatus
+         * @enum {string}
+         */
+        WebhookVerificationStatus: "verified" | "pending_validation" | "legacy_unknown";
         /** WhatsAppSettings */
         WhatsAppSettings: {
             /** Enabled */
@@ -20229,6 +21077,163 @@ export interface operations {
             };
         };
     };
+    adminCreateRefund: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+                "Content-Type"?: string | null;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRefundCreate"];
+            };
+        };
+        responses: {
+            /** @description Manual refund recorded. */
+            201: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRefundResponse"];
+                };
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRefundResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     adminBookOrderShipment: {
         parameters: {
             query?: never;
@@ -21374,6 +22379,145 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ContentPageResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminReconcilePayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPaymentAttemptResponse"];
                 };
             };
             /** @description Invalid domain request */
@@ -23893,6 +25037,275 @@ export interface operations {
             };
         };
     };
+    adminProviderCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProviderCapabilitiesResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminReconcileRefund: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRefundResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     adminListReviews: {
         parameters: {
             query?: {
@@ -24470,6 +25883,695 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminCancelShipment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+                "Content-Type"?: string | null;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentCancel"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminShipmentResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminReconcileShipment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminShipmentResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminListWebhooks: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["WebhookKind"] | null;
+                provider?: string | null;
+                status?: components["schemas"]["WebhookProcessingStatus"] | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWebhookEventPage"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminGetWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWebhookEventDetail"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    adminRetryWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                Origin: string;
+                "X-CSRF-Token": string;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description Admin responses are never cacheable. */
+                    "Cache-Control"?: string;
+                    /** @description True when the exact stored command response was replayed. */
+                    "Idempotent-Replayed"?: "true";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWebhookEventDetail"];
                 };
             };
             /** @description Invalid domain request */
@@ -26789,6 +28891,134 @@ export interface operations {
             };
         };
     };
+    checkoutPaymentMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodsResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     quote_api_v1_checkout_quote_post: {
         parameters: {
             query?: {
@@ -28007,6 +30237,553 @@ export interface operations {
             };
         };
     };
+    createPaymentAttempt: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "Content-Type"?: string | null;
+                /** @description Exact storefront origin from the configured allowlist. */
+                Origin: string;
+                /** @description Constant-time matched against the signed cookie CSRF claim. */
+                "X-CSRF-Token": string;
+            };
+            path: {
+                number: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentAttemptCreate"];
+            };
+        };
+        responses: {
+            /** @description Idempotent replay. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentAttemptCreateResponse"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentAttemptCreateResponse"];
+                };
+            };
+            /** @description Provider outcome is processing or unknown; do not retry blindly. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentAttemptCreateResponse"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    latestPaymentAttempt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerPaymentAttempt"];
+                };
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    paymentBrowserReturnGet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["PaymentMethod"];
+                outcome: "success" | "fail" | "cancel";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            307: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    paymentBrowserReturnPost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["PaymentMethod"];
+                outcome: "success" | "fail" | "cancel";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            307: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     home_api_v1_storefront_home_get: {
         parameters: {
             query?: {
@@ -28065,6 +30842,262 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    courierWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["CourierProvider"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    paymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: components["schemas"]["PaymentMethod"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid domain request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Origin, CSRF, or account policy rejection */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Current state conflicts with the request */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description The supplied resource revision is stale */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description JSON content type required */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A required precondition header is missing */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Required dependency or configuration unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };

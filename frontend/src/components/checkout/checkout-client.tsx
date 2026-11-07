@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle,
+  CreditCard,
   CurrencyCircleDollar,
   IdentificationCard,
   LockKey,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Truck,
   UserCircle,
+  Wallet,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -42,6 +44,18 @@ import type {
 } from "@/lib/commerce/types";
 import { formatNumber } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
+import {
+  clearPaymentContinuation,
+  clearPaymentInitiationKey,
+  isExplicitLocalProviderMock,
+  navigateTopLevel,
+  paymentInitiationKey,
+  paymentReturnHref,
+  paymentViewState,
+  validatePaymentRedirectAction,
+  writePaymentContinuation,
+} from "@/lib/providers/payment";
+import type { CheckoutPaymentMethod, PaymentMethod, PaymentProvider } from "@/lib/providers/types";
 
 export type CheckoutForm = {
   customerName: string;
@@ -98,9 +112,11 @@ export type CheckoutLabels = {
   };
   payment: {
     title: string;
-    cod: string;
-    codDescription: string;
-    onlyCod: string;
+    loading: string;
+    error: string;
+    retry: string;
+    methods: Record<PaymentMethod, { name: string; description: string }>;
+    unavailableReasons: Record<NonNullable<CheckoutPaymentMethod["unavailable_reason"]>, string>;
   };
   review: {
     title: string;
@@ -109,7 +125,9 @@ export type CheckoutLabels = {
     expires: string;
     expiresIn: string;
     place: string;
+    placeOnline: string;
     placing: string;
+    openingProvider: string;
     editNotice: string;
     itemCount: string;
   };
@@ -132,6 +150,8 @@ export type CheckoutLabels = {
     unknown: string;
     quoteExpired: string;
     retryQuote: string;
+    payment: string;
+    unsafeRedirect: string;
   };
   secure: string;
   serverVerified: string;
@@ -150,6 +170,8 @@ const initialForm: CheckoutForm = {
   addressLine: "",
   notes: "",
 };
+
+const paymentMethodOrder: PaymentMethod[] = ["cod", "bkash", "nagad", "sslcommerz"];
 
 export function validateCheckoutForm(
   form: CheckoutForm,
@@ -226,7 +248,7 @@ export function mapCheckoutFieldErrors(
   return errors;
 }
 
-function detailsFromForm(form: CheckoutForm): CheckoutDetails {
+function detailsFromForm(form: CheckoutForm, paymentMethod: PaymentMethod): CheckoutDetails {
   return {
     customer: {
       name: form.customerName.trim(),
@@ -242,7 +264,7 @@ function detailsFromForm(form: CheckoutForm): CheckoutDetails {
       address_line: form.addressLine.trim(),
     },
     notes: form.notes.trim() || null,
-    payment_method: "cod",
+    payment_method: paymentMethod,
   };
 }
 
@@ -298,6 +320,8 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
     getDivisions,
     getDistricts,
     getUpazilas,
+    getPaymentMethods,
+    initiatePayment,
   } = useCommerce();
   const [form, setForm] = useState(initialForm);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -306,10 +330,43 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
   const [upazilas, setUpazilas] = useState<GeoOption[]>([]);
   const [geoLoading, setGeoLoading] = useState(true);
   const [geoError, setGeoError] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<CheckoutPaymentMethod[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
+  const [paymentMethodsError, setPaymentMethodsError] = useState("");
   const [quote, setQuote] = useState<CheckoutQuoteResponse | null>(null);
   const [quoteNow, setQuoteNow] = useState(() => Date.now());
   const [conflict, setConflict] = useState("");
   const submissionKey = useRef<SubmissionKey | null>(null);
+
+  const loadPaymentMethods = async (signal?: AbortSignal) => {
+    setPaymentMethodsLoading(true);
+    setPaymentMethodsError("");
+    try {
+      const response = await getPaymentMethods(signal);
+      if (signal?.aborted) return;
+      const ordered = paymentMethodOrder
+        .map((code) => response.items.find((item) => item.code === code))
+        .filter((item): item is CheckoutPaymentMethod => Boolean(item));
+      setPaymentMethods(ordered);
+      setPaymentMethod((current) => {
+        if (ordered.some((item) => item.code === current && item.available)) return current;
+        return ordered.find((item) => item.available)?.code ?? "cod";
+      });
+    } catch {
+      if (!signal?.aborted) setPaymentMethodsError(labels.payment.error);
+    } finally {
+      if (!signal?.aborted) setPaymentMethodsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    queueMicrotask(() => void loadPaymentMethods(controller.signal));
+    return () => controller.abort();
+    // The API callback and localized error are the complete loading inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getPaymentMethods, labels.payment.error]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -359,6 +416,21 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
     setConflict("");
     submissionKey.current = null;
     clearSubmissionKey();
+    clearPaymentInitiationKey();
+    clearPaymentContinuation();
+  };
+
+  const selectPaymentMethod = (method: PaymentMethod) => {
+    if (method === paymentMethod) return;
+    const option = paymentMethods.find((item) => item.code === method);
+    if (!option?.available) return;
+    setPaymentMethod(method);
+    setQuote(null);
+    setConflict("");
+    submissionKey.current = null;
+    clearSubmissionKey();
+    clearPaymentInitiationKey();
+    clearPaymentContinuation();
   };
 
   const requestQuote = async (event: FormEvent<HTMLFormElement>) => {
@@ -368,7 +440,12 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
     if (Object.keys(nextErrors).length) return;
     setConflict("");
     try {
-      const nextQuote = await createQuote(detailsFromForm(form));
+      const selected = paymentMethods.find((item) => item.code === paymentMethod);
+      if (!selected?.available) {
+        setConflict(labels.conflict.payment);
+        return;
+      }
+      const nextQuote = await createQuote(detailsFromForm(form, paymentMethod));
       setQuoteNow(Date.now());
       setQuote(nextQuote);
     } catch (error) {
@@ -380,10 +457,40 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
     }
   };
 
+  const startOnlinePayment = async (number: string, provider: PaymentProvider) => {
+    writePaymentContinuation({ orderNumber: number, provider, attemptId: null });
+    try {
+      const key = await paymentInitiationKey(number, provider);
+      const response = await initiatePayment(number, provider, key);
+      clearPaymentInitiationKey();
+      writePaymentContinuation({
+        orderNumber: number,
+        provider,
+        attemptId: response.attempt.id,
+      });
+      if (response.attempt.next_action) {
+        const redirect = validatePaymentRedirectAction(response.attempt.next_action, provider, {
+          currentUrl: window.location.href,
+          e2eProviderMock: isExplicitLocalProviderMock(window.location.href),
+        });
+        if (!redirect) {
+          setConflict(labels.conflict.unsafeRedirect);
+          router.push(paymentReturnHref(locale, provider, "unknown"));
+          return;
+        }
+        navigateTopLevel(redirect);
+        return;
+      }
+      router.push(paymentReturnHref(locale, provider, paymentViewState(response.attempt, null)));
+    } catch {
+      router.push(paymentReturnHref(locale, provider, "unknown"));
+    }
+  };
+
   const submitOrder = async () => {
     if (!validQuote || Date.now() >= quoteExpiresAt || pendingAction === "checkout") return;
     const request: PlaceOrderRequest = {
-      ...detailsFromForm(form),
+      ...detailsFromForm(form, paymentMethod),
       quote_token: validQuote.quote_token,
     };
     setConflict("");
@@ -397,7 +504,12 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       const response = await placeOrder(request, submissionKey.current.key);
       clearSubmissionKey();
       submissionKey.current = null;
-      router.push(`/${locale}/order-success/${encodeURIComponent(response.order.number)}`);
+      if (response.payment_required && paymentMethod !== "cod") {
+        await startOnlinePayment(response.order.number, paymentMethod);
+      } else {
+        clearPaymentContinuation();
+        router.push(`/${locale}/order-success/${encodeURIComponent(response.order.number)}`);
+      }
     } catch (error) {
       const normalized =
         error instanceof CommerceError ? error : new CommerceError(labels.conflict.generic);
@@ -726,15 +838,93 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
               />
               {labels.payment.title}
             </h2>
-            <label className="mt-5 flex min-h-20 items-center gap-4 rounded-2xl border-2 border-brand-purple bg-soft-lavender/50 p-4">
-              <input checked className="size-5 accent-brand-purple" readOnly type="radio" />
-              <span className="min-w-0 flex-1">
-                <strong className="block text-deep-indigo">{labels.payment.cod}</strong>
-                <span className="text-sm text-muted">{labels.payment.codDescription}</span>
-              </span>
-              <CheckCircle aria-hidden className="shrink-0 text-success" size={27} weight="fill" />
-            </label>
-            <p className="mt-3 text-xs text-muted">{labels.payment.onlyCod}</p>
+            {paymentMethodsLoading ? (
+              <p
+                className="mt-5 rounded-2xl bg-soft-lavender/50 p-4 text-sm font-bold text-muted"
+                role="status"
+              >
+                {labels.payment.loading}
+              </p>
+            ) : null}
+            {paymentMethodsError ? (
+              <div className="mt-5 rounded-2xl border border-error/20 bg-error/5 p-4" role="alert">
+                <p className="text-sm font-bold text-error">{paymentMethodsError}</p>
+                <button
+                  className="mt-2 min-h-11 font-extrabold text-brand-purple"
+                  onClick={() => void loadPaymentMethods()}
+                  type="button"
+                >
+                  {labels.payment.retry}
+                </button>
+              </div>
+            ) : null}
+            {paymentMethods.length ? (
+              <fieldset className="mt-5 grid gap-3 sm:grid-cols-2">
+                <legend className="sr-only">{labels.payment.title}</legend>
+                {paymentMethods.map((method) => {
+                  const selected = paymentMethod === method.code;
+                  const reason = method.unavailable_reason
+                    ? labels.payment.unavailableReasons[method.unavailable_reason]
+                    : null;
+                  const Icon = method.code === "cod" ? Wallet : CreditCard;
+                  return (
+                    <label
+                      key={method.code}
+                      className={`relative flex min-h-28 items-start gap-3 rounded-2xl border-2 p-4 transition focus-within:ring-2 focus-within:ring-brand-purple focus-within:ring-offset-2 ${
+                        selected
+                          ? "border-brand-purple bg-soft-lavender/55"
+                          : method.available
+                            ? "border-brand-purple/15 bg-white hover:border-brand-purple/45"
+                            : "cursor-not-allowed border-brand-purple/10 bg-page-background opacity-70"
+                      }`}
+                    >
+                      <input
+                        aria-describedby={reason ? `payment-${method.code}-reason` : undefined}
+                        checked={selected}
+                        className="mt-1 size-5 shrink-0 accent-brand-purple"
+                        disabled={!method.available}
+                        name="payment-method"
+                        onChange={() => selectPaymentMethod(method.code)}
+                        type="radio"
+                        value={method.code}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <Icon
+                            aria-hidden
+                            className="text-brand-purple"
+                            size={22}
+                            weight="duotone"
+                          />
+                          <strong className="text-deep-indigo">
+                            {labels.payment.methods[method.code].name}
+                          </strong>
+                        </span>
+                        <span className="mt-1 block text-sm text-muted">
+                          {labels.payment.methods[method.code].description}
+                        </span>
+                        {reason ? (
+                          <span
+                            className="mt-2 block text-xs font-bold text-error"
+                            id={`payment-${method.code}-reason`}
+                          >
+                            {reason}
+                          </span>
+                        ) : null}
+                      </span>
+                      {selected ? (
+                        <CheckCircle
+                          aria-hidden
+                          className="shrink-0 text-success"
+                          size={24}
+                          weight="fill"
+                        />
+                      ) : null}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ) : null}
           </section>
 
           {conflict ? (
@@ -752,7 +942,14 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
           {!validQuote ? (
             <button
               className="signature-gradient min-h-13 w-full rounded-full px-7 font-extrabold text-white shadow-lg disabled:opacity-55"
-              disabled={!isReady || pendingAction === "checkout"}
+              disabled={
+                !isReady ||
+                pendingAction === "checkout" ||
+                pendingAction === "payment" ||
+                paymentMethodsLoading ||
+                Boolean(paymentMethodsError) ||
+                !paymentMethods.some((method) => method.code === paymentMethod && method.available)
+              }
               type="submit"
             >
               {pendingAction === "checkout" ? labels.review.quoting : labels.review.quote}
@@ -770,11 +967,22 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
               </p>
               <button
                 className="signature-gradient mt-4 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 font-extrabold text-white shadow-lg disabled:opacity-55"
-                disabled={!isReady || pendingAction === "checkout" || quoteSecondsRemaining <= 0}
+                disabled={
+                  !isReady ||
+                  pendingAction === "checkout" ||
+                  pendingAction === "payment" ||
+                  quoteSecondsRemaining <= 0
+                }
                 onClick={() => void submitOrder()}
                 type="button"
               >
-                {pendingAction === "checkout" ? labels.review.placing : labels.review.place}
+                {pendingAction === "payment"
+                  ? labels.review.openingProvider
+                  : pendingAction === "checkout"
+                    ? labels.review.placing
+                    : paymentMethod === "cod"
+                      ? labels.review.place
+                      : labels.review.placeOnline}
                 <ArrowRight aria-hidden size={19} weight="bold" />
               </button>
               <p className="mt-2 text-center text-xs text-muted">{labels.review.editNotice}</p>

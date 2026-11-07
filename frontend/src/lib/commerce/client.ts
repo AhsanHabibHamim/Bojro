@@ -7,6 +7,12 @@ import {
   type FetchImplementation,
   getSharedAuthenticatedTransport,
 } from "@/lib/api/authenticated-transport";
+import type {
+  CheckoutPaymentMethodsResponse,
+  CustomerPaymentAttempt,
+  PaymentAttemptCreateRequest,
+  PaymentAttemptCreateResponse,
+} from "@/lib/providers/types";
 
 import type {
   AddCartItem,
@@ -194,6 +200,14 @@ export class CommerceClient {
     return this.request("POST", `${API_PREFIX}/checkout/quote?${search}`, { body: input });
   }
 
+  paymentMethods(signal?: AbortSignal): Promise<CheckoutPaymentMethodsResponse> {
+    return this.request("GET", `${API_PREFIX}/checkout/payment-methods`, {
+      signal,
+      retryAfterRefresh: false,
+      skipProactiveRefresh: true,
+    });
+  }
+
   placeOrder(
     input: PlaceOrderRequest,
     idempotencyKey: string,
@@ -204,6 +218,26 @@ export class CommerceClient {
       body: input,
       idempotencyKey,
     });
+  }
+
+  initiatePayment(
+    number: string,
+    input: PaymentAttemptCreateRequest,
+    idempotencyKey: string,
+  ): Promise<PaymentAttemptCreateResponse> {
+    return this.request(
+      "POST",
+      `${API_PREFIX}/orders/${encodeURIComponent(number)}/payment-attempts`,
+      { body: input, idempotencyKey },
+    );
+  }
+
+  latestPaymentAttempt(number: string, signal?: AbortSignal): Promise<CustomerPaymentAttempt> {
+    return this.request(
+      "GET",
+      `${API_PREFIX}/orders/${encodeURIComponent(number)}/payment-attempts/latest`,
+      { signal },
+    );
   }
 
   order(number: string, locale: CommerceLocale, signal?: AbortSignal): Promise<OrderReceipt> {
@@ -244,8 +278,11 @@ export type CommerceApi = Pick<
   | "divisions"
   | "districts"
   | "upazilas"
+  | "paymentMethods"
   | "quote"
   | "placeOrder"
+  | "initiatePayment"
+  | "latestPaymentAttempt"
   | "order"
   | "track"
 >;

@@ -65,9 +65,32 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
         },
         payment: {
           title: t("payment.title"),
-          cod: t("payment.cod"),
-          codDescription: t("payment.codDescription"),
-          onlyCod: t("payment.onlyCod"),
+          loading: t("payment.loading"),
+          error: t("payment.error"),
+          retry: t("payment.retry"),
+          methods: {
+            cod: {
+              name: t("payment.methods.cod.name"),
+              description: t("payment.methods.cod.description"),
+            },
+            bkash: {
+              name: t("payment.methods.bkash.name"),
+              description: t("payment.methods.bkash.description"),
+            },
+            nagad: {
+              name: t("payment.methods.nagad.name"),
+              description: t("payment.methods.nagad.description"),
+            },
+            sslcommerz: {
+              name: t("payment.methods.sslcommerz.name"),
+              description: t("payment.methods.sslcommerz.description"),
+            },
+          },
+          unavailableReasons: {
+            disabled: t("payment.unavailable.disabled"),
+            not_configured: t("payment.unavailable.notConfigured"),
+            temporarily_unavailable: t("payment.unavailable.temporarilyUnavailable"),
+          },
         },
         review: {
           title: t("review.title"),
@@ -76,7 +99,9 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           expires: t("review.expires"),
           expiresIn: t("review.expiresIn", { seconds: "{seconds}" }),
           place: t("review.place"),
+          placeOnline: t("review.placeOnline"),
           placing: t("review.placing"),
+          openingProvider: t("review.openingProvider"),
           editNotice: t("review.editNotice"),
           itemCount: t("review.itemCount", { count: "{count}" }),
         },
@@ -99,6 +124,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           unknown: t("conflict.unknown"),
           quoteExpired: t("conflict.quoteExpired"),
           retryQuote: t("conflict.retryQuote"),
+          payment: t("conflict.payment"),
+          unsafeRedirect: t("conflict.unsafeRedirect"),
         },
         secure: t("secure"),
         serverVerified: t("serverVerified"),

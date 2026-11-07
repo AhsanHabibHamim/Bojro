@@ -28,16 +28,33 @@ const labels: TrackOrderLabels = {
     title: "Result",
     status: "Status",
     payment: "Payment",
-    cod: "COD",
+    paymentMethods: {
+      cod: "COD",
+      bkash: "bKash",
+      nagad: "Nagad",
+      sslcommerz: "SSLCommerz",
+    },
+    couriers: {
+      manual: "Manual",
+      mock: "Mock",
+      pathao: "Pathao",
+      steadfast: "Steadfast",
+      redx: "RedX",
+    },
     items: "Items",
     phone: "Phone",
     area: "Area",
     estimated: "Estimated",
     estimatedDays: "{minimum}–{maximum} days",
     timeline: "Timeline",
+    shipment: "Shipment",
+    courier: "Courier",
+    trackingCode: "Tracking code",
+    notAvailable: "Not available",
   },
   statuses: { pending: "Order placed" },
   paymentStatuses: { pending: "Pay on delivery" },
+  shipmentStatuses: { in_transit: "In transit" },
 };
 
 async function submitTracking(phone = "01700000000") {
@@ -70,6 +87,29 @@ describe("TrackOrderClient", () => {
     await submitTracking();
     expect(await screen.findByText("Could not match details")).toBeVisible();
     expect(screen.queryByText("Private detail")).not.toBeInTheDocument();
+  });
+
+  it("renders a method-generic payment and customer-safe shipment summary", async () => {
+    const api = createFakeCommerceApi({
+      track: vi.fn().mockResolvedValue(
+        trackingFixture({
+          payment_method: "nagad",
+          payment_status: "paid",
+          latest_shipment: {
+            courier: "steadfast",
+            status: "in_transit",
+            tracking_code: "SAFE-TRACK-123",
+          },
+        }),
+      ),
+    });
+    renderWithCommerce(<TrackOrderClient labels={labels} locale="en" />, { api });
+    await submitTracking();
+
+    expect(await screen.findByText(/Nagad/)).toBeVisible();
+    expect(screen.getByText(/In transit/)).toBeVisible();
+    expect(screen.getByText(/SAFE-TRACK-123/)).toBeVisible();
+    expect(screen.queryByRole("link", { name: /SAFE-TRACK-123/ })).not.toBeInTheDocument();
   });
 
   it("validates the exact BJ order-number pattern before requesting", async () => {

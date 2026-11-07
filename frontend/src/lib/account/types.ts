@@ -1,5 +1,10 @@
 import type { ProductCard } from "@/lib/catalog/types";
 import type { components } from "@/lib/api/schema";
+import type {
+  CustomerPaymentSummary,
+  CustomerShipmentSummary,
+  PaymentMethod,
+} from "@/lib/providers/types";
 
 type Schema = components["schemas"];
 
@@ -54,7 +59,7 @@ export type AccountOrderSummary = {
   number: string;
   status: AccountOrderStatus;
   payment_status: AccountPaymentStatus;
-  payment_method: "cod";
+  payment_method: PaymentMethod;
   placed_at: string;
   updated_at: string;
   grand_total_poisha: number;
@@ -62,6 +67,8 @@ export type AccountOrderSummary = {
   item_count: number;
   items: AccountOrderItemPreview[];
   has_more_items: boolean;
+  payment: CustomerPaymentSummary;
+  latest_shipment: CustomerShipmentSummary | null;
 };
 
 export type AccountOrderItem = Schema["AccountOrderItem"];
@@ -78,7 +85,9 @@ export type AccountOrderDetail = Omit<
 > & {
   status: AccountOrderStatus;
   payment_status: AccountPaymentStatus;
-  payment_method: "cod";
+  payment_method: PaymentMethod;
+  payment: CustomerPaymentSummary;
+  latest_shipment: CustomerShipmentSummary | null;
 };
 
 export type WishlistItem = {

@@ -101,8 +101,11 @@ function fakeApi(): CommerceApi {
     divisions: vi.fn(),
     districts: vi.fn(),
     upazilas: vi.fn(),
+    paymentMethods: vi.fn(),
     quote: vi.fn(),
     placeOrder: vi.fn(),
+    initiatePayment: vi.fn(),
+    latestPaymentAttempt: vi.fn(),
     order: vi.fn(),
     track: vi.fn(),
   } as CommerceApi;

@@ -48,6 +48,10 @@ import type {
   AdminMediaCompleteInput,
   AdminMediaUpload,
   AdminMediaUploadInput,
+  AdminPaymentAttempt,
+  AdminPaymentRefund,
+  AdminProviderCapability,
+  AdminRefundCreateRequest,
   AdminOrderDetail,
   AdminOrderNote,
   AdminOrderNoteInput,
@@ -73,11 +77,14 @@ import type {
   AdminSession,
   AdminSetting,
   AdminShipment,
+  AdminShipmentCancelRequest,
   AdminShipmentInput,
   AdminStaticPage,
   AdminStaticPageInput,
   AdminStockAdjustmentInput,
   AdminTotpSetup,
+  AdminWebhookEvent,
+  AdminWebhookEventListResponse,
   CourierCapability,
   MediaPurpose,
   SettingSection,
@@ -663,6 +670,107 @@ export class AdminClient {
         { signal },
       )
       .then((response) => response.data.items);
+  }
+
+  providerCapabilities(signal?: AbortSignal): Promise<AdminProviderCapability[]> {
+    return this.transport
+      .request<{ items: AdminProviderCapability[] }>(
+        "GET",
+        `${ADMIN_API_PREFIX}/providers/capabilities`,
+        { signal },
+      )
+      .then((response) => response.data.items);
+  }
+
+  refundOrder(
+    number: string,
+    input: AdminRefundCreateRequest,
+    etag: string,
+    key: string,
+  ): Promise<Versioned<AdminPaymentRefund>> {
+    return this.transport
+      .request<AdminPaymentRefund>(
+        "POST",
+        `${ADMIN_API_PREFIX}/orders/${encodeURIComponent(number)}/refunds`,
+        { body: input, ifMatch: etag, idempotencyKey: key },
+      )
+      .then(versioned);
+  }
+
+  reconcilePayment(id: string, etag: string, key: string): Promise<Versioned<AdminPaymentAttempt>> {
+    return this.transport
+      .request<AdminPaymentAttempt>(
+        "POST",
+        `${ADMIN_API_PREFIX}/payments/${encodeURIComponent(id)}/reconcile`,
+        { ifMatch: etag, idempotencyKey: key },
+      )
+      .then(versioned);
+  }
+
+  reconcileRefund(id: string, etag: string, key: string): Promise<Versioned<AdminPaymentRefund>> {
+    return this.transport
+      .request<AdminPaymentRefund>(
+        "POST",
+        `${ADMIN_API_PREFIX}/refunds/${encodeURIComponent(id)}/reconcile`,
+        { ifMatch: etag, idempotencyKey: key },
+      )
+      .then(versioned);
+  }
+
+  reconcileShipment(id: string, etag: string, key: string): Promise<Versioned<AdminShipment>> {
+    return this.transport
+      .request<AdminShipment>(
+        "POST",
+        `${ADMIN_API_PREFIX}/shipments/${encodeURIComponent(id)}/reconcile`,
+        { ifMatch: etag, idempotencyKey: key },
+      )
+      .then(versioned);
+  }
+
+  cancelShipment(
+    id: string,
+    input: AdminShipmentCancelRequest,
+    etag: string,
+    key: string,
+  ): Promise<Versioned<AdminShipment>> {
+    return this.transport
+      .request<AdminShipment>(
+        "POST",
+        `${ADMIN_API_PREFIX}/shipments/${encodeURIComponent(id)}/cancel`,
+        { body: input, ifMatch: etag, idempotencyKey: key },
+      )
+      .then(versioned);
+  }
+
+  webhookEvents(
+    query: AdminListQuery,
+    signal?: AbortSignal,
+  ): Promise<AdminWebhookEventListResponse> {
+    return this.transport
+      .request<AdminWebhookEventListResponse>(
+        "GET",
+        withQuery(`${ADMIN_API_PREFIX}/webhooks`, query),
+        { signal },
+      )
+      .then((response) => response.data);
+  }
+
+  webhookEvent(id: string, signal?: AbortSignal): Promise<AdminWebhookEvent> {
+    return this.transport
+      .request<AdminWebhookEvent>("GET", `${ADMIN_API_PREFIX}/webhooks/${encodeURIComponent(id)}`, {
+        signal,
+      })
+      .then((response) => response.data);
+  }
+
+  retryWebhookEvent(id: string, key: string): Promise<AdminWebhookEvent> {
+    return this.transport
+      .request<AdminWebhookEvent>(
+        "POST",
+        `${ADMIN_API_PREFIX}/webhooks/${encodeURIComponent(id)}/retry`,
+        { idempotencyKey: key },
+      )
+      .then((response) => response.data);
   }
 
   async downloadOrderDocument(

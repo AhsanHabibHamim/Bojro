@@ -34,8 +34,15 @@ import type {
   TrackOrderRequest,
   TrackingResponse,
 } from "@/lib/commerce/types";
+import type {
+  CheckoutPaymentMethodsResponse,
+  CustomerPaymentAttempt,
+  PaymentAttemptCreateResponse,
+  PaymentProvider,
+} from "@/lib/providers/types";
 
-type PendingAction = "bootstrap" | "cart" | "auth" | "coupon" | "shipping" | "checkout" | null;
+type PendingAction =
+  "bootstrap" | "cart" | "auth" | "coupon" | "shipping" | "checkout" | "payment" | null;
 type ResourceStatus = "idle" | "loading" | "ready" | "error";
 
 type CommerceErrors = {
@@ -81,8 +88,18 @@ type CommerceContextValue = CommerceSnapshot & {
   getDivisions: (signal?: AbortSignal) => Promise<GeoOption[]>;
   getDistricts: (divisionId: string, signal?: AbortSignal) => Promise<GeoOption[]>;
   getUpazilas: (districtId: string, signal?: AbortSignal) => Promise<GeoOption[]>;
+  getPaymentMethods: (signal?: AbortSignal) => Promise<CheckoutPaymentMethodsResponse>;
   createQuote: (input: CheckoutQuoteRequest) => Promise<CheckoutQuoteResponse>;
   placeOrder: (input: PlaceOrderRequest, idempotencyKey: string) => Promise<PlaceOrderResponse>;
+  initiatePayment: (
+    number: string,
+    provider: PaymentProvider,
+    idempotencyKey: string,
+  ) => Promise<PaymentAttemptCreateResponse>;
+  getLatestPaymentAttempt: (
+    number: string,
+    signal?: AbortSignal,
+  ) => Promise<CustomerPaymentAttempt>;
   getOrder: (number: string, signal?: AbortSignal) => Promise<OrderReceipt>;
   trackOrder: (input: TrackOrderRequest) => Promise<TrackingResponse>;
   clearMutationError: () => void;
@@ -344,7 +361,7 @@ export function CommerceProvider({
 
   const runCartMutation = useCallback(
     (
-      action: Exclude<PendingAction, "bootstrap" | "auth" | "checkout" | null>,
+      action: Exclude<PendingAction, "bootstrap" | "auth" | "checkout" | "payment" | null>,
       request: () => Promise<CartResponse>,
     ) => {
       queuedMutationsRef.current += 1;
@@ -497,6 +514,10 @@ export function CommerceProvider({
     (districtId: string, signal?: AbortSignal) => api.upazilas(districtId, locale, signal),
     [api, locale],
   );
+  const getPaymentMethods = useCallback(
+    (signal?: AbortSignal) => api.paymentMethods(signal),
+    [api],
+  );
   const createQuote = useCallback(
     async (input: CheckoutQuoteRequest) => {
       await ensureReady();
@@ -526,8 +547,10 @@ export function CommerceProvider({
       setErrors((current) => ({ ...current, checkout: null }));
       try {
         const result = await api.placeOrder(input, idempotencyKey, locale);
-        cartEpochRef.current += 1;
-        void refreshCart().catch(() => undefined);
+        if (!result.payment_required) {
+          cartEpochRef.current += 1;
+          void refreshCart().catch(() => undefined);
+        }
         return result;
       } catch (error) {
         const normalized = commerceError(error);
@@ -538,6 +561,26 @@ export function CommerceProvider({
       }
     },
     [api, ensureReady, locale, refreshCart],
+  );
+  const initiatePayment = useCallback(
+    async (number: string, provider: PaymentProvider, idempotencyKey: string) => {
+      setPendingAction("payment");
+      setErrors((current) => ({ ...current, checkout: null }));
+      try {
+        return await api.initiatePayment(number, { provider }, idempotencyKey);
+      } catch (error) {
+        const normalized = commerceError(error);
+        setErrors((current) => ({ ...current, checkout: normalized }));
+        throw normalized;
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [api],
+  );
+  const getLatestPaymentAttempt = useCallback(
+    (number: string, signal?: AbortSignal) => api.latestPaymentAttempt(number, signal),
+    [api],
   );
   const getOrder = useCallback(
     (number: string, signal?: AbortSignal) => api.order(number, locale, signal),
@@ -591,8 +634,11 @@ export function CommerceProvider({
       getDivisions,
       getDistricts,
       getUpazilas,
+      getPaymentMethods,
       createQuote,
       placeOrder,
+      initiatePayment,
+      getLatestPaymentAttempt,
       getOrder,
       trackOrder,
       clearMutationError,
@@ -609,7 +655,9 @@ export function CommerceProvider({
       estimateShipping,
       getDistricts,
       getDivisions,
+      getLatestPaymentAttempt,
       getOrder,
+      getPaymentMethods,
       getUpazilas,
       isBootstrapping,
       isCartMutating,
@@ -622,6 +670,7 @@ export function CommerceProvider({
       patchSessionUser,
       pendingAction,
       placeOrder,
+      initiatePayment,
       refreshCart,
       refreshSession,
       removeCoupon,
