@@ -183,3 +183,44 @@ class HealthRepository:
             latency_ms=round((time.perf_counter() - started) * 1000, 2),
             detail=detail,
         )
+
+    async def check_engagement_public_config(
+        self,
+        *,
+        expected: dict[str, dict[str, object]],
+        required: bool,
+    ) -> ComponentHealth:
+        started = time.perf_counter()
+        try:
+            async with asyncio.timeout(self._timeout_seconds):
+                async with self._engine.connect() as connection:
+                    rows = (
+                        await connection.execute(
+                            text(
+                                "SELECT key, value FROM site_settings "
+                                "WHERE key IN ('analytics','assistant','whatsapp','engagement')"
+                            )
+                        )
+                    ).all()
+            actual = {str(row[0]): dict(row[1]) for row in rows}
+            mismatches: list[str] = []
+            for section, values in expected.items():
+                section_actual = actual.get(section, {})
+                for key, value in values.items():
+                    if section_actual.get(key) != value:
+                        mismatches.append(f"{section}.{key}")
+            if not mismatches:
+                return ComponentHealth(
+                    status="ok",
+                    required=required,
+                    latency_ms=round((time.perf_counter() - started) * 1000, 2),
+                )
+            detail = "mismatch:" + ",".join(sorted(mismatches))
+        except Exception as exc:
+            detail = type(exc).__name__
+        return ComponentHealth(
+            status="unavailable" if required else "degraded",
+            required=required,
+            latency_ms=round((time.perf_counter() - started) * 1000, 2),
+            detail=detail,
+        )

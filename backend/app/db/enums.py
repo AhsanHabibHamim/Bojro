@@ -189,6 +189,7 @@ class OutboxStatus(StrEnum):
     PROCESSING = "processing"
     DELIVERED = "delivered"
     FAILED = "failed"
+    DEAD_LETTER = "dead_letter"
 
 
 class WebhookKind(StrEnum):

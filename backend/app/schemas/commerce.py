@@ -15,6 +15,7 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.analytics import CheckoutAnalyticsContext, OrderAnalyticsResponse
 from app.schemas.common import APIModel
 from app.schemas.providers import CustomerPaymentSummary, CustomerShipmentSummary
 from app.utils.phone import BangladeshPhone
@@ -194,6 +195,7 @@ class CheckoutQuoteRequest(APIModel):
 
 class CheckoutOrderRequest(CheckoutQuoteRequest):
     quote_token: str = Field(min_length=40, max_length=4096)
+    analytics: CheckoutAnalyticsContext | None = None
 
 
 class CheckoutQuoteResponse(APIModel):
@@ -257,12 +259,14 @@ class OrderReceipt(APIModel):
     shipping_address: OrderAddressResponse
     timeline: list[OrderTimelineItem]
     notes: str | None
+    analytics: OrderAnalyticsResponse
 
 
 class OrderCreateResponse(APIModel):
     order: OrderReceipt
     replayed: bool
     payment_required: bool
+    analytics: OrderAnalyticsResponse
 
 
 class TrackingRequest(APIModel):

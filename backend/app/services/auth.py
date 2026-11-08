@@ -4,15 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
 
 from app.core.config import Settings
+from app.core.engagement_crypto import EngagementCrypto
 from app.core.errors import DomainError
 from app.core.security import PasswordService, TokenClaims, TokenService
 from app.db.enums import AuthSessionKind, UserRole
 from app.db.models import AuthSession, User
 from app.repositories.auth import AuthRepository
 from app.schemas.auth import SessionResponse, SessionUser
+from app.services.notifications import cancel_otp_delivery, queue_notification
 from app.services.otp import OTPChallenge, OTPService
 from app.services.rate_limit import RateLimiter, RateLimitExceeded, RateLimitUnavailable
 from app.utils.uuid7 import uuid7
@@ -33,15 +36,61 @@ class AuthService:
         otp: OTPService,
         rate_limiter: RateLimiter,
         settings: Settings,
+        engagement_crypto: EngagementCrypto | None = None,
     ) -> None:
         self._repository = repository
         self._tokens = tokens
         self._otp = otp
         self._rate_limiter = rate_limiter
         self._settings = settings
+        self._engagement_crypto = engagement_crypto or EngagementCrypto(settings)
 
-    async def request_otp(self, phone: str, ip_address: str) -> OTPChallenge:
-        return await self._otp.request(phone, ip_address)
+    async def request_otp(
+        self, phone: str, ip_address: str, locale: Literal["bn", "en"] = "bn"
+    ) -> OTPChallenge:
+        if self._settings.sms_provider == "disabled":
+            raise DomainError(
+                "OTP_UNAVAILABLE",
+                "OTP verification is temporarily unavailable.",
+                status_code=503,
+            )
+        challenge = await self._otp.request(phone, ip_address)
+        take_delivery = getattr(self._otp, "take_delivery_secret", None)
+        if not callable(take_delivery):
+            return challenge
+        delivery_secret = await take_delivery(challenge.challenge_id)
+        if delivery_secret is None:
+            await self._otp.delete_challenge(challenge.challenge_id)
+            raise DomainError(
+                "OTP_UNAVAILABLE",
+                "OTP verification is temporarily unavailable.",
+                status_code=503,
+            )
+        try:
+            async with self._repository.session.begin():
+                await queue_notification(
+                    self._repository.session,
+                    self._engagement_crypto,
+                    self._settings,
+                    dedupe_key=f"otp:{challenge.challenge_id}",
+                    category="security",
+                    channel="sms",
+                    template_key="auth.otp",
+                    locale=locale,
+                    recipient=phone,
+                    context={"code": delivery_secret.code},
+                    priority=100,
+                    expires_at=delivery_secret.expires_at,
+                    max_attempts=4,
+                )
+        except Exception as exc:
+            await self._otp.delete_challenge(challenge.challenge_id)
+            raise DomainError(
+                "OTP_UNAVAILABLE",
+                "OTP verification is temporarily unavailable.",
+                status_code=503,
+            ) from exc
+        return challenge
 
     async def verify_otp(
         self,
@@ -54,6 +103,8 @@ class AuthService:
         phone = await self._otp.verify(challenge_id, code, ip_address)
         now = datetime.now(UTC)
         async with self._repository.session.begin():
+            if hasattr(self._repository.session, "scalar"):
+                await cancel_otp_delivery(self._repository.session, challenge_id, now=now)
             user = await self._repository.ensure_phone_user(
                 phone,
                 name=name or "Bojro Customer",

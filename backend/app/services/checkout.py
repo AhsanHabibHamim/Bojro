@@ -11,8 +11,10 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from pydantic import ValidationError
+from sqlalchemy import select
 
 from app.core.config import Settings
+from app.core.engagement_crypto import EngagementCrypto
 from app.core.errors import DomainError
 from app.core.security import (
     InvalidTokenError,
@@ -29,6 +31,7 @@ from app.db.enums import (
     ProductStatus,
 )
 from app.db.models import (
+    AnalyticsEvent,
     AuditLog,
     CouponRedemption,
     InventoryMovement,
@@ -43,6 +46,7 @@ from app.providers.payments import create_payment_providers
 from app.repositories.checkout import CheckoutRepository, GeoHierarchy
 from app.repositories.commerce import CommerceRepository
 from app.repositories.providers import ProviderRepository
+from app.schemas.analytics import OrderAnalyticsResponse
 from app.schemas.commerce import (
     AddressGeoSnapshot,
     CartResponse,
@@ -59,8 +63,10 @@ from app.schemas.commerce import (
     TrackingResponse,
 )
 from app.schemas.providers import CustomerShipmentSummary
+from app.services.analytics import PurchaseAnalyticsInput, create_purchase_event
 from app.services.cart import CartService
 from app.services.commerce_pricing import coupon_is_active
+from app.services.notifications import queue_order_lifecycle
 from app.services.payments import PaymentService
 from app.services.rate_limit import RateLimiter, RateLimitExceeded, RateLimitUnavailable
 from app.utils.idempotency import scoped_idempotency_key
@@ -87,6 +93,7 @@ class CheckoutService:
         rate_limiter: RateLimiter,
         settings: Settings,
         payment_service: PaymentService | None = None,
+        engagement_crypto: EngagementCrypto | None = None,
     ) -> None:
         self._repository = repository
         self._commerce_repository = commerce_repository
@@ -94,6 +101,7 @@ class CheckoutService:
         self._tokens = tokens
         self._rate_limiter = rate_limiter
         self._settings = settings
+        self._engagement_crypto = engagement_crypto or EngagementCrypto(settings)
         repository_session = getattr(repository, "session", None)
         self._payment_service = payment_service
         if self._payment_service is None and repository_session is not None:
@@ -181,6 +189,7 @@ class CheckoutService:
         csrf: str,
         locale: Locale,
         ip_address: str = "unknown",
+        user_agent: str = "unknown",
     ) -> PlacedOrder:
         await self._checkout_rate_limit(
             "order",
@@ -198,7 +207,9 @@ class CheckoutService:
             raise DomainError(
                 "QUOTE_INVALID", "The checkout quote is invalid.", status_code=409
             ) from exc
-        request_hash = self._hash_json(payload.model_dump(mode="json"))
+        request_payload = payload.model_dump(mode="json")
+        request_payload["analytics"] = None
+        request_hash = self._hash_json(request_payload)
         scope_hash = TokenService.hash_value(str(cart_id))
         now = datetime.now(UTC)
         order_id: UUID | None = None
@@ -443,6 +454,42 @@ class CheckoutService:
                 )
                 cart.status = CartStatus.CONVERTED
                 cart.version += 1
+                await self._repository.session.flush()
+                await queue_order_lifecycle(
+                    self._repository.session,
+                    self._engagement_crypto,
+                    self._settings,
+                    created_order,
+                    "placed",
+                    now=now,
+                )
+                await create_purchase_event(
+                    self._repository.session,
+                    self._engagement_crypto,
+                    self._settings,
+                    created_order,
+                    PurchaseAnalyticsInput(
+                        owner_kind="user" if user_id is not None else "guest",
+                        owner_id=user_id or guest_id,
+                        locale=locale,
+                        ip_address=ip_address,
+                        user_agent=user_agent,
+                        fbp=payload.analytics.fbp if payload.analytics is not None else None,
+                        fbc=payload.analytics.fbc if payload.analytics is not None else None,
+                        email=(
+                            str(payload.customer.email)
+                            if payload.customer.email is not None
+                            else None
+                        ),
+                        phone=payload.customer.phone,
+                        product_ids=list(
+                            dict.fromkeys(
+                                variant_map[item.variant_id].product_id for item in cart_items
+                            )
+                        ),
+                        quantity=sum(item.quantity for item in cart_items),
+                    ),
+                )
                 idempotency.order_id = order_id
                 idempotency.resource_kind = "order"
                 idempotency.resource_id = order_id
@@ -460,6 +507,7 @@ class CheckoutService:
                 order=receipt,
                 replayed=replayed,
                 payment_required=loaded_order.payment_method != PaymentMethod.COD,
+                analytics=receipt.analytics,
             ),
             status_code=200 if replayed else 201,
         )
@@ -681,6 +729,7 @@ class CheckoutService:
             "phone": address.phone,
             "address_line": address.address_line,
             "customer_name": payload.customer.name,
+            "customer_phone": payload.customer.phone,
             "customer_email": (
                 str(payload.customer.email) if payload.customer.email is not None else None
             ),
@@ -734,7 +783,7 @@ class CheckoutService:
         payload: CheckoutQuoteRequest | CheckoutOrderRequest,
         cart: CartResponse,
     ) -> str:
-        details = payload.model_dump(mode="json", exclude={"quote_token"})
+        details = payload.model_dump(mode="json", exclude={"quote_token", "analytics"})
         authoritative = {
             "cart_id": str(cart.cart_id),
             "version": cart.version,
@@ -791,6 +840,12 @@ class CheckoutService:
             upazila=self._response_geo_snapshot(snapshot["upazila"], locale),
             address_line=str(snapshot["address_line"]),
         )
+        purchase_event_id = await self._repository.session.scalar(
+            select(AnalyticsEvent.event_id).where(
+                AnalyticsEvent.order_id == order.id,
+                AnalyticsEvent.event_name == "purchase",
+            )
+        )
         return OrderReceipt(
             number=order.number,
             status=order.status.value,
@@ -830,6 +885,7 @@ class CheckoutService:
                 for item in sorted(order.status_history, key=lambda row: (row.at, row.id))
             ],
             notes=order.notes,
+            analytics=OrderAnalyticsResponse(purchase_event_id=purchase_event_id),
         )
 
     @staticmethod

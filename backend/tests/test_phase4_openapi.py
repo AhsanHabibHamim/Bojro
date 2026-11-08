@@ -22,7 +22,7 @@ def test_account_openapi_uses_only_access_cookie_and_hides_internal_fields(
                 assert operation["security"] == [{"AccessCookie": []}]
                 assert "GuestCookie" not in json.dumps(operation)
 
-    assert len(account_operations) == 31
+    assert len(account_operations) == 33
     encoded = json.dumps(schema)
     for field in (
         "moderation_note",

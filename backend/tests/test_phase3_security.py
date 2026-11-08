@@ -232,18 +232,15 @@ def test_auth_csrf_origin_json_and_no_store_api_contract(client: TestClient) -> 
     assert wrong_csrf.status_code == 403
     assert wrong_csrf.json()["error"]["code"] == "CSRF_INVALID"
 
-    accepted = client.post(
+    unavailable = client.post(
         url,
         json=payload,
         headers={"Origin": "https://storefront.test", "X-CSRF-Token": csrf},
     )
-    assert accepted.status_code == 202
-    assert set(accepted.json()) == {
-        "challenge_id",
-        "expires_in_seconds",
-        "resend_after_seconds",
-    }
-    assert accepted.headers["cache-control"] == "no-store"
+    assert unavailable.status_code == 503
+    assert unavailable.json()["error"]["code"] == "OTP_UNAVAILABLE"
+    assert "challenge_id" not in unavailable.json()
+    assert unavailable.headers["cache-control"] == "no-store"
 
 
 def test_bodyless_refresh_and_logout_do_not_require_json(client: TestClient) -> None:

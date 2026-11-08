@@ -82,3 +82,26 @@ class RateLimiter:
             self._memory[key] = (count, expires_at)
             if count > limit:
                 raise RateLimitExceeded(max(1, int(expires_at - now)))
+
+    async def clear_buckets(self, prefixes: tuple[str, ...]) -> None:
+        """Clear test/reset buckets without exposing identifiers."""
+
+        memory_prefixes = tuple(f"{self._namespace}:{prefix}" for prefix in prefixes)
+        async with self._lock:
+            for key in list(self._memory):
+                if key.startswith(memory_prefixes):
+                    del self._memory[key]
+        if self._redis is None:
+            return
+        keys: list[str | bytes] = []
+        try:
+            async with asyncio.timeout(1.0):
+                for prefix in prefixes:
+                    async for key in self._redis.scan_iter(
+                        match=f"{self._namespace}:{prefix}*", count=100
+                    ):
+                        keys.append(key)
+                if keys:
+                    await self._redis.delete(*keys)
+        except Exception:
+            return

@@ -41,7 +41,7 @@ def test_production_requires_redis_and_strong_secret(monkeypatch: pytest.MonkeyP
         Settings(app_env="production", redis_url="redis://redis:6379/0")
 
 
-def test_production_rejects_mock_otp_and_insecure_cookie() -> None:
+def test_production_requires_explicit_engagement_keyrings() -> None:
     common: dict[str, Any] = {
         "app_env": "production",
         "app_secret_key": "a" * 32,
@@ -53,12 +53,14 @@ def test_production_rejects_mock_otp_and_insecure_cookie() -> None:
         "trusted_hosts": ["api.bojro.com.bd"],
         "cors_origins": ["https://bojro.com.bd"],
     }
-    with pytest.raises(ValidationError, match="mock OTP"):
+    with pytest.raises(ValidationError, match="ENGAGEMENT_PII_KEYRING must be explicitly"):
         Settings(**common)
-    with pytest.raises(ValidationError, match="COOKIE_SECURE"):
-        Settings(**common, otp_provider="external", cookie_secure=False)
-    with pytest.raises(ValidationError, match="external is not implemented"):
-        Settings(**common, otp_provider="external")
+    with pytest.raises(ValidationError, match="ENGAGEMENT_LOOKUP_HMAC_KEYRING must be explicitly"):
+        Settings(
+            **common,
+            engagement_pii_keyring={"prod-v1": "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI="},
+            engagement_pii_active_key_id="prod-v1",
+        )
 
 
 def test_seed_admin_settings_must_be_complete_and_secure() -> None:

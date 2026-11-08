@@ -16,6 +16,9 @@ from app.main import create_app
 def collect_test_resources() -> Iterator[None]:
     """Finalize TestClient/asyncio cycles before strict warning collection changes phases."""
 
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ResourceWarning)
+        gc.collect()
     yield
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ResourceWarning)

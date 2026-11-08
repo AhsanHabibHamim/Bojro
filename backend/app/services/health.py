@@ -32,7 +32,7 @@ class HealthService:
         )
 
     async def readiness(self) -> ReadinessResponse:
-        database, redis, schema, admin, worker = await asyncio.gather(
+        database, redis, schema, admin, worker, engagement_config = await asyncio.gather(
             self._repository.check_database(),
             self._repository.check_redis(),
             self._repository.check_schema_head(),
@@ -45,6 +45,29 @@ class HealthService:
                 max_age_seconds=self._settings.worker_heartbeat_max_age_seconds,
                 required=(self._settings.worker_heartbeat_required or self._settings.is_production),
             ),
+            self._repository.check_engagement_public_config(
+                expected={
+                    "analytics": {
+                        "google_analytics_id": self._settings.google_analytics_id,
+                        "meta_pixel_id": self._settings.meta_pixel_id,
+                        "consent_policy_version": self._settings.consent_policy_version,
+                    },
+                    "assistant": {
+                        "enabled": self._settings.assistant_public_enabled,
+                    },
+                    "whatsapp": {
+                        "enabled": self._settings.whatsapp_enabled,
+                        "phone": self._settings.whatsapp_phone,
+                        "message_bn": self._settings.whatsapp_message_bn,
+                        "message_en": self._settings.whatsapp_message_en,
+                    },
+                    "engagement": {
+                        "newsletter_enabled": self._settings.newsletter_enabled,
+                        "consent_policy_version": self._settings.consent_policy_version,
+                    },
+                },
+                required=self._settings.is_production,
+            ),
         )
         checks = {
             "database": database,
@@ -52,17 +75,30 @@ class HealthService:
             "schema": schema,
             "admin": admin,
             "worker": worker,
+            "engagement_config": engagement_config,
         }
         for capability in self._provider_capabilities:
+            required = self._settings.is_production and capability.kind in {
+                "email",
+                "sms",
+            }
+            if capability.kind == "analytics" and self._settings.meta_capi_mode == "live":
+                required = True
+            if capability.kind == "assistant" and self._settings.assistant_public_enabled:
+                required = True
             checks[f"provider:{capability.kind}:{capability.provider}"] = ComponentHealth(
                 status=(
                     "ok"
                     if capability.available or capability.unavailable_reason == "disabled"
                     else "unavailable"
                 ),
-                required=False,
+                required=required,
                 detail=(
-                    f"mode={capability.mode.value}"
+                    (
+                        f"mode={capability.mode.value},"
+                        f"idempotency={capability.supports_idempotency},"
+                        f"semantics={capability.delivery_semantics or 'n/a'}"
+                    )
                     if capability.available
                     else capability.unavailable_reason
                 ),

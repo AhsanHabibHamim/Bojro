@@ -8,8 +8,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.enums import CourierProvider, ShipmentStatus
+from app.core.config import Settings
+from app.core.engagement_crypto import EngagementCrypto
+from app.db.enums import CourierProvider, OrderStatus, ShipmentStatus
 from app.db.models import AuditLog, Order, Shipment
+from app.repositories.orders import SQLAlchemyOrderRepository
+from app.services.notifications import queue_order_lifecycle
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,8 +23,15 @@ class ShipmentReconciliationResult:
 
 
 class ShipmentReconciliationService:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        settings: Settings | None = None,
+        crypto: EngagementCrypto | None = None,
+    ) -> None:
         self._session_factory = session_factory
+        self._settings = settings
+        self._crypto = crypto
 
     async def run_once(
         self, *, limit: int = 100, now: datetime | None = None
@@ -83,6 +94,7 @@ class ShipmentReconciliationService:
                 order = orders.get(shipment.order_id)
                 if order is not None:
                     order.revision += 1
+                    await self._sync_order(session, order, next_status, current)
                 session.add(
                     AuditLog(
                         action="shipment.reconciled",
@@ -100,3 +112,42 @@ class ShipmentReconciliationService:
                 )
                 updated += 1
         return ShipmentReconciliationResult(scanned=len(shipments), updated=updated)
+
+    async def _sync_order(
+        self,
+        session: AsyncSession,
+        order: Order,
+        shipment_status: ShipmentStatus,
+        now: datetime,
+    ) -> None:
+        target: OrderStatus | None = None
+        if shipment_status == ShipmentStatus.IN_TRANSIT and order.status in {
+            OrderStatus.CONFIRMED,
+            OrderStatus.PROCESSING,
+        }:
+            target = OrderStatus.SHIPPED
+        elif shipment_status == ShipmentStatus.DELIVERED and order.status == OrderStatus.SHIPPED:
+            target = OrderStatus.DELIVERED
+        if target is None:
+            return
+        repository = SQLAlchemyOrderRepository(session)
+        previous = order.status
+        if target == OrderStatus.SHIPPED:
+            await repository.apply_inventory_side_effects(order, target)
+        order.status = target
+        repository.add_status_history(
+            order.id,
+            previous,
+            target,
+            None,
+            "Synchronized from courier reconciliation.",
+        )
+        if self._settings is not None and self._crypto is not None:
+            await queue_order_lifecycle(
+                session,
+                self._crypto,
+                self._settings,
+                order,
+                "shipped" if target == OrderStatus.SHIPPED else "delivered",
+                now=now,
+            )

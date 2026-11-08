@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from email.utils import parseaddr
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
+from email_validator import EmailNotValidError, validate_email
 from pydantic import EmailStr, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -60,7 +62,8 @@ class Settings(BaseSettings):
     cookie_secure: bool | None = None
     cookie_same_site: Literal["lax"] = "lax"
     cookie_prefix: str = Field(default="bojro", pattern=r"^[a-z0-9_-]{1,32}$")
-    otp_provider: Literal["mock", "external"] = "mock"
+    # Deprecated Phase 3 fields. OTP delivery is exclusively SMS_PROVIDER-backed.
+    otp_provider: Literal["mock", "external"] | None = None
     otp_external_endpoint: str | None = None
     otp_external_api_key: SecretStr | None = None
     otp_mock_code: SecretStr = SecretStr("123456")
@@ -71,6 +74,90 @@ class Settings(BaseSettings):
     otp_phone_window_seconds: int = Field(default=900, ge=60, le=3600)
     otp_ip_limit: int = Field(default=10, ge=1, le=100)
     otp_ip_window_seconds: int = Field(default=3600, ge=60, le=86400)
+    engagement_pii_keyring: dict[str, SecretStr] = Field(
+        default_factory=lambda: {
+            "dev-v1": SecretStr("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+        }
+    )
+    engagement_pii_active_key_id: str = Field(default="dev-v1", pattern=r"^[A-Za-z0-9_.-]{1,64}$")
+    engagement_lookup_hmac_keyring: dict[str, SecretStr] = Field(
+        default_factory=lambda: {
+            "dev-v1": SecretStr("development-engagement-lookup-hmac-change-me-32-characters")
+        }
+    )
+    engagement_lookup_hmac_active_key_id: str = Field(
+        default="dev-v1", pattern=r"^[A-Za-z0-9_.-]{1,64}$"
+    )
+    unsubscribe_signing_keyring: dict[str, SecretStr] = Field(
+        default_factory=lambda: {
+            "dev-v1": SecretStr("development-unsubscribe-signing-change-me-32-characters")
+        }
+    )
+    unsubscribe_signing_active_key_id: str = Field(
+        default="dev-v1", pattern=r"^[A-Za-z0-9_.-]{1,64}$"
+    )
+    consent_policy_version: str = Field(default="2026-11-07-v1", pattern=r"^[A-Za-z0-9._-]{1,64}$")
+    email_provider: Literal["disabled", "mock", "smtp", "resend"] = "mock"
+    email_from: str = "Bojro <no-reply@bojro.test>"
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=465, ge=1, le=65535)
+    smtp_username: SecretStr | None = None
+    smtp_password: SecretStr | None = None
+    smtp_use_ssl: bool = True
+    smtp_starttls: bool = False
+    resend_api_key: SecretStr | None = None
+    sms_provider: Literal["disabled", "mock", "external"] = "mock"
+    sms_endpoint: str | None = None
+    sms_api_key: SecretStr | None = None
+    sms_configured: bool = False
+    sms_documentation_verified: bool = False
+    sms_provider_name: str | None = None
+    sms_documentation_url: str | None = None
+    sms_documentation_version: str | None = None
+    sms_supports_idempotency: bool = False
+    sms_idempotency_header: str = Field(default="Idempotency-Key", pattern=r"^[A-Za-z0-9-]{1,64}$")
+    notification_batch_size: int = Field(default=50, ge=1, le=500)
+    notification_lease_seconds: int = Field(default=120, ge=30, le=900)
+    notification_content_retention_days: int = Field(default=30, ge=1, le=90)
+    notification_attempt_retention_days: int = Field(default=180, ge=30, le=730)
+    newsletter_email_limit: int = Field(default=5, ge=1, le=20)
+    newsletter_ip_limit: int = Field(default=20, ge=1, le=100)
+    newsletter_rate_window_seconds: int = Field(default=3600, ge=60, le=86400)
+    engagement_test_recipient_aliases: dict[str, str] = Field(default_factory=dict)
+    meta_capi_mode: Literal["disabled", "mock", "live"] = "disabled"
+    meta_pixel_id: str | None = None
+    google_analytics_id: str | None = None
+    meta_capi_access_token: SecretStr | None = None
+    analytics_event_retention_days: int = Field(default=90, ge=7, le=180)
+    analytics_subject_limit: int = Field(default=120, ge=1, le=1000)
+    analytics_ip_limit: int = Field(default=240, ge=1, le=2000)
+    analytics_rate_window_seconds: int = Field(default=60, ge=10, le=3600)
+    assistant_provider: Literal["disabled", "mock", "openai"] = "mock"
+    assistant_endpoint: str = "https://api.openai.com/v1/chat/completions"
+    assistant_api_key: SecretStr | None = None
+    assistant_model: str = "gpt-4.1-mini"
+    assistant_zero_retention_approved: bool = False
+    assistant_dpa_approved: bool = False
+    assistant_timeout_seconds: float = Field(default=12.0, gt=0, le=12)
+    assistant_request_max_bytes: int = Field(default=128 * 1024, ge=1024, le=512 * 1024)
+    assistant_response_max_bytes: int = Field(default=256 * 1024, ge=1024, le=512 * 1024)
+    assistant_session_ip_limit: int = Field(default=5, ge=1, le=20)
+    assistant_session_window_seconds: int = Field(default=3600, ge=900, le=86400)
+    assistant_message_session_limit: int = Field(default=20, ge=1, le=100)
+    assistant_message_ip_limit: int = Field(default=30, ge=1, le=200)
+    assistant_message_window_seconds: int = Field(default=900, ge=60, le=3600)
+    assistant_message_user_daily_limit: int = Field(default=100, ge=1, le=1000)
+    assistant_verification_session_limit: int = Field(default=5, ge=1, le=5)
+    assistant_retention_days: int = Field(default=30, ge=1, le=30)
+    assistant_idempotency_lease_seconds: int = Field(default=30, ge=15, le=120)
+    assistant_public_enabled: bool = False
+    newsletter_enabled: bool = True
+    whatsapp_enabled: bool = False
+    whatsapp_phone: str = "+8801700000000"
+    whatsapp_message_bn: str = "বজ্র সাপোর্টে স্বাগতম"
+    whatsapp_message_en: str = "Welcome to Bojro support"
+    phase7_e2e_enabled: bool = False
+    phase7_e2e_reset_token: SecretStr | None = None
     login_identity_limit: int = Field(default=5, ge=1, le=100)
     login_ip_limit: int = Field(default=20, ge=1, le=200)
     auth_rate_window_seconds: int = Field(default=900, ge=60, le=3600)
@@ -185,11 +272,41 @@ class Settings(BaseSettings):
         "sslcommerz_store_id",
         "sslcommerz_store_password",
         "phase6_e2e_reset_token",
+        "smtp_host",
+        "smtp_username",
+        "smtp_password",
+        "resend_api_key",
+        "sms_endpoint",
+        "sms_api_key",
+        "sms_provider_name",
+        "sms_documentation_url",
+        "sms_documentation_version",
+        "google_analytics_id",
+        "meta_pixel_id",
+        "meta_capi_access_token",
+        "assistant_api_key",
+        "phase7_e2e_reset_token",
         mode="before",
     )
     @classmethod
     def empty_secrets_are_unset(cls, value: object) -> object:
         return None if value == "" else value
+
+    @field_validator("email_from")
+    @classmethod
+    def validate_email_from(cls, value: str) -> str:
+        if "\r" in value or "\n" in value or len(value) > 320:
+            raise ValueError("EMAIL_FROM must be a single valid mailbox")
+        _display_name, address = parseaddr(value)
+        try:
+            validate_email(
+                address,
+                check_deliverability=False,
+                test_environment=True,
+            )
+        except EmailNotValidError as exc:
+            raise ValueError("EMAIL_FROM must be a single valid mailbox") from exc
+        return value
 
     @field_validator("cors_origins")
     @classmethod
@@ -317,6 +434,99 @@ class Settings(BaseSettings):
             if len(decoded) != 32:
                 raise ValueError("ADMIN_TOTP_KEYRING values must encode exactly 32 bytes")
             decoded_keys[key_id] = decoded
+        engagement_keys: dict[str, bytes] = {}
+        if self.engagement_pii_active_key_id not in self.engagement_pii_keyring:
+            raise ValueError("ENGAGEMENT_PII_ACTIVE_KEY_ID must exist in ENGAGEMENT_PII_KEYRING")
+        for key_id, secret in self.engagement_pii_keyring.items():
+            if not key_id or len(key_id) > 64:
+                raise ValueError("ENGAGEMENT_PII_KEYRING contains an invalid key ID")
+            try:
+                decoded = base64.urlsafe_b64decode(secret.get_secret_value().encode())
+            except (ValueError, TypeError) as exc:
+                raise ValueError("ENGAGEMENT_PII_KEYRING values must be URL-safe base64") from exc
+            if len(decoded) != 32:
+                raise ValueError("ENGAGEMENT_PII_KEYRING values must encode exactly 32 bytes")
+            engagement_keys[key_id] = decoded
+        hmac_keyrings = {
+            "ENGAGEMENT_LOOKUP_HMAC_KEYRING": (
+                self.engagement_lookup_hmac_keyring,
+                self.engagement_lookup_hmac_active_key_id,
+            ),
+            "UNSUBSCRIBE_SIGNING_KEYRING": (
+                self.unsubscribe_signing_keyring,
+                self.unsubscribe_signing_active_key_id,
+            ),
+        }
+        for name, (hmac_keyring, active_key_id) in hmac_keyrings.items():
+            if active_key_id not in hmac_keyring:
+                raise ValueError(f"{name} must contain its active key ID")
+            for key_id, secret in hmac_keyring.items():
+                if not key_id or len(key_id) > 64:
+                    raise ValueError(f"{name} contains an invalid key ID")
+                if len(secret.get_secret_value()) < 32:
+                    raise ValueError(f"{name} values must contain at least 32 characters")
+        if self.smtp_use_ssl and self.smtp_starttls:
+            raise ValueError("SMTP_USE_SSL and SMTP_STARTTLS are mutually exclusive")
+        if self.email_provider == "smtp":
+            if self.smtp_host is None or self.smtp_username is None or self.smtp_password is None:
+                raise ValueError("SMTP provider requires host, username, and password")
+            if not self.smtp_use_ssl and not self.smtp_starttls:
+                raise ValueError("SMTP provider requires SSL or STARTTLS")
+        if self.email_provider == "resend" and self.resend_api_key is None:
+            raise ValueError("Resend provider requires RESEND_API_KEY")
+        if self.sms_provider == "external":
+            if not (self.sms_configured and self.sms_documentation_verified):
+                raise ValueError(
+                    "external SMS requires SMS_CONFIGURED and SMS_DOCUMENTATION_VERIFIED"
+                )
+            if self.sms_endpoint is None or self.sms_api_key is None:
+                raise ValueError("external SMS requires endpoint and API key")
+            self._require_https_origin_url("SMS_ENDPOINT", self.sms_endpoint, allow_path=True)
+            if (
+                self.sms_provider_name is None
+                or self.sms_documentation_url is None
+                or self.sms_documentation_version is None
+                or not self.sms_supports_idempotency
+            ):
+                raise ValueError(
+                    "external SMS requires provider provenance, documentation version, "
+                    "and verified idempotency"
+                )
+            self._require_https_origin_url(
+                "SMS_DOCUMENTATION_URL",
+                self.sms_documentation_url,
+                allow_path=True,
+            )
+        if self.meta_capi_mode == "live" and (
+            self.meta_pixel_id is None or self.meta_capi_access_token is None
+        ):
+            raise ValueError("live Meta CAPI requires pixel ID and access token")
+        if self.assistant_provider == "openai":
+            if self.assistant_api_key is None:
+                raise ValueError("OpenAI-compatible assistant requires ASSISTANT_API_KEY")
+            self._require_https_origin_url(
+                "ASSISTANT_ENDPOINT", self.assistant_endpoint, allow_path=True
+            )
+            if not (self.assistant_zero_retention_approved and self.assistant_dpa_approved):
+                raise ValueError(
+                    "OpenAI-compatible assistant requires approved zero-retention and DPA gates"
+                )
+        if self.phase7_e2e_enabled and (
+            self.app_env != "test" or self.phase7_e2e_reset_token is None
+        ):
+            raise ValueError("PHASE7_E2E_ENABLED requires APP_ENV=test and PHASE7_E2E_RESET_TOKEN")
+        if self.phase7_e2e_reset_token is not None and not self.phase7_e2e_enabled:
+            raise ValueError("PHASE7_E2E_RESET_TOKEN requires PHASE7_E2E_ENABLED=true")
+        if self.phase7_e2e_enabled and (
+            self.email_provider != "mock"
+            or self.sms_provider != "mock"
+            or self.meta_capi_mode != "mock"
+            or self.assistant_provider != "mock"
+        ):
+            raise ValueError(
+                "PHASE7_E2E_RESET_TOKEN requires mock email, SMS, Meta CAPI, "
+                "and assistant providers"
+            )
         if self.is_production:
             if self.debug:
                 raise ValueError("DEBUG must be false in production")
@@ -324,14 +534,76 @@ class Settings(BaseSettings):
                 raise ValueError("REDIS_URL is required in production")
             if self.app_secret_key is None or len(self.app_secret_key.get_secret_value()) < 32:
                 raise ValueError("APP_SECRET_KEY must contain at least 32 characters in production")
-            if self.otp_provider == "mock":
-                raise ValueError("mock OTP provider is forbidden in production")
+            if "engagement_pii_keyring" not in self.model_fields_set:
+                raise ValueError("ENGAGEMENT_PII_KEYRING must be explicitly configured")
+            public_engagement_keys = {
+                bytes(32),
+                b"0123456789abcdef0123456789abcdef",
+                b"phase7-fixture-key-phase7-fixture",
+            }
+            if any(value in public_engagement_keys for value in engagement_keys.values()):
+                raise ValueError(
+                    "ENGAGEMENT_PII_KEYRING must not contain public development or fixture keys"
+                )
+            if any(
+                marker in key_id.casefold()
+                for key_id in engagement_keys
+                for marker in ("dev", "test", "fixture", "public", "example")
+            ):
+                raise ValueError(
+                    "ENGAGEMENT_PII_KEYRING key IDs must not identify development or fixture keys"
+                )
+            for field_name in (
+                "engagement_lookup_hmac_keyring",
+                "unsubscribe_signing_keyring",
+            ):
+                if field_name not in self.model_fields_set:
+                    raise ValueError(f"{field_name.upper()} must be explicitly configured")
+            for name, (hmac_keyring, _active_key_id) in hmac_keyrings.items():
+                if any(
+                    marker in key_id.casefold()
+                    for key_id in hmac_keyring
+                    for marker in ("dev", "test", "fixture", "public", "example")
+                ):
+                    raise ValueError(f"{name} key IDs must not identify public or fixture keys")
+                for secret in hmac_keyring.values():
+                    lowered = secret.get_secret_value().casefold()
+                    if any(
+                        marker in lowered
+                        for marker in (
+                            "development",
+                            "replace-with",
+                            "fixture",
+                            "public",
+                            "example",
+                            "test-secret",
+                        )
+                    ):
+                        raise ValueError(f"{name} must not contain public or fixture keys")
+            lookup_values = {
+                secret.get_secret_value() for secret in self.engagement_lookup_hmac_keyring.values()
+            }
+            signing_values = {
+                secret.get_secret_value() for secret in self.unsubscribe_signing_keyring.values()
+            }
+            if lookup_values & signing_values:
+                raise ValueError(
+                    "ENGAGEMENT_LOOKUP_HMAC_KEYRING and UNSUBSCRIBE_SIGNING_KEYRING "
+                    "must use distinct key material"
+                )
             if self.cookie_secure is False:
                 raise ValueError("COOKIE_SECURE cannot be false in production")
-            if self.otp_external_endpoint is None or self.otp_external_api_key is None:
-                raise ValueError("external is not implemented without OTP external configuration")
-            if not self.otp_external_endpoint.startswith("https://"):
-                raise ValueError("OTP_EXTERNAL_ENDPOINT must use HTTPS in production")
+            if any(
+                value is not None
+                for value in (
+                    self.otp_provider,
+                    self.otp_external_endpoint,
+                    self.otp_external_api_key,
+                )
+            ):
+                raise ValueError(
+                    "OTP_PROVIDER and OTP_EXTERNAL_* are deprecated; configure SMS_PROVIDER"
+                )
             secrets = {
                 "JWT_SECRET_KEY": self.jwt_secret_key,
                 "ADMIN_JWT_SECRET_KEY": self.admin_jwt_secret_key,
@@ -349,6 +621,51 @@ class Settings(BaseSettings):
                 raise ValueError("signing secrets must be distinct")
             if any(value == bytes(32) for value in decoded_keys.values()):
                 raise ValueError("ADMIN_TOTP_KEYRING must not contain the default zero key")
+            if self.email_provider != "resend":
+                raise ValueError(
+                    "production transactional email requires the idempotent Resend adapter"
+                )
+            if self.sms_provider != "external":
+                raise ValueError("production OTP requires a real external SMS provider")
+            if self.meta_capi_mode == "mock":
+                raise ValueError("mock Meta CAPI provider is forbidden in production")
+            if self.assistant_provider == "mock":
+                raise ValueError("mock assistant provider is forbidden in production")
+            if self.phase7_e2e_reset_token is not None:
+                raise ValueError("PHASE7_E2E_RESET_TOKEN is forbidden in production")
+            if not self.worker_heartbeat_required:
+                raise ValueError("WORKER_HEARTBEAT_REQUIRED must be true in production")
+            if self.email_provider in {"smtp", "resend"} and any(
+                marker in self.email_from.casefold()
+                for marker in ("bojro.test", "example.com", "placeholder")
+            ):
+                raise ValueError("EMAIL_FROM must not use a placeholder domain")
+            if self.smtp_host is not None and self._placeholder_host(self.smtp_host):
+                raise ValueError("SMTP_HOST must not use a local or placeholder host")
+            for name, endpoint in (
+                ("SMS_ENDPOINT", self.sms_endpoint),
+                (
+                    "ASSISTANT_ENDPOINT",
+                    self.assistant_endpoint if self.assistant_provider == "openai" else None,
+                ),
+            ):
+                if endpoint is not None and self._placeholder_host(
+                    urlsplit(endpoint).hostname or ""
+                ):
+                    raise ValueError(f"{name} must not use a local or placeholder host")
+            phase7_provider_secrets = (
+                self.smtp_password,
+                self.resend_api_key,
+                self.sms_api_key,
+                self.meta_capi_access_token,
+                self.assistant_api_key,
+            )
+            for provider_secret in phase7_provider_secrets:
+                if provider_secret is None:
+                    continue
+                lowered = provider_secret.get_secret_value().casefold()
+                if any(marker in lowered for marker in ("placeholder", "replace-with", "example")):
+                    raise ValueError("Phase 7 provider secrets must not use placeholders")
             if "*" in self.trusted_hosts:
                 raise ValueError("wildcard TRUSTED_HOSTS are forbidden in production")
             if self.storage_provider == "mock":
@@ -445,6 +762,30 @@ class Settings(BaseSettings):
             raise ValueError("OTP_MOCK_CODE must contain exactly six ASCII digits")
         return self
 
+    @staticmethod
+    def _require_https_origin_url(name: str, value: str, *, allow_path: bool = False) -> None:
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or (not allow_path and parsed.path not in {"", "/"})
+        ):
+            suffix = "HTTPS URL" if allow_path else "fixed HTTPS origin"
+            raise ValueError(f"{name} must be a {suffix}")
+
+    @staticmethod
+    def _placeholder_host(host: str) -> bool:
+        normalized = host.casefold().rstrip(".")
+        return (
+            normalized in {"localhost", "127.0.0.1", "::1", "example.com"}
+            or normalized.endswith((".test", ".example", ".invalid", ".localhost"))
+            or "placeholder" in normalized
+        )
+
     @property
     def admin_totp_keys(self) -> dict[str, bytes]:
         import base64
@@ -455,6 +796,29 @@ class Settings(BaseSettings):
         return {
             key_id: base64.urlsafe_b64decode(secret.get_secret_value().encode())
             for key_id, secret in keyring.items()
+        }
+
+    @property
+    def engagement_pii_keys(self) -> dict[str, bytes]:
+        import base64
+
+        return {
+            key_id: base64.urlsafe_b64decode(secret.get_secret_value().encode())
+            for key_id, secret in self.engagement_pii_keyring.items()
+        }
+
+    @property
+    def engagement_lookup_hmac_keys(self) -> dict[str, bytes]:
+        return {
+            key_id: secret.get_secret_value().encode()
+            for key_id, secret in self.engagement_lookup_hmac_keyring.items()
+        }
+
+    @property
+    def unsubscribe_signing_keys(self) -> dict[str, bytes]:
+        return {
+            key_id: secret.get_secret_value().encode()
+            for key_id, secret in self.unsubscribe_signing_keyring.items()
         }
 
     @property

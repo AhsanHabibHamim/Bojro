@@ -627,6 +627,7 @@ class SocialLinkSettings(APIModel):
 class AnalyticsSettings(APIModel):
     google_analytics_id: str | None = Field(default=None, pattern=r"^(G|UA)-[A-Z0-9-]+$")
     meta_pixel_id: str | None = Field(default=None, pattern=r"^[0-9]{5,32}$")
+    consent_policy_version: Literal["2026-11-07-v1"] = "2026-11-07-v1"
 
 
 class AnnouncementSettings(APIModel):

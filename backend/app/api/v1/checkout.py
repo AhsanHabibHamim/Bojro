@@ -19,6 +19,7 @@ from app.schemas.commerce import (
 from app.schemas.providers import PaymentMethodsResponse
 from app.services.checkout import CheckoutService
 from app.services.payments import PaymentService
+from app.services.worker_wakeup import wake_worker
 
 router = APIRouter(prefix="/checkout", tags=["checkout"], responses=PHASE3_ERROR_RESPONSES)
 Service = Annotated[CheckoutService, Depends(get_checkout_service)]
@@ -107,7 +108,12 @@ async def place_order(
         csrf=identity.csrf,
         locale=query.locale,
         ip_address=client_ip(request),
+        user_agent=request.headers.get("User-Agent", "unknown"),
     )
+    if not result.response.replayed:
+        await wake_worker(request.app.state.settings, "deliver_notifications")
+        if result.response.analytics.purchase_event_id is not None:
+            await wake_worker(request.app.state.settings, "deliver_meta_capi")
     response.status_code = result.status_code
     response.headers["Location"] = (
         f"{request.app.state.settings.api_v1_prefix}/orders/{result.response.order.number}"

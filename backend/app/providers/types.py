@@ -48,7 +48,7 @@ class WebhookRejected(ProviderError):
 
 @dataclass(frozen=True, slots=True)
 class ProviderCapabilities:
-    kind: Literal["payment", "courier"]
+    kind: Literal["payment", "courier", "email", "sms", "analytics", "assistant"]
     provider: str
     mode: ProviderMode
     configured: bool
@@ -60,6 +60,8 @@ class ProviderCapabilities:
     supports_cancel: bool = False
     supports_refund: bool = False
     supports_webhooks: bool = False
+    supports_idempotency: bool = False
+    delivery_semantics: Literal["exactly_once_effect", "at_least_once"] | None = None
     unavailable_reason: Literal["disabled", "not_configured", "temporarily_unavailable"] | None = (
         None
     )

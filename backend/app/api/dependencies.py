@@ -27,9 +27,12 @@ from app.services.admin_catalog_csv import AdminCatalogCSVService
 from app.services.admin_content import AdminContentService
 from app.services.admin_customers_reviews import AdminCustomerReviewService
 from app.services.admin_dashboard import AdminDashboardService
+from app.services.admin_engagement import AdminEngagementService
 from app.services.admin_marketing import AdminMarketingService
 from app.services.admin_media import AdminMediaService
 from app.services.admin_orders import AdminOrderService
+from app.services.analytics import AnalyticsService
+from app.services.assistant import AssistantService
 from app.services.auth import AuthService
 from app.services.cache import HotCache
 from app.services.cart import CartService
@@ -37,6 +40,8 @@ from app.services.catalog import CatalogService
 from app.services.checkout import CheckoutService
 from app.services.content import ContentService
 from app.services.e2e_phase6 import Phase6E2EResetService
+from app.services.e2e_phase7 import Phase7E2EResetService
+from app.services.engagement import EngagementService
 from app.services.geo import GeoService
 from app.services.health import HealthService
 from app.services.order_pdf import OrderPDFService
@@ -61,6 +66,14 @@ def get_health_service(request: Request) -> HealthService:
             *request.app.state.courier_providers.values(),
         )
     ]
+    capabilities.extend(
+        provider.capabilities
+        for provider in (
+            *request.app.state.notification_providers.values(),
+            request.app.state.meta_capi_provider,
+            request.app.state.assistant_provider,
+        )
+    )
     return HealthService(repository, settings, capabilities)
 
 
@@ -70,6 +83,31 @@ def get_catalog_service(
 ) -> CatalogService:
     cache: HotCache = request.app.state.hot_cache
     return CatalogService(CatalogRepository(session), cache, request.app.state.storage_provider)
+
+
+def get_analytics_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AnalyticsService:
+    return AnalyticsService(
+        session,
+        request.app.state.engagement_crypto,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
+
+
+def get_assistant_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantService:
+    return AssistantService(
+        session,
+        request.app.state.assistant_provider,
+        request.app.state.engagement_crypto,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+    )
 
 
 def get_storefront_service(
@@ -83,6 +121,7 @@ def get_storefront_service(
         catalog,
         cache,
         request.app.state.storage_provider,
+        request.app.state.settings,
     )
 
 
@@ -94,6 +133,20 @@ def get_auth_service(
         AuthRepository(session),
         request.app.state.token_service,
         request.app.state.otp_service,
+        request.app.state.rate_limiter,
+        request.app.state.settings,
+        request.app.state.engagement_crypto,
+    )
+
+
+def get_engagement_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> EngagementService:
+    return EngagementService(
+        session,
+        request.app.state.engagement_crypto,
+        request.app.state.engagement_tokens,
         request.app.state.rate_limiter,
         request.app.state.settings,
     )
@@ -127,6 +180,7 @@ def get_checkout_service(
         request.app.state.rate_limiter,
         request.app.state.settings,
         payment_service,
+        request.app.state.engagement_crypto,
     )
 
 
@@ -145,6 +199,21 @@ def get_phase6_e2e_reset_service(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Phase6E2EResetService:
     return Phase6E2EResetService(session)
+
+
+def get_phase7_e2e_reset_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Phase7E2EResetService:
+    return Phase7E2EResetService(
+        session,
+        request.app.state.engagement_crypto,
+        request.app.state.engagement_tokens,
+        request.app.state.settings,
+        request.app.state.hot_cache,
+        True,
+        request.app.state.rate_limiter,
+    )
 
 
 def get_webhook_service(
@@ -228,6 +297,17 @@ def get_admin_dashboard_service(
     return AdminDashboardService(session)
 
 
+def get_admin_engagement_service(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AdminEngagementService:
+    return AdminEngagementService(
+        AdminRepository(session),
+        request.app.state.engagement_crypto,
+        request.app.state.settings,
+    )
+
+
 def get_admin_order_service(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -240,6 +320,7 @@ def get_admin_order_service(
         request.app.state.courier_providers,
         settings,
         request.app.state.payment_providers,
+        request.app.state.engagement_crypto,
     )
 
 

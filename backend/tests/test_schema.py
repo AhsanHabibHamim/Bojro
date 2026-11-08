@@ -68,14 +68,26 @@ EXPECTED_TABLES = {
     "outbox_events",
     "audit_logs",
     "webhook_events",
+    "notification_deliveries",
+    "notification_attempts",
+    "communication_preferences",
+    "consent_events",
+    "newsletter_subscriptions",
+    "cart_reminder_state",
+    "analytics_events",
+    "assistant_sessions",
+    "assistant_messages",
+    "assistant_order_grants",
+    "assistant_request_idempotency",
 }
 
 
 def test_all_locked_tables_are_modeled() -> None:
     assert set(Base.metadata.tables) == EXPECTED_TABLES
     for table in Base.metadata.tables.values():
-        assert isinstance(table.c.id.type, PGUUID)
-        assert table.c.id.default is not None
+        if table.name not in {"communication_preferences", "analytics_events"}:
+            assert isinstance(table.c.id.type, PGUUID)
+            assert table.c.id.default is not None
         for column in table.c:
             if isinstance(column.type, DateTime):
                 assert column.type.timezone is True

@@ -9,10 +9,11 @@ from typing import Protocol
 from uuid import UUID
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
+from app.core.engagement_crypto import redact_engagement_text
 from app.db.enums import OutboxStatus
 from app.db.models import OutboxEvent
 from app.schemas.revalidation import RevalidationEvent
@@ -82,6 +83,7 @@ class OutboxDeliveryResult:
     scanned: int
     delivered: int
     retry_scheduled: int
+    dead_lettered: int = 0
 
 
 class OutboxDeliveryService:
@@ -108,11 +110,27 @@ class OutboxDeliveryService:
         delivery_time = now or datetime.now(UTC)
         claimed: list[tuple[UUID, str, dict[str, object], int]] = []
         async with self._session_factory() as session, session.begin():
+            await session.execute(
+                update(OutboxEvent)
+                .where(
+                    OutboxEvent.status.in_(
+                        (
+                            OutboxStatus.PENDING,
+                            OutboxStatus.FAILED,
+                            OutboxStatus.PROCESSING,
+                        )
+                    ),
+                    OutboxEvent.attempts >= self._max_attempts,
+                    OutboxEvent.delivered_at.is_(None),
+                )
+                .values(status=OutboxStatus.DEAD_LETTER)
+            )
             events = list(
                 await session.scalars(
                     select(OutboxEvent)
                     .where(
                         OutboxEvent.next_attempt_at <= delivery_time,
+                        OutboxEvent.attempts < self._max_attempts,
                         or_(
                             OutboxEvent.status == OutboxStatus.PENDING,
                             OutboxEvent.status == OutboxStatus.FAILED,
@@ -150,10 +168,11 @@ class OutboxDeliveryService:
                         raise ValueError(f"unsupported outbox topic: {topic}")
                     await handler(payload)
             except Exception as exc:
-                error = f"{type(exc).__name__}: {exc}"[:500]
+                error = redact_engagement_text(f"{type(exc).__name__}: {exc}")[:500]
             results.append((event_id, error, attempts))
         delivered = 0
         retries = 0
+        dead_lettered = 0
         async with self._session_factory() as session, session.begin():
             for event_id, error, attempts in results:
                 claimed_event = await session.scalar(
@@ -174,17 +193,22 @@ class OutboxDeliveryService:
                     claimed_event.last_error = None
                     delivered += 1
                 else:
-                    claimed_event.status = OutboxStatus.FAILED
                     claimed_event.last_error = error
-                    exponent = min(attempts, 10)
-                    base_seconds = min(2**exponent * 15, 6 * 3600)
-                    jitter = int.from_bytes(claimed_event.id.bytes[-2:], "big") % 31
-                    claimed_event.next_attempt_at = delivery_time + timedelta(
-                        seconds=base_seconds + jitter
-                    )
                     if attempts >= self._max_attempts:
-                        claimed_event.next_attempt_at = delivery_time + timedelta(hours=24)
-                    retries += 1
+                        claimed_event.status = OutboxStatus.DEAD_LETTER
+                        dead_lettered += 1
+                    else:
+                        claimed_event.status = OutboxStatus.FAILED
+                        exponent = min(attempts, 10)
+                        base_seconds = min(2**exponent * 15, 6 * 3600)
+                        jitter = int.from_bytes(claimed_event.id.bytes[-2:], "big") % 31
+                        claimed_event.next_attempt_at = delivery_time + timedelta(
+                            seconds=base_seconds + jitter
+                        )
+                        retries += 1
         return OutboxDeliveryResult(
-            scanned=len(claimed), delivered=delivered, retry_scheduled=retries
+            scanned=len(claimed),
+            delivered=delivered,
+            retry_scheduled=retries,
+            dead_lettered=dead_lettered,
         )

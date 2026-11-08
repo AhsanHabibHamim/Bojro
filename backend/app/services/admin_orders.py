@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings
+from app.core.engagement_crypto import EngagementCrypto
 from app.core.errors import DomainError
 from app.db.enums import (
     CourierProvider,
@@ -75,6 +76,7 @@ from app.services.admin_common import (
 from app.services.courier import (
     CourierGateway,
 )
+from app.services.notifications import queue_order_lifecycle
 from app.services.order_transitions import (
     OrderTransitionContext,
     validate_order_transition,
@@ -130,6 +132,7 @@ class AdminOrderService(AdminServiceBase):
         courier_providers: dict[CourierProvider, CourierProviderGateway] | None = None,
         settings: Settings | None = None,
         payment_providers: dict[PaymentMethod, PaymentProvider] | None = None,
+        engagement_crypto: EngagementCrypto | None = None,
     ) -> None:
         super().__init__(repository)
         self._session = repository.session
@@ -138,6 +141,7 @@ class AdminOrderService(AdminServiceBase):
         self._courier_providers = courier_providers or {}
         self._settings = settings
         self._payment_providers = payment_providers or {}
+        self._engagement_crypto = engagement_crypto
         self._provider_repository = ProviderRepository(repository.session)
 
     async def list_orders(
@@ -262,6 +266,7 @@ class AdminOrderService(AdminServiceBase):
             )
             order.status = payload.to_status
             order.revision += 1
+            await self._queue_lifecycle(order, payload.to_status, now)
             if payload.customer_note is not None:
                 order.notes = payload.customer_note
             self._session.add(
@@ -1131,12 +1136,33 @@ class AdminOrderService(AdminServiceBase):
         )
         previous = order.status
         order.status = target
+        await self._queue_lifecycle(order, target, datetime.now(UTC))
         repository.add_status_history(
             order.id,
             previous,
             target,
             None,
             f"Synchronized from {shipment.courier.value} shipment.",
+        )
+
+    async def _queue_lifecycle(self, order: Order, status: OrderStatus, now: datetime) -> None:
+        event = cast(
+            Literal["confirmed", "shipped", "delivered"] | None,
+            {
+                OrderStatus.CONFIRMED: "confirmed",
+                OrderStatus.SHIPPED: "shipped",
+                OrderStatus.DELIVERED: "delivered",
+            }.get(status),
+        )
+        if event is None or self._settings is None or self._engagement_crypto is None:
+            return
+        await queue_order_lifecycle(
+            self._session,
+            self._engagement_crypto,
+            self._settings,
+            order,
+            event,
+            now=now,
         )
 
     def capabilities(self) -> CourierCapabilitiesResponse:

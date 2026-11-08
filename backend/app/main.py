@@ -16,6 +16,7 @@ from app import __version__
 from app.api.health import router as operations_router
 from app.api.v1.router import router as api_v1_router
 from app.core.config import Settings, get_settings
+from app.core.engagement_crypto import EngagementCrypto, EngagementTokenSigner
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import (
@@ -25,7 +26,13 @@ from app.core.middleware import (
 )
 from app.core.security import TokenService
 from app.db.session import create_engine, create_session_factory
-from app.providers import create_courier_providers, create_payment_providers
+from app.providers import (
+    create_assistant_provider,
+    create_courier_providers,
+    create_meta_capi_provider,
+    create_notification_providers,
+    create_payment_providers,
+)
 from app.services.cache import HotCache
 from app.services.courier import create_courier_gateways
 from app.services.otp import OTPService
@@ -63,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             redis,
             application.state.rate_limiter,
             resolved_settings,
+            application.state.engagement_crypto,
         )
         application.state.storage_provider = create_storage_provider(resolved_settings)
         _LOGGER.info("application_started", environment=resolved_settings.app_env)
@@ -85,10 +93,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.state.settings = resolved_settings
     application.state.token_service = TokenService(resolved_settings)
+    application.state.engagement_crypto = EngagementCrypto(resolved_settings)
+    application.state.engagement_tokens = EngagementTokenSigner(resolved_settings)
     application.state.storage_provider = create_storage_provider(resolved_settings)
     application.state.courier_gateways = create_courier_gateways(resolved_settings)
     application.state.payment_providers = create_payment_providers(resolved_settings)
     application.state.courier_providers = create_courier_providers(resolved_settings)
+    application.state.notification_providers = create_notification_providers(resolved_settings)
+    application.state.meta_capi_provider = create_meta_capi_provider(resolved_settings)
+    application.state.assistant_provider = create_assistant_provider(resolved_settings)
     install_error_handlers(application)
     application.add_middleware(
         CORSMiddleware,
@@ -108,6 +121,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "X-Request-ID",
             "Idempotent-Replayed",
             "Retry-After",
+            "X-RateLimit-Policy",
             "Content-Disposition",
         ],
     )

@@ -13,7 +13,7 @@ from app.core.security import PasswordService
 from app.db.enums import AuthSessionKind, HomepageSectionType, UserRole
 from app.db.models import AuditLog, AuthSession, HomepageSection, SiteSetting, User
 
-SCHEMA_HEAD = "0012_phase6_contract"
+SCHEMA_HEAD = "0014_phase7_release_hardening"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +40,50 @@ _SYSTEM_SETTINGS: dict[str, tuple[dict[str, object], int]] = {
         1,
     ),
     "social_links": ({"facebook": "", "instagram": "", "youtube": ""}, 1),
-    "analytics": ({"google_analytics_id": None, "meta_pixel_id": None}, 1),
+    "analytics": (
+        {
+            "google_analytics_id": None,
+            "meta_pixel_id": None,
+            "consent_policy_version": "2026-11-07-v1",
+        },
+        2,
+    ),
+    "whatsapp": (
+        {
+            "enabled": False,
+            "phone": "+8801700000000",
+            "message_bn": "বজ্র সাপোর্টে স্বাগতম",
+            "message_en": "Welcome to Bojro support",
+        },
+        1,
+    ),
+    "assistant": (
+        {
+            "enabled": False,
+            "name_bn": "বজ্র সহকারী",
+            "name_en": "Bojro Assistant",
+            "disclosure_version": "2026-11-07-v1",
+            "disclosure_bn": "এটি একটি এআই সহকারী। গুরুত্বপূর্ণ তথ্য যাচাই করুন।",
+            "disclosure_en": "This is an AI assistant. Verify important information.",
+        },
+        1,
+    ),
+    "engagement_providers": (
+        {
+            "email": "disabled",
+            "sms": "disabled",
+            "meta_capi": "disabled",
+            "assistant": "disabled",
+        },
+        1,
+    ),
+    "engagement": (
+        {
+            "newsletter_enabled": True,
+            "consent_policy_version": "2026-11-07-v1",
+        },
+        1,
+    ),
     "announcement": ({"enabled": False, "bn": "", "en": ""}, 1),
     "cod_risk": (
         {
@@ -162,12 +205,49 @@ async def bootstrap_operational_defaults(
         )
         rotated = True
 
-    existing_settings = set(await session.scalars(select(SiteSetting.key)))
+    setting_rows = {
+        row.key: row for row in await session.scalars(select(SiteSetting).with_for_update())
+    }
+    runtime_values: dict[str, dict[str, object]] = {
+        "analytics": {
+            "google_analytics_id": settings.google_analytics_id,
+            "meta_pixel_id": settings.meta_pixel_id,
+            "consent_policy_version": settings.consent_policy_version,
+        },
+        "assistant": {"enabled": settings.assistant_public_enabled},
+        "whatsapp": {
+            "enabled": settings.whatsapp_enabled,
+            "phone": settings.whatsapp_phone,
+            "message_bn": settings.whatsapp_message_bn,
+            "message_en": settings.whatsapp_message_en,
+        },
+        "engagement_providers": {
+            "email": settings.email_provider,
+            "sms": settings.sms_provider,
+            "meta_capi": settings.meta_capi_mode,
+            "assistant": settings.assistant_provider,
+        },
+        "engagement": {
+            "newsletter_enabled": settings.newsletter_enabled,
+            "consent_policy_version": settings.consent_policy_version,
+        },
+    }
     settings_created = 0
     for key, (value, schema_version) in _SYSTEM_SETTINGS.items():
-        if key not in existing_settings:
-            session.add(SiteSetting(key=key, value=value, schema_version=schema_version))
+        authoritative_value = {**value, **runtime_values.get(key, {})}
+        row = setting_rows.get(key)
+        if row is None:
+            session.add(
+                SiteSetting(
+                    key=key,
+                    value=authoritative_value,
+                    schema_version=schema_version,
+                )
+            )
             settings_created += 1
+        elif key in runtime_values:
+            row.value = {**row.value, **runtime_values[key]}
+            row.schema_version = schema_version
 
     existing_sections = set(await session.scalars(select(HomepageSection.section_type)))
     sections_created = 0

@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Protocol, cast
 
 from redis.asyncio import Redis
 
 from app.core.config import get_settings
 from app.db.session import create_engine
+from app.providers import (
+    create_assistant_provider,
+    create_courier_providers,
+    create_meta_capi_provider,
+    create_notification_providers,
+    create_payment_providers,
+)
+from app.providers.types import ProviderCapabilities
 from app.repositories.health import HealthRepository
 from app.services.health import HealthService
+
+
+class _CapabilityProvider(Protocol):
+    @property
+    def capabilities(self) -> ProviderCapabilities: ...
 
 
 async def preflight() -> None:
@@ -31,7 +45,27 @@ async def preflight() -> None:
             redis_required=settings.is_production,
             timeout_seconds=settings.readiness_timeout_seconds,
         )
-        result = await HealthService(repository, settings).readiness()
+        providers: list[_CapabilityProvider] = []
+        providers.extend(
+            cast(_CapabilityProvider, provider)
+            for provider in create_payment_providers(settings).values()
+        )
+        providers.extend(
+            cast(_CapabilityProvider, provider)
+            for provider in create_courier_providers(settings).values()
+        )
+        providers.extend(
+            cast(_CapabilityProvider, provider)
+            for provider in create_notification_providers(settings).values()
+        )
+        providers.extend(
+            (
+                cast(_CapabilityProvider, create_meta_capi_provider(settings)),
+                cast(_CapabilityProvider, create_assistant_provider(settings)),
+            )
+        )
+        capabilities = [provider.capabilities for provider in providers]
+        result = await HealthService(repository, settings, capabilities).readiness()
         if result.status == "unavailable":
             failed = ", ".join(
                 f"{name}={check.detail or check.status}"

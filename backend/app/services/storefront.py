@@ -8,6 +8,7 @@ from uuid import UUID
 
 from pydantic import JsonValue
 
+from app.core.config import Settings
 from app.db.enums import HomepageSectionType
 from app.db.models import Banner, HomepageSection, MediaAsset
 from app.repositories.storefront import StorefrontRepository
@@ -17,7 +18,9 @@ from app.schemas.storefront import (
     BannerItem,
     DistrictOption,
     StorefrontAnalytics,
+    StorefrontAssistant,
     StorefrontBranding,
+    StorefrontEngagement,
     StorefrontHomeResponse,
     StorefrontSection,
     StorefrontShellResponse,
@@ -39,11 +42,13 @@ class StorefrontService:
         catalog: CatalogService,
         cache: HotCache,
         storage: StorageProvider,
+        settings: Settings | None = None,
     ) -> None:
         self._repository = repository
         self._catalog = catalog
         self._cache = cache
         self._storage = storage
+        self._settings = settings
 
     @staticmethod
     def _banner(banner: Banner, locale: Locale) -> BannerItem:
@@ -184,6 +189,13 @@ class StorefrontService:
         branding = settings.get("branding", {})
         whatsapp = settings.get("whatsapp", {})
         analytics = settings.get("analytics", {})
+        assistant = settings.get("assistant", {})
+        engagement = settings.get("engagement", {})
+        e2e_override = bool(
+            self._settings is not None
+            and self._settings.app_env == "test"
+            and self._settings.phase7_e2e_enabled
+        )
         branding_ids = {
             UUID(str(value))
             for value in (
@@ -214,18 +226,96 @@ class StorefrontService:
                 ),
             ),
             whatsapp=StorefrontWhatsApp(
-                enabled=bool(whatsapp.get("enabled", False)),
-                phone=str(whatsapp.get("phone", "")),
-                message=str(whatsapp.get(f"message_{locale}", "")),
+                enabled=(
+                    bool(whatsapp.get("enabled", False))
+                    if e2e_override
+                    else (
+                        self._settings.whatsapp_enabled
+                        if self._settings is not None
+                        else bool(whatsapp.get("enabled", False))
+                    )
+                ),
+                phone=(
+                    self._settings.whatsapp_phone
+                    if self._settings is not None
+                    else str(whatsapp.get("phone", ""))
+                ),
+                message=(
+                    (
+                        self._settings.whatsapp_message_en
+                        if locale == "en"
+                        else self._settings.whatsapp_message_bn
+                    )
+                    if self._settings is not None
+                    else str(whatsapp.get(f"message_{locale}", ""))
+                ),
             ),
             analytics=StorefrontAnalytics(
                 google_analytics_id=(
-                    str(analytics["google_analytics_id"])
-                    if analytics.get("google_analytics_id")
-                    else None
+                    (
+                        str(analytics["google_analytics_id"])
+                        if analytics.get("google_analytics_id")
+                        else None
+                    )
+                    if e2e_override
+                    else (
+                        self._settings.google_analytics_id
+                        if self._settings is not None
+                        else (
+                            str(analytics["google_analytics_id"])
+                            if analytics.get("google_analytics_id")
+                            else None
+                        )
+                    )
                 ),
                 meta_pixel_id=(
-                    str(analytics["meta_pixel_id"]) if analytics.get("meta_pixel_id") else None
+                    (str(analytics["meta_pixel_id"]) if analytics.get("meta_pixel_id") else None)
+                    if e2e_override
+                    else (
+                        self._settings.meta_pixel_id
+                        if self._settings is not None
+                        else (
+                            str(analytics["meta_pixel_id"])
+                            if analytics.get("meta_pixel_id")
+                            else None
+                        )
+                    )
+                ),
+                consent_policy_version=(
+                    self._settings.consent_policy_version
+                    if self._settings is not None
+                    else str(analytics.get("consent_policy_version", "2026-11-07-v1"))
+                ),
+            ),
+            assistant=StorefrontAssistant(
+                enabled=(
+                    bool(assistant.get("enabled", False))
+                    if e2e_override
+                    else (
+                        self._settings.assistant_public_enabled
+                        if self._settings is not None
+                        else bool(assistant.get("enabled", False))
+                    )
+                ),
+                name=str(assistant.get(f"name_{locale}", "Bojro Assistant")),
+                disclosure=str(
+                    assistant.get(
+                        f"disclosure_{locale}",
+                        "This is an AI assistant. Verify important information.",
+                    )
+                ),
+                disclosure_version=str(assistant.get("disclosure_version", "2026-11-07-v1")),
+            ),
+            engagement=StorefrontEngagement(
+                newsletter_enabled=(
+                    bool(engagement.get("newsletter_enabled", True))
+                    if e2e_override
+                    else (self._settings.newsletter_enabled if self._settings is not None else True)
+                ),
+                consent_policy_version=(
+                    self._settings.consent_policy_version
+                    if self._settings is not None
+                    else str(analytics.get("consent_policy_version", "2026-11-07-v1"))
                 ),
             ),
             category_menu=categories.items,

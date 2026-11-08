@@ -2011,6 +2011,515 @@ class OutboxEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     last_error: Mapped[str | None] = mapped_column(String(500))
 
 
+class NotificationDelivery(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "notification_deliveries"
+    __table_args__ = (
+        UniqueConstraint("dedupe_key", name="uq_notification_deliveries_dedupe_key"),
+        CheckConstraint(
+            "category IN ('security','transactional','marketing')", name="category_allowed"
+        ),
+        CheckConstraint("channel IN ('email','sms')", name="channel_allowed"),
+        CheckConstraint("locale IN ('bn','en')", name="locale_allowed"),
+        CheckConstraint(
+            "status IN ('queued','processing','retry','accepted','rejected','unknown',"
+            "'dead_letter','cancelled','expired','suppressed')",
+            name="status_allowed",
+        ),
+        CheckConstraint("priority >= 0 AND priority <= 100", name="priority_range"),
+        CheckConstraint("attempts >= 0 AND attempts <= max_attempts", name="attempts_range"),
+        CheckConstraint("max_attempts >= 1 AND max_attempts <= 20", name="max_attempts_range"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint(
+            "num_nonnulls(recipient_key_id, recipient_nonce, recipient_ciphertext) IN (0,3)",
+            name="recipient_envelope_complete",
+        ),
+        CheckConstraint(
+            "num_nonnulls(context_key_id, context_nonce, context_ciphertext) IN (0,3)",
+            name="context_envelope_complete",
+        ),
+        CheckConstraint(
+            "expires_at IS NULL OR expires_at > created_at", name="expiry_after_creation"
+        ),
+        Index(
+            "ix_notification_deliveries_claim",
+            "status",
+            "next_attempt_at",
+            "priority",
+            "created_at",
+            postgresql_where=text("status IN ('queued','retry','processing')"),
+        ),
+        Index("ix_notification_deliveries_user_created", "user_id", "created_at"),
+        Index("ix_notification_deliveries_order_created", "order_id", "created_at"),
+        Index("ix_notification_deliveries_recipient_hash", "recipient_hash"),
+        Index("ix_notification_deliveries_terminal", "terminal_at"),
+    )
+
+    dedupe_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(24), nullable=False)
+    channel: Mapped[str] = mapped_column(String(12), nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    template_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    template_version: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    locale: Mapped[str] = mapped_column(String(2), nullable=False)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    order_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
+    )
+    cart_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("carts.id", ondelete="SET NULL")
+    )
+    recipient_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    recipient_masked: Mapped[str] = mapped_column(String(340), nullable=False)
+    recipient_key_id: Mapped[str | None] = mapped_column(String(64))
+    recipient_nonce: Mapped[bytes | None] = mapped_column(LargeBinary)
+    recipient_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    context_key_id: Mapped[str | None] = mapped_column(String(64))
+    context_nonce: Mapped[bytes | None] = mapped_column(LargeBinary)
+    context_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    consent_event_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("consent_events.id", ondelete="RESTRICT")
+    )
+    status: Mapped[str] = mapped_column(
+        String(24), default="queued", server_default=text("'queued'"), nullable=False
+    )
+    priority: Mapped[int] = mapped_column(
+        SmallInteger, default=50, server_default=text("50"), nullable=False
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    leased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_owner: Mapped[str | None] = mapped_column(String(128))
+    provider_message_id: Mapped[str | None] = mapped_column(String(255))
+    last_error: Mapped[str | None] = mapped_column(String(500))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+    attempt_history: Mapped[list[NotificationAttempt]] = relationship(
+        back_populates="delivery", cascade="all, delete-orphan"
+    )
+
+
+class NotificationAttempt(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "notification_attempts"
+    __table_args__ = (
+        UniqueConstraint(
+            "delivery_id", "attempt_no", name="uq_notification_attempts_delivery_attempt"
+        ),
+        CheckConstraint("attempt_no > 0", name="attempt_no_positive"),
+        CheckConstraint(
+            "outcome IN ('accepted','retryable','rejected','unknown')", name="outcome_allowed"
+        ),
+        CheckConstraint("latency_ms >= 0", name="latency_nonnegative"),
+        Index("ix_notification_attempts_delivery_created", "delivery_id", "created_at"),
+        Index("ix_notification_attempts_created", "created_at"),
+    )
+
+    delivery_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("notification_deliveries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    attempt_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False)
+    response_class: Mapped[str | None] = mapped_column(String(80))
+    response_code: Mapped[str | None] = mapped_column(String(80))
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    provider_message_id: Mapped[str | None] = mapped_column(String(255))
+    error: Mapped[str | None] = mapped_column(String(500))
+
+    delivery: Mapped[NotificationDelivery] = relationship(back_populates="attempt_history")
+
+
+class CommunicationPreference(TimestampMixin, Base):
+    __tablename__ = "communication_preferences"
+    __table_args__ = (
+        CheckConstraint("locale IN ('bn','en')", name="locale_allowed"),
+        CheckConstraint("revision > 0", name="revision_positive"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    locale: Mapped[str] = mapped_column(
+        String(2), default="bn", server_default=text("'bn'"), nullable=False
+    )
+    order_email: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    order_sms: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=text("true"), nullable=False
+    )
+    abandoned_cart_email: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    abandoned_cart_sms: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+
+class ConsentEvent(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "consent_events"
+    __table_args__ = (
+        CheckConstraint(
+            "subject_kind IN ('guest','user','newsletter')", name="subject_kind_allowed"
+        ),
+        CheckConstraint(
+            "purpose IN ('analytics','advertising','newsletter','abandoned_cart_email',"
+            "'abandoned_cart_sms')",
+            name="purpose_allowed",
+        ),
+        CheckConstraint("action IN ('grant','withdraw')", name="action_allowed"),
+        CheckConstraint("locale IN ('bn','en')", name="locale_allowed"),
+        Index("ix_consent_events_subject_purpose_created", "subject_hash", "purpose", "created_at"),
+        Index("ix_consent_events_created", "created_at"),
+    )
+
+    subject_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    purpose: Mapped[str] = mapped_column(String(40), nullable=False)
+    action: Mapped[str] = mapped_column(String(12), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    source: Mapped[str] = mapped_column(String(80), nullable=False)
+    locale: Mapped[str] = mapped_column(String(2), nullable=False)
+    ip_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    user_agent_hash: Mapped[str | None] = mapped_column(CHAR(64))
+
+
+class NewsletterSubscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "newsletter_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("email_hash", name="uq_newsletter_subscriptions_email_hash"),
+        CheckConstraint("locale IN ('bn','en')", name="locale_allowed"),
+        CheckConstraint(
+            "status IN ('pending','subscribed','unsubscribed','suppressed')",
+            name="status_allowed",
+        ),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint(
+            "num_nonnulls(email_key_id, email_nonce, email_ciphertext) IN (0,3)",
+            name="email_envelope_complete",
+        ),
+        CheckConstraint(
+            "confirmation_expires_at IS NULL OR confirmation_token_hash IS NOT NULL",
+            name="confirmation_expiry_requires_token",
+        ),
+        Index("ix_newsletter_subscriptions_status", "status", "updated_at"),
+        Index("ix_newsletter_subscriptions_token_expiry", "confirmation_expires_at"),
+        Index("ix_newsletter_subscriptions_user", "user_id"),
+    )
+
+    email_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    email_key_id: Mapped[str | None] = mapped_column(String(64))
+    email_nonce: Mapped[bytes | None] = mapped_column(LargeBinary)
+    email_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    masked_email: Mapped[str] = mapped_column(String(340), nullable=False)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    locale: Mapped[str] = mapped_column(String(2), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), default="pending", server_default=text("'pending'"), nullable=False
+    )
+    confirmation_token_hash: Mapped[str | None] = mapped_column(CHAR(64))
+    confirmation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    policy_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    source: Mapped[str] = mapped_column(String(80), nullable=False)
+    consented_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suppressed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+
+class CartReminderState(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "cart_reminder_state"
+    __table_args__ = (
+        UniqueConstraint("cart_id", "channel", name="uq_cart_reminder_state_cart_channel"),
+        CheckConstraint("channel IN ('email','sms')", name="channel_allowed"),
+        CheckConstraint("reminder_count >= 0", name="reminder_count_nonnegative"),
+        Index("ix_cart_reminder_state_eligibility", "next_eligible_at", "cart_id"),
+        Index("ix_cart_reminder_state_delivery", "last_delivery_id"),
+    )
+
+    cart_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("carts.id", ondelete="CASCADE"), nullable=False
+    )
+    channel: Mapped[str] = mapped_column(String(12), nullable=False)
+    cart_version_queued: Mapped[int | None] = mapped_column(Integer)
+    cart_version_sent: Mapped[int | None] = mapped_column(Integer)
+    reminder_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    next_eligible_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_delivery_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("notification_deliveries.id", ondelete="SET NULL")
+    )
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suppression_reason: Mapped[str | None] = mapped_column(String(120))
+
+
+class AnalyticsEvent(TimestampMixin, Base):
+    __tablename__ = "analytics_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_name IN ('view_item','add_to_cart','begin_checkout','purchase')",
+            name="event_name_allowed",
+        ),
+        CheckConstraint("source IN ('browser','server')", name="source_allowed"),
+        CheckConstraint(
+            "capi_status IN ('not_applicable','queued','processing','retry','accepted',"
+            "'dead_letter','suppressed')",
+            name="capi_status_allowed",
+        ),
+        CheckConstraint(
+            "capi_attempts >= 0 AND capi_attempts <= capi_max_attempts", name="capi_attempts_range"
+        ),
+        CheckConstraint("revision > 0", name="revision_positive"),
+        CheckConstraint(
+            "num_nonnulls(context_key_id, context_nonce, context_ciphertext) IN (0,3)",
+            name="context_envelope_complete",
+        ),
+        Index(
+            "uq_analytics_events_purchase_order",
+            "order_id",
+            unique=True,
+            postgresql_where=text("event_name = 'purchase'"),
+        ),
+        Index(
+            "ix_analytics_events_capi_claim",
+            "capi_status",
+            "capi_next_attempt_at",
+            "created_at",
+            postgresql_where=text("capi_status IN ('queued','retry','processing')"),
+        ),
+        Index("ix_analytics_events_context_expiry", "context_expires_at"),
+    )
+
+    event_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid7)
+    event_name: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    order_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL")
+    )
+    product_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL")
+    )
+    variant_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL")
+    )
+    commerce_data: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    consent_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    advertising_consent_event_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("consent_events.id", ondelete="RESTRICT")
+    )
+    email_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    phone_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    context_key_id: Mapped[str | None] = mapped_column(String(64))
+    context_nonce: Mapped[bytes | None] = mapped_column(LargeBinary)
+    context_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    context_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    capi_status: Mapped[str] = mapped_column(
+        String(24),
+        default="not_applicable",
+        server_default=text("'not_applicable'"),
+        nullable=False,
+    )
+    capi_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    capi_max_attempts: Mapped[int] = mapped_column(
+        Integer, default=5, server_default=text("5"), nullable=False
+    )
+    capi_next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    capi_leased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    capi_lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    capi_lease_owner: Mapped[str | None] = mapped_column(String(128))
+    provider_event_id: Mapped[str | None] = mapped_column(String(255))
+    capi_last_error: Mapped[str | None] = mapped_column(String(500))
+    capi_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    capi_terminal_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(
+        Integer, default=1, server_default=text("1"), nullable=False
+    )
+
+
+class AssistantSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "assistant_sessions"
+    __table_args__ = (
+        CheckConstraint("owner_kind IN ('guest','user')", name="owner_kind_allowed"),
+        CheckConstraint("locale IN ('bn','en')", name="locale_allowed"),
+        CheckConstraint("status IN ('active','deleted','expired')", name="status_allowed"),
+        CheckConstraint("message_count >= 0", name="message_count_nonnegative"),
+        CheckConstraint(
+            "input_tokens >= 0 AND output_tokens >= 0", name="token_counts_nonnegative"
+        ),
+        CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        Index("ix_assistant_sessions_owner_created", "owner_hash", "created_at"),
+        Index("ix_assistant_sessions_cleanup", "delete_after"),
+    )
+
+    owner_kind: Mapped[str] = mapped_column(String(12), nullable=False)
+    owner_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    locale: Mapped[str] = mapped_column(String(2), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), default="active", server_default=text("'active'"), nullable=False
+    )
+    disclosure_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    message_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    input_tokens: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    output_tokens: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    handoff_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delete_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    messages: Mapped[list[AssistantMessage]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+    order_grants: Mapped[list[AssistantOrderGrant]] = relationship(
+        back_populates="session", cascade="all, delete-orphan"
+    )
+
+
+class AssistantMessage(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "assistant_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id", "client_message_id", name="uq_assistant_messages_session_client"
+        ),
+        CheckConstraint("role IN ('user','assistant')", name="role_allowed"),
+        CheckConstraint(
+            "num_nonnulls(body_key_id, body_nonce, body_ciphertext) = 3",
+            name="body_envelope_complete",
+        ),
+        Index("ix_assistant_messages_session_created", "session_id", "created_at"),
+    )
+
+    session_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("assistant_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    client_message_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    role: Mapped[str] = mapped_column(String(12), nullable=False)
+    body_key_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    body_ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    citations: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    actions: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+
+    session: Mapped[AssistantSession] = relationship(back_populates="messages")
+
+
+class AssistantRequestIdempotency(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "assistant_request_idempotency"
+    __table_args__ = (
+        UniqueConstraint("session_id", "key_hash", name="uq_assistant_request_idempotency_key"),
+        UniqueConstraint(
+            "session_id",
+            "client_message_id",
+            name="uq_assistant_request_idempotency_client_message",
+        ),
+        CheckConstraint("state IN ('processing','completed')", name="state_allowed"),
+        CheckConstraint("expires_at > created_at", name="expiry_after_creation"),
+        Index("ix_assistant_request_idempotency_expiry", "expires_at"),
+        Index(
+            "ix_assistant_request_idempotency_lease",
+            "state",
+            "lease_expires_at",
+            postgresql_where=text("state = 'processing'"),
+        ),
+    )
+
+    session_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("assistant_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    key_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    key_hash_key_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    request_hash_key_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    client_message_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    lease_owner: Mapped[str] = mapped_column(String(64), nullable=False)
+    lease_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    response_message_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("assistant_messages.id", ondelete="SET NULL"),
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AssistantOrderGrant(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    __tablename__ = "assistant_order_grants"
+    __table_args__ = (
+        UniqueConstraint("session_id", "order_id", name="uq_assistant_order_grants_session_order"),
+        CheckConstraint("expires_at > verified_at", name="expiry_after_verification"),
+        Index("ix_assistant_order_grants_expiry", "expires_at"),
+    )
+
+    session_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("assistant_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    order_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
+    )
+    phone_hash: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    verified_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    session: Mapped[AssistantSession] = relationship(back_populates="order_grants")
+
+
 class AuditLog(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "audit_logs"
     __table_args__ = (

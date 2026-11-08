@@ -63,7 +63,7 @@ _SETTING_MODELS: dict[str, tuple[str, type[BaseModel], int]] = {
     "shipping": ("shipping_rules", ShippingSettings, 3),
     "payment_methods": ("payment_methods", PaymentMethodSettings, 1),
     "social_links": ("social_links", SocialLinkSettings, 1),
-    "analytics": ("analytics", AnalyticsSettings, 1),
+    "analytics": ("analytics", AnalyticsSettings, 2),
     "announcement": ("announcement", AnnouncementSettings, 1),
     "cod_risk": ("cod_risk", CODRiskSettings, 3),
     "storefront_toggles": ("storefront_toggles", StorefrontToggleSettings, 1),

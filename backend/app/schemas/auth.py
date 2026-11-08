@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import EmailStr, Field, StringConstraints, field_validator
@@ -32,6 +32,7 @@ class SessionResponse(APIModel):
 
 class OTPRequest(APIModel):
     phone: BangladeshPhone
+    locale: Literal["bn", "en"] = "bn"
 
 
 class OTPRequestResponse(APIModel):

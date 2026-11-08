@@ -1905,7 +1905,60 @@ async def seed_content(session: AsyncSession) -> None:
         {
             "id": seed_id("site_setting", "analytics"),
             "key": "analytics",
-            "value": {"google_analytics_id": None, "meta_pixel_id": None},
+            "value": {
+                "google_analytics_id": None,
+                "meta_pixel_id": None,
+                "consent_policy_version": "2026-11-07-v1",
+            },
+        },
+        {
+            "id": seed_id("site_setting", "assistant"),
+            "key": "assistant",
+            "value": {
+                "enabled": False,
+                "name_bn": "বজ্র সহকারী",
+                "name_en": "Bojro Assistant",
+                "disclosure_version": "2026-11-07-v1",
+                "disclosure_bn": "এটি একটি এআই সহকারী। গুরুত্বপূর্ণ তথ্য যাচাই করুন।",
+                "disclosure_en": "This is an AI assistant. Verify important information.",
+            },
+        },
+        {
+            "id": seed_id("site_setting", "engagement_providers"),
+            "key": "engagement_providers",
+            "value": {
+                "email": "disabled",
+                "sms": "disabled",
+                "meta_capi": "disabled",
+                "assistant": "disabled",
+            },
+        },
+        {
+            "id": seed_id("site_setting", "engagement"),
+            "key": "engagement",
+            "value": {
+                "newsletter_enabled": True,
+                "consent_policy_version": "2026-11-07-v1",
+            },
+        },
+        {
+            "id": seed_id("site_setting", "_e2e_phase7_engagement_fixtures"),
+            "key": "_e2e_phase7_engagement_fixtures",
+            "value": {
+                "semantics": "token_gated_nonproduction_reset_only",
+                "consent_pregranted": False,
+                "scenarios": [
+                    "notification_lifecycle_cod",
+                    "notification_lifecycle_online",
+                    "otp_compensation",
+                    "newsletter_double_opt_in",
+                    "cart_reminder_quiet_hours",
+                    "analytics_dedupe",
+                    "assistant_grounding",
+                    "assistant_order_verification",
+                    "assistant_retention",
+                ],
+            },
         },
         {
             "id": seed_id("site_setting", "announcement"),
@@ -2160,6 +2213,117 @@ async def upgrade_demo_seed_v5_to_v6(
     marker.value = {**marker.value, "version": 6, "upgraded_at_v6": upgraded_at.isoformat()}
 
 
+async def upgrade_demo_seed_v6_to_v7(
+    session: AsyncSession, marker: SiteSetting, upgraded_at: datetime
+) -> None:
+    """Add only safe Phase 7 defaults; never grant consent or enable a real provider."""
+
+    defaults: dict[str, dict[str, object]] = {
+        "analytics": {
+            "google_analytics_id": None,
+            "meta_pixel_id": None,
+            "consent_policy_version": "2026-11-07-v1",
+        },
+        "whatsapp": {
+            "enabled": False,
+            "phone": "+8801700000000",
+            "message_bn": "বজ্র সাপোর্টে স্বাগতম",
+            "message_en": "Welcome to Bojro support",
+        },
+        "assistant": {
+            "enabled": False,
+            "name_bn": "বজ্র সহকারী",
+            "name_en": "Bojro Assistant",
+            "disclosure_version": "2026-11-07-v1",
+            "disclosure_bn": "এটি একটি এআই সহকারী। গুরুত্বপূর্ণ তথ্য যাচাই করুন।",
+            "disclosure_en": "This is an AI assistant. Verify important information.",
+        },
+        "engagement_providers": {
+            "email": "disabled",
+            "sms": "disabled",
+            "meta_capi": "disabled",
+            "assistant": "disabled",
+        },
+        "engagement": {
+            "newsletter_enabled": True,
+            "consent_policy_version": "2026-11-07-v1",
+        },
+        "_e2e_phase7_engagement_fixtures": {
+            "semantics": "token_gated_nonproduction_reset_only",
+            "consent_pregranted": False,
+            "scenarios": [
+                "notification_lifecycle_cod",
+                "notification_lifecycle_online",
+                "otp_compensation",
+                "newsletter_double_opt_in",
+                "cart_reminder_quiet_hours",
+                "analytics_dedupe",
+                "assistant_grounding",
+                "assistant_order_verification",
+                "assistant_retention",
+            ],
+        },
+    }
+    existing = {
+        setting.key: setting
+        for setting in await session.scalars(
+            select(SiteSetting).where(SiteSetting.key.in_(defaults))
+        )
+    }
+    for key, value in defaults.items():
+        setting = existing.get(key)
+        if setting is None:
+            session.add(SiteSetting(id=seed_id("site_setting_v7", key), key=key, value=value))
+        else:
+            setting.value = merge_missing(setting.value, value)
+    marker.value = {**marker.value, "version": 7, "upgraded_at_v7": upgraded_at.isoformat()}
+
+
+async def ensure_phase7_hardening_seed_metadata(session: AsyncSession) -> None:
+    # The seed session disables autoflush; persist any v6→v7 inserts before checking them.
+    await session.flush()
+    engagement = await session.scalar(select(SiteSetting).where(SiteSetting.key == "engagement"))
+    if engagement is None:
+        session.add(
+            SiteSetting(
+                id=seed_id("site_setting_v7", "engagement"),
+                key="engagement",
+                value={
+                    "newsletter_enabled": True,
+                    "consent_policy_version": "2026-11-07-v1",
+                },
+            )
+        )
+    setting = await session.scalar(
+        select(SiteSetting).where(SiteSetting.key == "_e2e_phase7_engagement_fixtures")
+    )
+    value = {
+        "semantics": "token_gated_test_only_fixture_scoped_reset",
+        "consent_pregranted": False,
+        "scenarios": [
+            "notification_lifecycle_cod",
+            "notification_lifecycle_online",
+            "otp_compensation",
+            "newsletter_double_opt_in",
+            "cart_reminder_quiet_hours",
+            "analytics_dedupe",
+            "assistant_grounding",
+            "assistant_order_verification",
+            "assistant_retention",
+        ],
+    }
+    if setting is None:
+        session.add(
+            SiteSetting(
+                id=seed_id("site_setting_v7", "_e2e_phase7_engagement_fixtures"),
+                key="_e2e_phase7_engagement_fixtures",
+                value=value,
+            )
+        )
+    else:
+        setting.value = value
+
+
 async def seed_admin(session: AsyncSession, settings: Settings) -> bool:
     if settings.seed_admin_email is None or settings.seed_admin_password is None:
         return False
@@ -2264,12 +2428,12 @@ async def seed_database() -> None:
                     id=uuid7(),
                     key=_DEMO_SEED_KEY,
                     value={
-                        "version": 6,
+                        "version": 7,
                         "geo_coverage_as_of": dataset.metadata.coverage_as_of,
                     },
                 )
                 session.add(marker)
-            elif (marker_version := marker.value.get("version")) in {1, 2, 3, 4, 5}:
+            elif (marker_version := marker.value.get("version")) in {1, 2, 3, 4, 5, 6}:
                 demo_upgraded = True
                 if marker_version == 1:
                     await upgrade_demo_seed_v1_to_v2(session, marker, seeded_at)
@@ -2285,8 +2449,12 @@ async def seed_database() -> None:
                     marker_version = 5
                 if marker_version == 5:
                     await upgrade_demo_seed_v5_to_v6(session, marker, seeded_at)
-            elif marker.value.get("version") != 6:
+                    marker_version = 6
+                if marker_version == 6:
+                    await upgrade_demo_seed_v6_to_v7(session, marker, seeded_at)
+            elif marker.value.get("version") != 7:
                 raise RuntimeError("unsupported demo seed marker version")
+            await ensure_phase7_hardening_seed_metadata(session)
             if settings.storage_provider == "mock":
                 await seed_review_e2e_fixture(session, seeded_at)
             admin_configured = await seed_admin(session, settings)

@@ -31,6 +31,7 @@ from app.schemas.auth import (
     SessionResponse,
 )
 from app.services.auth import AuthService
+from app.services.worker_wakeup import wake_worker
 
 router = APIRouter(prefix="/auth", tags=["auth"], responses=PHASE3_ERROR_RESPONSES)
 Service = Annotated[AuthService, Depends(get_auth_service)]
@@ -68,7 +69,8 @@ async def request_otp(
     service: Service,
 ) -> OTPRequestResponse:
     del identity
-    challenge = await service.request_otp(payload.phone, client_ip(request))
+    challenge = await service.request_otp(payload.phone, client_ip(request), payload.locale)
+    await wake_worker(request.app.state.settings, "deliver_notifications")
     return OTPRequestResponse(
         challenge_id=challenge.challenge_id,
         expires_in_seconds=challenge.expires_in_seconds,

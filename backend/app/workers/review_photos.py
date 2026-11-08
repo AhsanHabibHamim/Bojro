@@ -12,14 +12,24 @@ from arq.connections import RedisSettings
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.db.models import Shipment
+from app.core.engagement_crypto import EngagementCrypto
+from app.db.models import NewsletterSubscription, Shipment
 from app.db.session import create_engine, create_session_factory
-from app.providers import create_courier_providers, create_payment_providers
+from app.providers import (
+    create_courier_providers,
+    create_meta_capi_provider,
+    create_notification_providers,
+    create_payment_providers,
+)
 from app.repositories.admin import AdminRepository
 from app.repositories.providers import ProviderRepository
 from app.services.admin_orders import AdminOrderService
+from app.services.analytics import CAPIDeliveryService
+from app.services.assistant import AssistantCleanupService
 from app.services.courier import create_courier_gateways
+from app.services.engagement import CartReminderService
 from app.services.media_cleanup import MediaCleanupService
+from app.services.notifications import NotificationDeliveryService
 from app.services.payments import PaymentService
 from app.services.rate_limit import RateLimiter
 from app.services.revalidation import OutboxDeliveryService, create_revalidation_sender
@@ -39,6 +49,9 @@ async def startup(ctx: dict[str, Any]) -> None:
     ctx["payment_providers"] = create_payment_providers(settings)
     ctx["courier_providers"] = create_courier_providers(settings)
     ctx["courier_gateways"] = create_courier_gateways(settings)
+    ctx["engagement_crypto"] = EngagementCrypto(settings)
+    ctx["notification_providers"] = create_notification_providers(settings)
+    ctx["meta_capi_provider"] = create_meta_capi_provider(settings)
     await _heartbeat(ctx)
 
 
@@ -62,6 +75,86 @@ async def cleanup_media_assets(ctx: dict[str, Any]) -> dict[str, int]:
         ctx["storage_provider"],
     )
     return asdict(await service.run_once())
+
+
+async def deliver_notifications(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    service = NotificationDeliveryService(
+        ctx["session_factory"],
+        ctx["notification_providers"],
+        ctx["engagement_crypto"],
+        ctx["settings"],
+    )
+    return asdict(await service.run_once(worker_id=str(ctx.get("job_id", "arq-notifications"))))
+
+
+async def schedule_cart_reminders(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    service = CartReminderService(ctx["session_factory"], ctx["engagement_crypto"], ctx["settings"])
+    return asdict(await service.run_once())
+
+
+async def deliver_meta_capi(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    service = CAPIDeliveryService(
+        ctx["session_factory"],
+        ctx["meta_capi_provider"],
+        ctx["engagement_crypto"],
+        ctx["settings"],
+    )
+    return asdict(await service.run_once(worker_id=str(ctx.get("job_id", "arq-meta-capi"))))
+
+
+async def cleanup_assistant_retention(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    return asdict(await AssistantCleanupService(ctx["session_factory"]).run_once())
+
+
+async def cleanup_engagement_retention(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    notifications = NotificationDeliveryService(
+        ctx["session_factory"],
+        ctx["notification_providers"],
+        ctx["engagement_crypto"],
+        ctx["settings"],
+    )
+    capi = CAPIDeliveryService(
+        ctx["session_factory"],
+        ctx["meta_capi_provider"],
+        ctx["engagement_crypto"],
+        ctx["settings"],
+    )
+    notification_result = await notifications.cleanup()
+    return {
+        **asdict(notification_result),
+        "analytics_context_erased": await capi.cleanup(),
+    }
+
+
+async def expire_newsletter_confirmations(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    now = datetime.now(UTC)
+    expired = 0
+    async with ctx["session_factory"]() as session, session.begin():
+        subscriptions = list(
+            await session.scalars(
+                select(NewsletterSubscription)
+                .where(
+                    NewsletterSubscription.status == "pending",
+                    NewsletterSubscription.confirmation_expires_at <= now,
+                )
+                .with_for_update(skip_locked=True)
+            )
+        )
+        for subscription in subscriptions:
+            subscription.confirmation_token_hash = None
+            subscription.confirmation_expires_at = None
+            subscription.email_key_id = None
+            subscription.email_nonce = None
+            subscription.email_ciphertext = None
+            subscription.revision += 1
+            expired += 1
+    return {"expired": expired}
 
 
 async def deliver_outbox(ctx: dict[str, Any]) -> dict[str, int]:
@@ -182,6 +275,7 @@ async def _reconcile_shipment(ctx: dict[str, Any], shipment_id: UUID) -> None:
             ctx["courier_providers"],
             ctx["settings"],
             ctx["payment_providers"],
+            ctx["engagement_crypto"],
         )
         await service.reconcile_shipment_state(shipment_id, None)
 
@@ -203,12 +297,24 @@ class WorkerSettings:
     functions: ClassVar[list[object]] = [
         cleanup_review_photos,
         cleanup_media_assets,
+        deliver_notifications,
+        schedule_cart_reminders,
+        deliver_meta_capi,
+        cleanup_assistant_retention,
+        cleanup_engagement_retention,
+        expire_newsletter_confirmations,
         deliver_outbox,
         reconcile_shipments,
     ]
     cron_jobs: ClassVar[list[object]] = [
         cron(cleanup_review_photos, minute=set(range(0, 60, 5))),
         cron(cleanup_media_assets, minute=set(range(2, 60, 5))),
+        cron(deliver_notifications, minute=set(range(60))),
+        cron(schedule_cart_reminders, minute={7}),
+        cron(deliver_meta_capi, minute=set(range(60))),
+        cron(expire_newsletter_confirmations, minute={17}),
+        cron(cleanup_assistant_retention, hour={2}, minute={20}),
+        cron(cleanup_engagement_retention, hour={2}, minute={40}),
         cron(deliver_outbox, minute=set(range(60))),
         cron(reconcile_shipments, minute=set(range(0, 60, 10))),
     ]
