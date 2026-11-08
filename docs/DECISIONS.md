@@ -113,3 +113,21 @@
 **Decision:** Reject unauthenticated webhooks before insertion; store verified raw-body digests and provider event IDs; process normalized events asynchronously under resource locks.
 
 **Reason:** Browser callbacks and unverified JSON cannot establish payment or delivery truth. Durable verified events support replay, ordering, reconciliation and dead-letter operations safely.
+
+## 2026-11-07: Encrypted specialized engagement outboxes
+
+**Decision:** Store encrypted recipient/content/context in notification, analytics and assistant-specific tables with versioned AES-GCM keys and domain-separated HMAC lookup keyrings; keep Redis as wake/rate-limit infrastructure only.
+
+**Reason:** PostgreSQL provides durable retry/lease/dead-letter state while key rotation and terminal erasure limit the impact of database access. OTP challenges are atomic TTL-bound Redis records whose recoverable phone value is encrypted.
+
+## 2026-11-07: Consent before optional telemetry
+
+**Decision:** GA4 loads only after analytics consent; Pixel and CAPI require advertising consent. Purchase event IDs are generated transactionally by the server and reused across browser/server Meta delivery.
+
+**Reason:** No optional analytics request or identifier should leave the browser/server before informed consent, and shared event IDs prevent browser/CAPI double counting.
+
+## 2026-11-07: Grounded assistant tools only
+
+**Decision:** The model receives a fixed prompt plus bounded, redacted outputs from allowlisted product/policy/order tools; it cannot select arbitrary tools, browse URLs, run SQL or receive raw order/phone/address data.
+
+**Reason:** Store content is untrusted retrieval data, and sincere identity questions/order checks require deterministic server behavior rather than unconstrained model claims.

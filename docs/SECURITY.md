@@ -25,6 +25,10 @@
 - Online payment redirects are API-supplied and allowlisted; Bojro never collects provider card/PIN/OTP credentials.
 - Webhooks require provider verification or official validation calls before storage/processing, and provider payloads remain database-only/redacted.
 - Unknown payment/refund/courier outcomes are reconciled before retry to prevent duplicate external effects.
+- Engagement recipient/content/context uses versioned AES-GCM; indexes and consent subjects use keyed domain-separated HMAC values.
+- Optional analytics is consent-gated; CAPI rechecks current consent before dispatch and erases encrypted transport context and identifiers on terminal handling.
+- Newsletter tokens are single-use POST credentials carried in URL fragments, stripped before network/analytics and never placed in query strings.
+- Assistant text is redacted before encryption/provider calls, retained for 30 days, rate limited, grounded through fixed read-only tools, and explicitly disclosed as AI.
 
 ## Pending Feature Reviews
 

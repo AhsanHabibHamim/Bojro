@@ -80,3 +80,13 @@ Admin mutations append redacted audit records and durable revalidation/outbox ro
 - Admin provider capabilities, refunds, reconcile/cancel commands, shipment attempts and webhook dead-letter operations require ETags plus idempotency keys.
 
 Payment attempts, refunds, shipments and order aggregates are separate state machines. `unknown` outcomes cannot be blindly retried; workers reconcile them by stable merchant reference. Customer responses never expose provider credentials, raw payloads or internal transaction identifiers.
+
+## Engagement And Assistant
+
+- Consent and communication-preference endpoints use versioned policy evidence, strong ETags and deny optional analytics/marketing by default.
+- Newsletter subscription is enumeration-safe double opt-in; confirmation/unsubscribe tokens are single-use POST credentials and remain outside URL query strings.
+- Analytics intake accepts allowlisted IDs/intents only and resolves authoritative commerce values server-side. Purchase events are created atomically with orders and reuse one event UUID for browser Meta and CAPI deduplication.
+- Assistant sessions require explicit AI disclosure, scoped ownership, idempotent client message IDs, bounded rates and encrypted redacted retention. Product/policy/order responses use server-side allowlisted tools and structured citations.
+- Admin engagement APIs expose masked delivery/subscription/session data, provider capabilities and safe retry/cancel operations; credentials and raw recipients are never returned.
+
+Notification, CAPI, cart-reminder and assistant-cleanup jobs use leased `SKIP LOCKED` workers with terminal dead-letter/suppression states. Order verification requires number plus phone and returns only redacted customer-safe status.

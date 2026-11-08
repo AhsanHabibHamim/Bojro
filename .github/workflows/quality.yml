@@ -114,6 +114,8 @@ jobs:
       E2E_ADMIN_EMAIL: admin-e2e@bojro.com.bd
       E2E_ADMIN_PASSWORD: "E2E-only-admin-password-47!"
       E2E_ADMIN_ORDER_NUMBER: BJ-2099-900002
+      APP_ENV: test
+      PHASE7_E2E_ENABLED: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -138,11 +140,11 @@ jobs:
 
       - name: Audit mobile performance
         run: |
-          for attempt in 1 2; do
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="home-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="product-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
+          for attempt in 1 2 3; do
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="home-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="product-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
           done
-          node -e "for (const route of ['home','product']) { const scores=[1,2].map(run=>require('./'+route+'-lighthouse-'+run+'.json').categories.performance.score); const score=Math.max(...scores); if (score < 0.9) throw new Error(route+' performance scores '+scores.join(',')+' are below 0.9'); console.log(route, scores, 'accepted', score); }"
+          node -e "for (const route of ['home','product']) { const reports=[1,2,3].map(run=>require('./'+route+'-lighthouse-'+run+'.json').categories); const performance=reports.map(r=>r.performance.score).sort(); const median=performance[1]; const accessibility=Math.min(...reports.map(r=>r.accessibility.score)); if (median < 0.9) throw new Error(route+' median performance '+median+' from '+performance.join(',')+' is below 0.9'); if (accessibility < 0.95) throw new Error(route+' accessibility '+accessibility+' is below 0.95'); console.log(route,{performance,median,accessibility}); }"
 
       - name: Install browser test dependencies
         run: |
@@ -160,8 +162,12 @@ jobs:
           E2E_ADMIN_ORDER_NUMBER: ${{ env.E2E_ADMIN_ORDER_NUMBER }}
           NEXT_PUBLIC_E2E_STORAGE_MOCK: "1"
           NEXT_PUBLIC_E2E_PROVIDER_MOCK: "1"
+          NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK: "1"
           NEXT_PUBLIC_E2E_SEED_RESET_URL: http://localhost:8000/api/v1/e2e/phase6/reset
           PHASE6_E2E_RESET_TOKEN: local-phase6-e2e-reset-token
+          NEXT_PUBLIC_E2E_PHASE7_RESET_URL: http://localhost:8000/api/v1/e2e/phase7/reset
+          PHASE7_E2E_RESET_TOKEN: local-phase7-e2e-reset-token
+          E2E_REVALIDATION_SECRET: local-only-change-me-revalidation-secret
         run: pnpm --filter @bojro/frontend test:e2e
 
       - name: Upload Playwright report on failure

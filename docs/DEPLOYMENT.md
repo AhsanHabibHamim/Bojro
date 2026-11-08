@@ -30,3 +30,5 @@ Run a separate Railway worker service with `arq app.workers.review_photos.Worker
 Use `backend/scripts/bootstrap_admin.py` after migrations for an existing production database. It provisions only one environment-supplied admin and required system defaults; it never loads the demo catalog or rewrites an existing admin password.
 
 Configure stable public HTTPS API/storefront callback origins before enabling any provider. Each payment/courier has an independent `disabled|mock|sandbox|live` mode; production rejects mock/sandbox and incomplete credentials. Follow `docs/PROVIDERS.md` for the evidence and activation gate. Monitor unknown attempts, reconciliation lag, verification failures, refund errors, shipment lag and dead letters.
+
+Phase 7 production requires explicit engagement AES/HMAC/unsubscribe keyrings, a real idempotent SMS provider for OTP/lifecycle traffic, an approved email provider, current consent policy version, worker heartbeat readiness and retention jobs. Meta CAPI requires a bound Pixel/token; the assistant requires an approved zero-retention/DPA configuration. Mock engagement providers and the E2E reset endpoint are rejected outside local/CI.

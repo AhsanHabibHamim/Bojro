@@ -23,6 +23,8 @@ Redis supports rate limits, OTPs, cart sessions, catalog caching, and ARQ. Devel
 
 Provider commands persist an attempt/refund/shipment intent before external I/O. Network calls happen outside database locks; unknown outcomes are reconciled before retry. Verified webhook events and durable outbox jobs drive idempotent state-machine updates under row locks.
 
+Engagement PII uses versioned AES-GCM envelopes and domain-separated keyed lookup hashes. Notification/CAPI/assistant work is stored as specialized encrypted outboxes; Redis wakeups improve latency but PostgreSQL sweeps provide correctness. Consent is rechecked immediately before marketing/CAPI delivery.
+
 ## Security
 
 Authentication will use short access JWTs and rotating refresh tokens in `httpOnly`, `Secure`, `SameSite=Lax` cookies with a CSRF token for mutations. Passwords use Argon2id. CORS is allowlisted, request IDs are returned, logs are structured, and secrets are environment-only.

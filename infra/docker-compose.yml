@@ -37,7 +37,7 @@ services:
       context: ..
       dockerfile: infra/backend.Dockerfile
     environment:
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-development}
       APP_SECRET_KEY: ${APP_SECRET_KEY:-local-only-change-me-at-least-32-characters}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-jwt-secret-change-me-at-least-32-characters}
       ADMIN_JWT_SECRET_KEY: ${ADMIN_JWT_SECRET_KEY:-local-admin-jwt-secret-change-me-at-least-32-characters}
@@ -63,6 +63,27 @@ services:
       REDX_MODE: ${REDX_MODE:-mock}
       PROVIDER_MOCK_SIGNING_SECRET: ${PROVIDER_MOCK_SIGNING_SECRET:-local-provider-mock-signing-secret-32-characters}
       PHASE6_E2E_RESET_TOKEN: ${PHASE6_E2E_RESET_TOKEN:-local-phase6-e2e-reset-token}
+      PHASE7_E2E_RESET_TOKEN: ${PHASE7_E2E_RESET_TOKEN:-local-phase7-e2e-reset-token}
+      ENGAGEMENT_PII_KEYRING: '${ENGAGEMENT_PII_KEYRING:-{"v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}'
+      ENGAGEMENT_PII_ACTIVE_KEY_ID: ${ENGAGEMENT_PII_ACTIVE_KEY_ID:-v1}
+      ENGAGEMENT_LOOKUP_HMAC_KEYRING: '${ENGAGEMENT_LOOKUP_HMAC_KEYRING:-{"v1":"local-engagement-lookup-hmac-key-32-characters"}}'
+      ENGAGEMENT_LOOKUP_HMAC_ACTIVE_KEY_ID: ${ENGAGEMENT_LOOKUP_HMAC_ACTIVE_KEY_ID:-v1}
+      UNSUBSCRIBE_SIGNING_KEYRING: '${UNSUBSCRIBE_SIGNING_KEYRING:-{"v1":"local-unsubscribe-signing-key-32-characters"}}'
+      UNSUBSCRIBE_SIGNING_ACTIVE_KEY_ID: ${UNSUBSCRIBE_SIGNING_ACTIVE_KEY_ID:-v1}
+      CONSENT_POLICY_VERSION: ${CONSENT_POLICY_VERSION:-2026-11-07-v1}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
+      SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+      META_CAPI_MODE: ${META_CAPI_MODE:-mock}
+      META_PIXEL_ID: ${META_PIXEL_ID:-123456789012345}
+      GOOGLE_ANALYTICS_ID: ${GOOGLE_ANALYTICS_ID:-G-E2EBOJRO}
+      ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-mock}
+      ASSISTANT_PUBLIC_ENABLED: ${ASSISTANT_PUBLIC_ENABLED:-true}
+      ASSISTANT_ZERO_RETENTION_APPROVED: ${ASSISTANT_ZERO_RETENTION_APPROVED:-true}
+      ASSISTANT_DPA_APPROVED: ${ASSISTANT_DPA_APPROVED:-true}
+      NEWSLETTER_ENABLED: ${NEWSLETTER_ENABLED:-true}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-true}
+      WHATSAPP_PHONE: ${WHATSAPP_PHONE:-+8801700000000}
+      PHASE7_E2E_ENABLED: ${PHASE7_E2E_ENABLED:-true}
       REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-bojro}:${POSTGRES_PASSWORD:-local-only-change-me}@postgres:5432/${POSTGRES_DB:-bojro}
@@ -94,7 +115,7 @@ services:
       context: ..
       dockerfile: infra/backend.Dockerfile
     environment:
-      APP_ENV: development
+      APP_ENV: ${APP_ENV:-development}
       APP_SECRET_KEY: ${APP_SECRET_KEY:-local-only-change-me-at-least-32-characters}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-jwt-secret-change-me-at-least-32-characters}
       ADMIN_JWT_SECRET_KEY: ${ADMIN_JWT_SECRET_KEY:-local-admin-jwt-secret-change-me-at-least-32-characters}
@@ -118,6 +139,27 @@ services:
       REDX_MODE: ${REDX_MODE:-mock}
       PROVIDER_MOCK_SIGNING_SECRET: ${PROVIDER_MOCK_SIGNING_SECRET:-local-provider-mock-signing-secret-32-characters}
       PHASE6_E2E_RESET_TOKEN: ${PHASE6_E2E_RESET_TOKEN:-local-phase6-e2e-reset-token}
+      PHASE7_E2E_RESET_TOKEN: ${PHASE7_E2E_RESET_TOKEN:-local-phase7-e2e-reset-token}
+      ENGAGEMENT_PII_KEYRING: '${ENGAGEMENT_PII_KEYRING:-{"v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}'
+      ENGAGEMENT_PII_ACTIVE_KEY_ID: ${ENGAGEMENT_PII_ACTIVE_KEY_ID:-v1}
+      ENGAGEMENT_LOOKUP_HMAC_KEYRING: '${ENGAGEMENT_LOOKUP_HMAC_KEYRING:-{"v1":"local-engagement-lookup-hmac-key-32-characters"}}'
+      ENGAGEMENT_LOOKUP_HMAC_ACTIVE_KEY_ID: ${ENGAGEMENT_LOOKUP_HMAC_ACTIVE_KEY_ID:-v1}
+      UNSUBSCRIBE_SIGNING_KEYRING: '${UNSUBSCRIBE_SIGNING_KEYRING:-{"v1":"local-unsubscribe-signing-key-32-characters"}}'
+      UNSUBSCRIBE_SIGNING_ACTIVE_KEY_ID: ${UNSUBSCRIBE_SIGNING_ACTIVE_KEY_ID:-v1}
+      CONSENT_POLICY_VERSION: ${CONSENT_POLICY_VERSION:-2026-11-07-v1}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
+      SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+      META_CAPI_MODE: ${META_CAPI_MODE:-mock}
+      META_PIXEL_ID: ${META_PIXEL_ID:-123456789012345}
+      GOOGLE_ANALYTICS_ID: ${GOOGLE_ANALYTICS_ID:-G-E2EBOJRO}
+      ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-mock}
+      ASSISTANT_PUBLIC_ENABLED: ${ASSISTANT_PUBLIC_ENABLED:-true}
+      ASSISTANT_ZERO_RETENTION_APPROVED: ${ASSISTANT_ZERO_RETENTION_APPROVED:-true}
+      ASSISTANT_DPA_APPROVED: ${ASSISTANT_DPA_APPROVED:-true}
+      NEWSLETTER_ENABLED: ${NEWSLETTER_ENABLED:-true}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-true}
+      WHATSAPP_PHONE: ${WHATSAPP_PHONE:-+8801700000000}
+      PHASE7_E2E_ENABLED: ${PHASE7_E2E_ENABLED:-true}
       REVALIDATION_URL: ${REVALIDATION_URL:-http://frontend:3000/api/revalidate}
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
     command: [".venv/bin/arq", "app.workers.review_photos.WorkerSettings"]
@@ -136,6 +178,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXT_PUBLIC_E2E_STORAGE_MOCK: ${NEXT_PUBLIC_E2E_STORAGE_MOCK:-1}
         NEXT_PUBLIC_E2E_PROVIDER_MOCK: ${NEXT_PUBLIC_E2E_PROVIDER_MOCK:-1}
+        NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK: ${NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK:-1}
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
@@ -143,6 +186,7 @@ services:
       REVALIDATION_SECRET: ${REVALIDATION_SECRET:-local-only-change-me-revalidation-secret}
       NEXT_PUBLIC_E2E_STORAGE_MOCK: ${NEXT_PUBLIC_E2E_STORAGE_MOCK:-1}
       NEXT_PUBLIC_E2E_PROVIDER_MOCK: ${NEXT_PUBLIC_E2E_PROVIDER_MOCK:-1}
+      NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK: ${NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK:-1}
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:

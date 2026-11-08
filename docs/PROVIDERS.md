@@ -69,3 +69,11 @@ This document records the authoritative source and activation gate for every Boj
 - Workers claim durable rows with leases and `FOR UPDATE SKIP LOCKED`; handlers remain idempotent under at-least-once execution.
 - Rotate one provider credential/certificate at a time, validate sandbox health, then retire the previous version according to provider instructions.
 - Never include raw credentials, signatures, tokens, full provider payloads or customer PII in logs, audit responses or support exports.
+
+## Engagement Providers
+
+- Resend adapter reference: [Send Email API](https://resend.com/docs/api-reference/emails/send-email). Delivery UUID is the idempotency reference.
+- SMTP is classified at-least-once: deterministic Message-ID reduces duplicates, but acceptance followed by connection loss is an `unknown` result requiring operator acknowledgement.
+- External SMS remains documentation/configuration gated. OTP and lifecycle production activation requires an idempotency-capable provider contract; generic mock mode is local/CI only.
+- Meta CAPI reference: [Conversions API](https://developers.facebook.com/docs/marketing-api/conversions-api/). Server delivery uses the same purchase event UUID as browser Pixel and never substitutes for GA4.
+- Assistant real-provider activation requires an approved zero-retention/DPA OpenAI-compatible endpoint; the deterministic mock is local/CI only.
