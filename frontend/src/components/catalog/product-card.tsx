@@ -163,6 +163,7 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
             error: labels.addError,
             chooseOptions: labels.chooseOptions,
           }}
+          productId={product.id}
           productHref={productHref}
           variantId={product.default_variant_id ?? null}
         />

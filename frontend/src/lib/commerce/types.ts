@@ -71,7 +71,6 @@ export type OrderReceipt = Omit<Schema["OrderReceipt"], "payment_method" | "paym
 };
 export type PlaceOrderResponse = Omit<Schema["OrderCreateResponse"], "order"> & {
   order: OrderReceipt;
-  payment_required: boolean;
 };
 
 export type TrackOrderRequest = Schema["TrackingRequest"];

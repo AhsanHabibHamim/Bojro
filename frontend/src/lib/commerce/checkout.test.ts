@@ -65,4 +65,16 @@ describe("checkout helpers", () => {
     clearSubmissionKey();
     expect(readSubmissionKey()).toBeNull();
   });
+
+  it("keeps provider attribution outside the order idempotency digest", async () => {
+    const first = await digestOrderRequest({
+      ...request,
+      analytics: { fbp: "fb.1.1700000000.123456789" },
+    });
+    const retry = await digestOrderRequest({
+      ...request,
+      analytics: { fbc: "fb.1.1700000000.clicktoken" },
+    });
+    expect(retry).toBe(first);
+  });
 });

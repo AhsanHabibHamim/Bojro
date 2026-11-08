@@ -27,7 +27,9 @@ export type SubmissionKey = {
 export const CHECKOUT_SUBMISSION_STORAGE_KEY = "bojro:checkout-submission:v1";
 
 export async function digestOrderRequest(request: PlaceOrderRequest): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(request));
+  const stableRequest = { ...request };
+  delete stableRequest.analytics;
+  const bytes = new TextEncoder().encode(JSON.stringify(stableRequest));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

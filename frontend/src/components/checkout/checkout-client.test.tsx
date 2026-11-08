@@ -44,6 +44,8 @@ const labels: CheckoutLabels = {
     phone: "Mobile number",
     email: "Email",
     emailOptional: "optional",
+    newsletterOptIn: "Send me news",
+    newsletterOptInDescription: "Optional and separate from this order.",
   },
   address: {
     title: "Address",
@@ -167,6 +169,19 @@ describe("CheckoutClient", () => {
     });
   });
 
+  it("keeps newsletter consent separate and unchecked during checkout", async () => {
+    const user = userEvent.setup();
+    renderWithCommerce(<CheckoutClient labels={labels} locale="en" />, {
+      api: createFakeCommerceApi(),
+    });
+    const optIn = screen.getByRole("checkbox", { name: /Send me news/ });
+    expect(optIn).not.toBeChecked();
+    expect(optIn).toBeDisabled();
+    await user.type(screen.getByLabelText("Email"), "buyer@example.com");
+    expect(optIn).toBeEnabled();
+    expect(optIn).not.toBeChecked();
+  });
+
   it("loads dependent geo fields and reuses the order key for a network retry", async () => {
     pushMock.mockReset();
     const cart = cartFixture();
@@ -178,7 +193,12 @@ describe("CheckoutClient", () => {
     const placeOrder = vi
       .fn()
       .mockRejectedValueOnce(new CommerceError("Offline", { code: "NETWORK_ERROR" }))
-      .mockResolvedValueOnce({ order: orderFixture(), replayed: false });
+      .mockResolvedValueOnce({
+        analytics: { purchase_event_id: null },
+        order: orderFixture(),
+        replayed: false,
+        payment_required: false,
+      });
     const api = createFakeCommerceApi({ quote, placeOrder }) as CommerceApi;
     const user = userEvent.setup();
     renderWithCommerce(<CheckoutClient labels={labels} locale="en" />, { api, cart });
@@ -347,6 +367,7 @@ describe("CheckoutClient", () => {
       placeOrder: vi.fn(async (_request, key) => {
         orderKeys.push(key);
         return {
+          analytics: { purchase_event_id: null },
           order: orderFixture({ payment_method: "sslcommerz" }),
           replayed: false,
           payment_required: true,

@@ -380,6 +380,25 @@ export type StorefrontShell = {
     email?: string | null;
     social_urls: string[];
   };
+  analytics: {
+    google_analytics_id: string | null;
+    meta_pixel_id: string | null;
+  };
+  whatsapp: {
+    enabled: boolean;
+    phone: string;
+    message: string;
+  };
+  engagement: {
+    consent_policy_version: string;
+    newsletter_enabled: boolean;
+    assistant: {
+      enabled: boolean;
+      display_name: string;
+      disclosure: string;
+      disclosure_version: string;
+    };
+  };
 };
 
 type SectionHeadingContent = {

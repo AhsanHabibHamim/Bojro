@@ -453,7 +453,7 @@ export function CommerceProvider({
       setPendingAction("auth");
       setErrors((current) => ({ ...current, auth: null }));
       try {
-        return await api.requestOtp({ phone });
+        return await api.requestOtp({ phone, locale });
       } catch (error) {
         const normalized = commerceError(error);
         setErrors((current) => ({ ...current, auth: normalized }));
@@ -462,7 +462,7 @@ export function CommerceProvider({
         setPendingAction(null);
       }
     },
-    [api],
+    [api, locale],
   );
   const verifyOtp = useCallback(
     (input: OtpVerification) => completeLogin(() => api.verifyOtp(input)),

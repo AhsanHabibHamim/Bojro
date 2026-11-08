@@ -21,6 +21,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { CartTotals, type CartTotalsLabels } from "@/components/commerce/cart-totals";
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { useEngagement } from "@/components/engagement/engagement-provider";
 import type { AppLocale } from "@/i18n/routing";
 import { loginHref } from "@/lib/account/return-to";
 import { CommerceError } from "@/lib/commerce/client";
@@ -44,6 +45,7 @@ import type {
 } from "@/lib/commerce/types";
 import { formatNumber } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
+import { engagementApi } from "@/lib/engagement/client";
 import {
   clearPaymentContinuation,
   clearPaymentInitiationKey,
@@ -92,6 +94,8 @@ export type CheckoutLabels = {
     phone: string;
     email: string;
     emailOptional: string;
+    newsletterOptIn: string;
+    newsletterOptInDescription: string;
   };
   address: {
     title: string;
@@ -309,6 +313,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: CheckoutLabels }) {
   const router = useRouter();
+  const { consent, policyVersion, track, trackPurchase } = useEngagement();
   const {
     cart,
     session,
@@ -325,6 +330,7 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
   } = useCommerce();
   const [form, setForm] = useState(initialForm);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [divisions, setDivisions] = useState<GeoOption[]>([]);
   const [districts, setDistricts] = useState<GeoOption[]>([]);
   const [upazilas, setUpazilas] = useState<GeoOption[]>([]);
@@ -448,6 +454,12 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       const nextQuote = await createQuote(detailsFromForm(form, paymentMethod));
       setQuoteNow(Date.now());
       setQuote(nextQuote);
+      void track({
+        event_name: "begin_checkout",
+        event_id: crypto.randomUUID(),
+        route_name: "checkout",
+        cart_id: cart?.cart_id ?? undefined,
+      });
     } catch (error) {
       const normalized =
         error instanceof CommerceError ? error : new CommerceError(labels.conflict.generic);
@@ -489,9 +501,13 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
 
   const submitOrder = async () => {
     if (!validQuote || Date.now() >= quoteExpiresAt || pendingAction === "checkout") return;
+    const attribution = consent.advertising
+      ? (await import("@/lib/engagement/analytics")).metaAttributionCookies()
+      : {};
     const request: PlaceOrderRequest = {
       ...detailsFromForm(form, paymentMethod),
       quote_token: validQuote.quote_token,
+      ...(attribution.fbp || attribution.fbc ? { analytics: attribution } : {}),
     };
     setConflict("");
     try {
@@ -504,6 +520,30 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       const response = await placeOrder(request, submissionKey.current.key);
       clearSubmissionKey();
       submissionKey.current = null;
+      const purchaseEventId = response.analytics.purchase_event_id;
+      if (purchaseEventId && /^[0-9a-f-]{36}$/i.test(purchaseEventId)) {
+        await trackPurchase({
+          event_id: purchaseEventId,
+          event_name: "purchase",
+          commerce: {
+            currency: "BDT",
+            value_poisha: response.order.grand_total_poisha,
+            item_ids: [...new Set((cart?.items ?? []).map((item) => item.product.id))],
+            quantity: (cart?.items ?? []).reduce((total, item) => total + item.quantity, 0),
+          },
+        });
+      }
+      if (newsletterOptIn && form.email.trim()) {
+        try {
+          await engagementApi.subscribeNewsletter({
+            email: form.email.trim(),
+            locale,
+            consent: true,
+            policy_version: policyVersion,
+            source: "checkout",
+          });
+        } catch {}
+      }
       if (response.payment_required && paymentMethod !== "cod") {
         await startOnlinePayment(response.order.number, paymentMethod);
       } else {
@@ -648,11 +688,31 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
                   className={fieldClass}
                   inputMode="email"
                   maxLength={254}
-                  onChange={(event) => edit("email", event.target.value)}
+                  onChange={(event) => {
+                    edit("email", event.target.value);
+                    if (!event.target.value.trim()) setNewsletterOptIn(false);
+                  }}
                   type="email"
                   value={form.email}
                 />
                 <FieldError id="email-error" message={formErrors.email} />
+              </label>
+              <label className="sm:col-span-2 flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl bg-soft-lavender/45 p-4">
+                <input
+                  checked={newsletterOptIn}
+                  className="mt-1 size-5 shrink-0 accent-brand-purple"
+                  disabled={!form.email.trim()}
+                  onChange={(event) => setNewsletterOptIn(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <strong className="block text-deep-indigo">
+                    {labels.contact.newsletterOptIn}
+                  </strong>
+                  <span className="mt-1 block text-sm text-muted">
+                    {labels.contact.newsletterOptInDescription}
+                  </span>
+                </span>
               </label>
             </div>
           </section>

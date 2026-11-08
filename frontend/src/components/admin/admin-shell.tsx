@@ -3,6 +3,7 @@
 import {
   Article,
   Buildings,
+  ChatCircleDots,
   ChartLineUp,
   ClipboardText,
   Gear,
@@ -71,6 +72,10 @@ export function AdminShell({ children, locale }: { children: ReactNode; locale: 
         { href: `${base}/content/pages`, label: t("pages"), icon: ClipboardText },
         { href: `${base}/content/blog`, label: t("blog"), icon: Article },
       ],
+    },
+    {
+      label: t("engagement"),
+      items: [{ href: `${base}/engagement`, label: t("engagement"), icon: ChatCircleDots }],
     },
     {
       label: t("system"),

@@ -491,6 +491,10 @@ export function mapShell(raw: ApiStorefrontShell, locale: AppLocale): Storefront
   const footer = object(raw.footer);
   const groups = array(footer.link_groups).map(object);
   const contact = object(raw.contact);
+  const rawShell = raw as unknown as JsonObject;
+  const settings = object(raw.settings);
+  const engagement = object(rawShell.engagement ?? settings.engagement);
+  const assistant = object(rawShell.assistant ?? settings.assistant ?? engagement.assistant);
   const enabledPayments = Object.entries(raw.payment_methods)
     .filter(([, enabled]) => enabled)
     .map(
@@ -511,6 +515,22 @@ export function mapShell(raw: ApiStorefrontShell, locale: AppLocale): Storefront
       href,
     }));
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bojro.com.bd";
+  const policyVersion = string(
+    engagement.consent_policy_version ??
+      settings.consent_policy_version ??
+      rawShell.consent_policy_version,
+    "2026-11-07-v1",
+  );
+  const localizedAssistantName = string(
+    assistant.display_name ?? assistant[`display_name_${locale}`] ?? assistant.name,
+    locale === "bn" ? "বজ্র সহায়ক" : "Bojro Assistant",
+  );
+  const localizedDisclosure = string(
+    assistant.disclosure ?? assistant[`disclosure_${locale}`],
+    locale === "bn"
+      ? "আমি বজ্রের এআই সহায়ক। আমার উত্তর ভুল হতে পারে, তাই গুরুত্বপূর্ণ তথ্য যাচাই করুন।"
+      : "I am Bojro's AI assistant. My answers can be wrong, so verify important details.",
+  );
 
   return {
     announcement: { text: raw.announcement.enabled ? raw.announcement.text : "" },
@@ -538,6 +558,26 @@ export function mapShell(raw: ApiStorefrontShell, locale: AppLocale): Storefront
       phone: string(contact.phone) || null,
       email: string(contact.email) || null,
       social_urls: socialLinks.map((item) => item.href),
+    },
+    analytics: {
+      google_analytics_id: raw.analytics?.google_analytics_id ?? null,
+      meta_pixel_id: raw.analytics?.meta_pixel_id ?? null,
+    },
+    whatsapp: {
+      enabled: raw.whatsapp?.enabled === true,
+      phone: raw.whatsapp?.phone ?? "",
+      message: raw.whatsapp?.message ?? "",
+    },
+    engagement: {
+      consent_policy_version: policyVersion,
+      newsletter_enabled:
+        engagement.newsletter_enabled !== false && settings.newsletter_enabled !== false,
+      assistant: {
+        enabled: assistant.enabled !== false,
+        display_name: localizedAssistantName,
+        disclosure: localizedDisclosure,
+        disclosure_version: string(assistant.disclosure_version, policyVersion),
+      },
     },
   };
 }

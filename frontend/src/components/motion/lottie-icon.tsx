@@ -12,7 +12,7 @@ import {
 } from "@phosphor-icons/react";
 import { useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 const LottiePlayer = dynamic(() => import("lottie-react").then((module) => module.Lottie), {
@@ -96,7 +96,8 @@ export function LottieIcon({ name, label, fallback, size = 32, className }: Lott
     return () => observer.disconnect();
   }, []);
 
-  const stableSize: CSSProperties = { height: size, width: size };
+  const stableSizeClass =
+    size <= 24 ? "size-6" : size <= 32 ? "size-8" : size === 42 ? "size-[42px]" : "size-11";
   const showAnimation = Boolean(asset && inView && !shouldReduceMotion);
   const playerReady = playerStatus.asset === asset && playerStatus.ready;
   const playerFailed = playerStatus.asset === asset && playerStatus.failed;
@@ -110,11 +111,11 @@ export function LottieIcon({ name, label, fallback, size = 32, className }: Lott
       role={label ? "img" : undefined}
       className={[
         "relative inline-flex shrink-0 items-center justify-center text-electric-violet",
+        stableSizeClass,
         className,
       ]
         .filter(Boolean)
         .join(" ")}
-      style={stableSize}
     >
       {showAnimation && asset && !playerFailed ? (
         <LottiePlayer

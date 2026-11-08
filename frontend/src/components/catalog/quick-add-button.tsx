@@ -5,14 +5,17 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { useEngagement } from "@/components/engagement/engagement-provider";
 
 export function QuickAddButton({
   variantId,
+  productId,
   productHref,
   disabled,
   labels,
 }: {
   variantId: string | null;
+  productId: string;
   productHref: string;
   disabled: boolean;
   labels: {
@@ -34,15 +37,24 @@ export function QuickAddButton({
     );
   }
 
-  return <QuickAddAction disabled={disabled} labels={labels} variantId={variantId} />;
+  return (
+    <QuickAddAction
+      disabled={disabled}
+      labels={labels}
+      productId={productId}
+      variantId={variantId}
+    />
+  );
 }
 
 function QuickAddAction({
   variantId,
+  productId,
   disabled,
   labels,
 }: {
   variantId: string;
+  productId: string;
   disabled: boolean;
   labels: {
     quickAdd: string;
@@ -53,6 +65,7 @@ function QuickAddAction({
   };
 }) {
   const { addItem, isReady, isCartMutating } = useCommerce();
+  const { track } = useEngagement();
   const [status, setStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
 
   const buttonLabel =
@@ -68,6 +81,14 @@ function QuickAddAction({
           try {
             await addItem(variantId, 1);
             setStatus("success");
+            await track({
+              event_name: "add_to_cart",
+              event_id: crypto.randomUUID(),
+              route_name: "catalog",
+              product_id: productId,
+              variant_id: variantId,
+              quantity: 1,
+            });
           } catch {
             setStatus("error");
           }

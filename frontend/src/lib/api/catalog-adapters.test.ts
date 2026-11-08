@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { components } from "./schema";
-import { mapProductCard, mapProductList, mapReview, targetToHref } from "./catalog-adapters";
+import {
+  mapProductCard,
+  mapProductList,
+  mapReview,
+  mapShell,
+  targetToHref,
+} from "./catalog-adapters";
 
 const card: components["schemas"]["ProductCard"] = {
   id: "018f0a43-6dc9-7d0a-a779-6c23ee9b3792",
@@ -80,5 +86,51 @@ describe("generated catalog contract adapters", () => {
     expect(mapReview(review).photos).toEqual([
       { url: "/review.webp", alt: "Charger beside its box" },
     ]);
+  });
+
+  it("retains Phase 7 safe engagement settings without generated schema edits", () => {
+    const shell = mapShell(
+      {
+        announcement: { enabled: false, text: "" },
+        branding: {},
+        navigation: [],
+        category_menu: [],
+        payment_methods: {},
+        social: {},
+        districts: [],
+        footer: {},
+        contact: {},
+        social_links: [],
+        mobile_nav: [],
+        settings: {},
+        analytics: { google_analytics_id: "G-ABC12345", meta_pixel_id: "1234567890" },
+        whatsapp: { enabled: true, phone: "+8801712345678", message: "Configured English" },
+        engagement: { consent_policy_version: "2026-11-07-v1", newsletter_enabled: true },
+        assistant: {
+          enabled: true,
+          name: "Bojro AI",
+          disclosure: "This is an AI assistant.",
+          disclosure_version: "2026-11-07-v1",
+        },
+      } as unknown as components["schemas"]["StorefrontShellResponse"],
+      "en",
+    );
+
+    expect(shell).toMatchObject({
+      analytics: {
+        google_analytics_id: "G-ABC12345",
+        meta_pixel_id: "1234567890",
+      },
+      whatsapp: {
+        enabled: true,
+        phone: "+8801712345678",
+        message: "Configured English",
+      },
+      engagement: {
+        consent_policy_version: "2026-11-07-v1",
+        newsletter_enabled: true,
+        assistant: { enabled: true, display_name: "Bojro AI" },
+      },
+    });
   });
 });

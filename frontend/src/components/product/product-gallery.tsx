@@ -18,25 +18,14 @@ export function ProductGallery({
   const gallery = images.length ? images : [{ url: "/placeholders/product.svg", alt: productName }];
   const [active, setActive] = useState(0);
   const [zoomed, setZoomed] = useState(false);
-  const [origin, setOrigin] = useState("50% 50%");
   const image = gallery[active] ?? gallery[0];
   if (!image) return null;
 
   return (
     <div>
-      <div
-        className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-brand-purple/10 bg-white shadow-sm sm:aspect-square"
-        onPointerLeave={() => setOrigin("50% 50%")}
-        onPointerMove={(event) => {
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const x = ((event.clientX - bounds.left) / bounds.width) * 100;
-          const y = ((event.clientY - bounds.top) / bounds.height) * 100;
-          setOrigin(`${x}% ${y}%`);
-        }}
-      >
+      <div className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-brand-purple/10 bg-white shadow-sm sm:aspect-square">
         <div
-          className={`absolute inset-0 transition-transform duration-300 ${zoomed ? "scale-150" : "group-hover:scale-125"}`}
-          style={{ transformOrigin: origin }}
+          className={`absolute inset-0 origin-center transition-transform duration-300 ${zoomed ? "scale-150" : "group-hover:scale-125"}`}
         >
           <CatalogImage
             priority

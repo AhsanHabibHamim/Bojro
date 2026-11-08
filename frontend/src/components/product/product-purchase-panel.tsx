@@ -4,6 +4,7 @@ import { Check, Lightning, Minus, Package, Plus, ShoppingCart, Star } from "@pho
 import { useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { useEngagement } from "@/components/engagement/engagement-provider";
 import { WishlistButton } from "@/components/wishlist/wishlist-button";
 import type { AppLocale } from "@/i18n/routing";
 import type { ProductDetail, ProductVariant } from "@/lib/catalog/types";
@@ -77,6 +78,7 @@ export function ProductPurchasePanel({
   labels: PurchaseLabels;
 }) {
   const { addItem, isReady, isCartMutating } = useCommerce();
+  const { track } = useEngagement();
   const [addStatus, setAddStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
   const [addError, setAddError] = useState("");
   const price = selectedVariant?.price ?? product.price;
@@ -119,6 +121,14 @@ export function ProductPurchasePanel({
     try {
       await addItem(selectedVariant.id, quantity);
       setAddStatus("success");
+      await track({
+        event_name: "add_to_cart",
+        event_id: crypto.randomUUID(),
+        route_name: "product_detail",
+        product_id: product.id,
+        variant_id: selectedVariant.id,
+        quantity,
+      });
     } catch {
       setAddStatus("error");
       setAddError(labels.addError);
@@ -193,11 +203,9 @@ export function ProductPurchasePanel({
                   type="button"
                 >
                   {value.swatch ? (
-                    <span
-                      aria-hidden
-                      className="mr-2 inline-block size-3 rounded-full border border-current"
-                      style={{ backgroundColor: value.swatch }}
-                    />
+                    <svg aria-hidden className="mr-2 inline-block size-3" viewBox="0 0 12 12">
+                      <circle cx="6" cy="6" fill={value.swatch} r="5" stroke="currentColor" />
+                    </svg>
                   ) : null}
                   {value.label}
                 </button>

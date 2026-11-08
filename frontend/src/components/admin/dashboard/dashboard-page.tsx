@@ -148,10 +148,21 @@ export function AdminDashboardPage({ locale }: { locale: AppLocale }) {
                       <span className="sr-only">
                         {formatPrice(point.gross_sales_poisha, locale)}
                       </span>
-                      <span
-                        className="w-full rounded-t-lg bg-brand-purple"
-                        style={{ height: `${height * 2}px` }}
-                      />
+                      <svg
+                        aria-hidden
+                        className="h-52 w-full overflow-visible"
+                        preserveAspectRatio="none"
+                        viewBox="0 0 20 200"
+                      >
+                        <rect
+                          fill="currentColor"
+                          height={height * 2}
+                          rx="3"
+                          width="20"
+                          x="0"
+                          y={200 - height * 2}
+                        />
+                      </svg>
                       <span className="max-w-16 truncate text-[0.65rem] text-muted">
                         {point.bucket}
                       </span>

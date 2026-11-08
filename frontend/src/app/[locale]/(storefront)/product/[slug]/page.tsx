@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
@@ -144,14 +145,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
       },
     ],
   };
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <>
       <script
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
         type="application/ld+json"
       />
       <script
+        nonce={nonce}
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c"),
         }}

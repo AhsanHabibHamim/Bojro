@@ -17,6 +17,8 @@ import {
 import { getTranslations } from "next-intl/server";
 
 import { Logo } from "@/components/brand/logo";
+import { ConsentSettingsButton } from "@/components/engagement/engagement-provider";
+import { NewsletterForm } from "@/components/engagement/newsletter-form";
 import type { AppLocale } from "@/i18n/routing";
 import { localizeStorefrontHref } from "@/lib/catalog/hrefs";
 import type { StorefrontShell } from "@/lib/catalog/types";
@@ -208,21 +210,21 @@ export async function Footer({
           <div>
             <h2 className="text-lg font-bold text-white">{t("newsletterTitle")}</h2>
             <p className="mt-3 text-sm leading-6 text-white/85">{t("newsletterDescription")}</p>
-            <div className="mt-5 flex rounded-full bg-white p-1.5 shadow-lg">
-              <EnvelopeSimple
-                aria-hidden
-                className="my-auto ml-3 shrink-0 text-brand-purple"
-                size={20}
-                weight="duotone"
+            {shell?.engagement.newsletter_enabled !== false ? (
+              <NewsletterForm
+                labels={{
+                  emailLabel: t("emailInputLabel"),
+                  emailPlaceholder: t("emailPlaceholder"),
+                  consent: t("newsletterConsent"),
+                  subscribe: t("subscribe"),
+                  pending: t("newsletterPending"),
+                  success: t("newsletterSuccess"),
+                  error: t("newsletterError"),
+                }}
+                locale={locale}
+                policyVersion={shell?.engagement.consent_policy_version ?? "2026-11-07-v1"}
               />
-              <span className="min-w-0 flex-1 px-2 py-2 text-sm text-muted">
-                {t("emailPlaceholder")}
-              </span>
-              <span className="signature-gradient rounded-full px-4 py-2 text-sm font-bold text-white opacity-70">
-                {t("subscribe")}
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-white/70">{t("newsletterUnavailable")}</p>
+            ) : null}
 
             <h2 className="mt-7 text-sm font-bold tracking-wide text-white">{t("socialTitle")}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -276,6 +278,9 @@ export async function Footer({
             <div className="text-sm text-white/60 lg:text-right">
               <p>{t("copyright", { year })}</p>
               <p>{t("madeFor")}</p>
+              <div className="mt-2 flex justify-start lg:justify-end">
+                <ConsentSettingsButton label={t("cookiePreferences")} />
+              </div>
             </div>
           </div>
         </div>

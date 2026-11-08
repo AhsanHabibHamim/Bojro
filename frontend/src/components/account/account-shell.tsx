@@ -7,6 +7,7 @@ import {
   MapPin,
   NotePencil,
   Package,
+  SlidersHorizontal,
   SignOut,
   Ticket,
   UserCircle,
@@ -28,6 +29,7 @@ const navItems = [
   { key: "reviews", suffix: "/reviews", icon: NotePencil },
   { key: "coupons", suffix: "/coupons", icon: Ticket },
   { key: "support", suffix: "/support", icon: ChatCircleDots },
+  { key: "preferences", suffix: "/preferences", icon: SlidersHorizontal },
 ] as const;
 
 export function AccountShell({ children, locale }: { children: ReactNode; locale: AppLocale }) {

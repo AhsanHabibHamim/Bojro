@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { hasLocale } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
@@ -15,6 +16,9 @@ type LocaleLayoutProps = {
 };
 
 export const dynamicParams = true;
+// Request nonces cannot be attached to prerendered Next.js HTML. Keep locale routes request-rendered
+// so framework scripts and next/font styles receive the proxy nonce without relaxing style-src.
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return [];
@@ -65,6 +69,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   setRequestLocale(locale);
   const t = await getTranslations("accessibility");
+  await headers();
 
   return (
     <html lang={locale}>

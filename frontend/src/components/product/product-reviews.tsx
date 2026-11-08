@@ -115,19 +115,18 @@ export function ProductReviews({
             {[5, 4, 3, 2, 1].map((rating) => {
               const count =
                 product.rating_histogram[String(rating) as keyof typeof product.rating_histogram];
-              const percent = total ? (count / total) * 100 : 0;
               return (
                 <div
                   key={rating}
                   className="grid grid-cols-[1.5rem_1fr_2rem] items-center gap-2 text-xs text-muted"
                 >
                   <span>{formatNumber(rating, locale)}</span>
-                  <span className="h-2 overflow-hidden rounded-full bg-soft-lavender">
-                    <span
-                      className="block h-full rounded-full bg-sale-amber"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </span>
+                  <progress
+                    aria-label={`${rating} ${labels.title}`}
+                    className="rating-progress h-2 w-full overflow-hidden rounded-full"
+                    max={Math.max(total, 1)}
+                    value={count}
+                  />
                   <span>{formatNumber(count, locale)}</span>
                 </div>
               );

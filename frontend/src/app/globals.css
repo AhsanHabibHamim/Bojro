@@ -234,13 +234,66 @@ dialog::backdrop {
   --confetti-color: var(--brand-sale-amber);
   position: absolute;
   top: -1rem;
-  left: var(--confetti-left);
+  left: 4%;
   width: 0.45rem;
   height: 0.9rem;
   border-radius: 0.2rem;
   background: var(--confetti-color);
   opacity: 0;
-  animation: confetti-fall 1.8s var(--confetti-delay) ease-out both;
+  animation: confetti-fall 1.8s ease-out both;
+}
+
+.order-confetti span:nth-child(2) {
+  left: 11%;
+  animation-delay: 70ms;
+}
+.order-confetti span:nth-child(3) {
+  left: 18%;
+  animation-delay: 140ms;
+}
+.order-confetti span:nth-child(4) {
+  left: 25%;
+  animation-delay: 210ms;
+}
+.order-confetti span:nth-child(5) {
+  left: 32%;
+  animation-delay: 280ms;
+}
+.order-confetti span:nth-child(6) {
+  left: 39%;
+  animation-delay: 350ms;
+}
+.order-confetti span:nth-child(7) {
+  left: 46%;
+  animation-delay: 420ms;
+}
+.order-confetti span:nth-child(8) {
+  left: 53%;
+  animation-delay: 490ms;
+}
+.order-confetti span:nth-child(9) {
+  left: 60%;
+  animation-delay: 560ms;
+}
+.order-confetti span:nth-child(10) {
+  left: 67%;
+  animation-delay: 630ms;
+}
+.order-confetti span:nth-child(11) {
+  left: 74%;
+  animation-delay: 700ms;
+}
+.order-confetti span:nth-child(12) {
+  left: 81%;
+  animation-delay: 770ms;
+}
+.order-confetti span:nth-child(13) {
+  left: 88%;
+  animation-delay: 840ms;
+}
+.order-confetti span:nth-child(14) {
+  left: 95%;
+  animation-delay: 910ms;
 }
 
 .order-confetti span:nth-child(3n + 2) {
@@ -256,6 +309,21 @@ dialog::backdrop {
 
 img {
   max-width: 100%;
+}
+
+.rating-progress {
+  appearance: none;
+  border: 0;
+  background: var(--brand-soft-lavender);
+}
+
+.rating-progress::-webkit-progress-bar {
+  background: var(--brand-soft-lavender);
+}
+
+.rating-progress::-webkit-progress-value,
+.rating-progress::-moz-progress-bar {
+  background: var(--brand-sale-amber);
 }
 
 @supports (content-visibility: auto) {

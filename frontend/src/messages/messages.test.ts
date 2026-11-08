@@ -65,4 +65,13 @@ describe("message catalogs", () => {
       enMessages.admin.webhooks.deadLetterDetail,
     );
   });
+
+  it("keeps Phase 7 consent, assistant, preferences, and admin UX translated", () => {
+    expect(bnMessages.engagement.consent.title).not.toBe(enMessages.engagement.consent.title);
+    expect(bnMessages.engagement.assistant.verification.title).not.toBe(
+      enMessages.engagement.assistant.verification.title,
+    );
+    expect(bnMessages.account.preferences.title).not.toBe(enMessages.account.preferences.title);
+    expect(bnMessages.admin.engagement.title).not.toBe(enMessages.admin.engagement.title);
+  });
 });

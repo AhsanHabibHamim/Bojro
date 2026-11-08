@@ -63,6 +63,7 @@ export function cartFixture(overrides: Partial<CartResponse> = {}): CartResponse
 export function orderFixture(overrides: Partial<OrderReceipt> = {}): OrderReceipt {
   return {
     number: "BJ-2026-000123",
+    analytics: { purchase_event_id: null },
     status: "pending",
     payment_status: "pending",
     payment_method: "cod",

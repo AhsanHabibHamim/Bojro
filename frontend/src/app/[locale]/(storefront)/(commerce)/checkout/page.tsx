@@ -45,6 +45,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           phone: t("contact.phone"),
           email: t("contact.email"),
           emailOptional: t("contact.emailOptional"),
+          newsletterOptIn: t("contact.newsletterOptIn"),
+          newsletterOptInDescription: t("contact.newsletterOptInDescription"),
         },
         address: {
           title: t("address.title"),

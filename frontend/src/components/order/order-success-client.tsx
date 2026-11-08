@@ -10,7 +10,7 @@ import {
   Truck,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { type CSSProperties, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
 import type { AppLocale } from "@/i18n/routing";
@@ -159,15 +159,7 @@ export function OrderSuccessClient({
         {celebrate ? (
           <div aria-hidden className="order-confetti absolute inset-0">
             {Array.from({ length: 14 }, (_, index) => (
-              <span
-                key={index}
-                style={
-                  {
-                    "--confetti-left": `${4 + index * 7}%`,
-                    "--confetti-delay": `${index * 70}ms`,
-                  } as CSSProperties
-                }
-              />
+              <span key={index} />
             ))}
           </div>
         ) : null}

@@ -93,7 +93,7 @@ describe("AccountClient", () => {
     await user.type(screen.getByLabelText("Mobile number"), "০১৭০০০০০০০০");
     await user.click(screen.getByRole("button", { name: "Request code" }));
 
-    expect(requestOtp).toHaveBeenCalledWith({ phone: "+8801700000000" });
+    expect(requestOtp).toHaveBeenCalledWith({ phone: "+8801700000000", locale: "en" });
     expect(await screen.findByRole("button", { name: "Retry in 37" })).toBeDisabled();
   });
 });
