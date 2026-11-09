@@ -236,6 +236,7 @@ class AssistantService:
                         status_code=409,
                         headers={"Retry-After": str(retry_after)},
                     )
+                await self._message_rates(session_id, owner_kind, owner_id, ip_address)
                 idempotency.key_hash = self._crypto.lookup_hash(
                     "assistant-idempotency-key", session.id, idempotency_key
                 )
@@ -252,6 +253,7 @@ class AssistantService:
                     seconds=self._settings.assistant_idempotency_lease_seconds
                 )
             else:
+                await self._message_rates(session_id, owner_kind, owner_id, ip_address)
                 idempotency = AssistantRequestIdempotency(
                     session_id=session.id,
                     key_hash=self._crypto.lookup_hash(
@@ -312,14 +314,6 @@ class AssistantService:
                     actions=[],
                 )
             )
-        try:
-            await self._message_rates(session_id, owner_kind, owner_id, ip_address)
-        except DomainError:
-            async with self._session.begin():
-                idempotency = await self._session.get(AssistantRequestIdempotency, idempotency_id)
-                if idempotency is not None and idempotency.lease_owner == lease_owner:
-                    idempotency.lease_expires_at = now
-            raise
         grounding, citations, actions, locale = await self._ground(
             session_id,
             owner_hashes,

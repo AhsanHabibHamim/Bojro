@@ -796,7 +796,7 @@ def create_payment_providers(settings: Settings) -> dict[PaymentMethod, PaymentP
                 secret,
                 settings.webhook_timestamp_tolerance_seconds,
                 settings.public_storefront_base_url,
-                not settings.is_production,
+                not settings.is_production_like,
             )
         elif provider == PaymentMethod.SSLCOMMERZ and mode in {
             ProviderMode.SANDBOX,

@@ -2401,8 +2401,19 @@ async def ensure_demo_target_is_empty(session: AsyncSession) -> None:
         )
 
 
+def ensure_demo_seed_environment(settings: Settings) -> None:
+    """Demo fixtures are an explicit local/test action, never a deployed operation."""
+
+    if settings.app_env not in {"development", "test"}:
+        raise RuntimeError(
+            "demo seed is allowed only with APP_ENV=development or APP_ENV=test; "
+            f"refusing APP_ENV={settings.app_env}"
+        )
+
+
 async def seed_database() -> None:
     settings = get_settings()
+    ensure_demo_seed_environment(settings)
     configure_logging(settings.log_level)
     dataset = load_geo_dataset()
     engine = create_engine(settings)

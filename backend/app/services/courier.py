@@ -79,6 +79,6 @@ def create_courier_gateways(settings: Settings) -> dict[CourierProvider, Courier
             CourierProvider.REDX,
         )
     }
-    if not settings.is_production and settings.courier_provider == "mock":
+    if not settings.is_production_like and settings.courier_provider == "mock":
         gateways[CourierProvider.MOCK] = MockCourierGateway()
     return gateways

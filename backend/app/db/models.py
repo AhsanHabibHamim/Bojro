@@ -533,6 +533,12 @@ class ProductVariant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_product_variants_active_stock", "is_active", "stock_on_hand"),
         Index("ix_product_variants_active_price", "is_active", "price"),
         Index(
+            "ix_product_variants_sku_trgm",
+            "sku",
+            postgresql_using="gin",
+            postgresql_ops={"sku": "gin_trgm_ops"},
+        ),
+        Index(
             "ix_product_variants_product_active_price_id",
             "product_id",
             "is_active",

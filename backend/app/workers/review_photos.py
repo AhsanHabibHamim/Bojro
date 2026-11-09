@@ -7,12 +7,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar
 from uuid import UUID
 
+import structlog
 from arq import cron
 from arq.connections import RedisSettings
 from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.engagement_crypto import EngagementCrypto
+from app.core.logging import configure_logging
+from app.core.observability import configure_observability
 from app.db.models import NewsletterSubscription, Shipment
 from app.db.session import create_engine, create_session_factory
 from app.providers import (
@@ -32,14 +35,19 @@ from app.services.media_cleanup import MediaCleanupService
 from app.services.notifications import NotificationDeliveryService
 from app.services.payments import PaymentService
 from app.services.rate_limit import RateLimiter
+from app.services.retention import TransientRetentionService
 from app.services.revalidation import OutboxDeliveryService, create_revalidation_sender
 from app.services.review_photo_cleanup import ReviewPhotoCleanupService
 from app.services.storage import create_storage_provider
 from app.services.webhooks import WebhookService
 
+_LOGGER = structlog.get_logger(__name__)
+
 
 async def startup(ctx: dict[str, Any]) -> None:
     settings = get_settings()
+    configure_logging(settings.log_level)
+    ctx["observability"] = configure_observability(settings)
     engine = create_engine(settings)
     ctx["engine"] = engine
     ctx["session_factory"] = create_session_factory(engine)
@@ -131,6 +139,16 @@ async def cleanup_engagement_retention(ctx: dict[str, Any]) -> dict[str, int]:
     }
 
 
+async def cleanup_transient_retention(ctx: dict[str, Any]) -> dict[str, int]:
+    await _heartbeat(ctx)
+    settings = ctx["settings"]
+    return asdict(
+        await TransientRetentionService(ctx["session_factory"]).run_once(
+            limit=settings.retention_cleanup_batch_size
+        )
+    )
+
+
 async def expire_newsletter_confirmations(ctx: dict[str, Any]) -> dict[str, int]:
     await _heartbeat(ctx)
     now = datetime.now(UTC)
@@ -176,7 +194,7 @@ async def deliver_outbox(ctx: dict[str, Any]) -> dict[str, int]:
                 ctx["payment_providers"],
                 ctx["courier_providers"],
                 payments,
-                RateLimiter(ctx.get("redis"), fail_closed=settings.is_production),
+                RateLimiter(ctx.get("redis"), fail_closed=settings.is_production_like),
                 settings,
             )
             await webhooks.process(UUID(str(payload["event_id"])))
@@ -229,7 +247,13 @@ async def reconcile_shipments(ctx: dict[str, Any]) -> dict[str, int]:
     for shipment_id in shipment_ids:
         try:
             await _reconcile_shipment(ctx, shipment_id)
-        except Exception:
+        except Exception as error:
+            _LOGGER.exception(
+                "shipment_reconcile_failed",
+                shipment_id=str(shipment_id),
+                exception_type=type(error).__name__,
+            )
+            ctx["observability"].capture_exception(error)
             continue
         processed += 1
     return {"scanned": len(shipment_ids), "updated": processed, "conflicts": 0}
@@ -302,6 +326,7 @@ class WorkerSettings:
         deliver_meta_capi,
         cleanup_assistant_retention,
         cleanup_engagement_retention,
+        cleanup_transient_retention,
         expire_newsletter_confirmations,
         deliver_outbox,
         reconcile_shipments,
@@ -315,6 +340,7 @@ class WorkerSettings:
         cron(expire_newsletter_confirmations, minute={17}),
         cron(cleanup_assistant_retention, hour={2}, minute={20}),
         cron(cleanup_engagement_retention, hour={2}, minute={40}),
+        cron(cleanup_transient_retention, hour={3}, minute={0}),
         cron(deliver_outbox, minute=set(range(60))),
         cron(reconcile_shipments, minute=set(range(0, 60, 10))),
     ]

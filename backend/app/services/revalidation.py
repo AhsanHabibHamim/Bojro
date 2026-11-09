@@ -73,7 +73,7 @@ def create_revalidation_sender(settings: Settings) -> RevalidationSender:
             settings.revalidation_secret.get_secret_value(),
             settings.revalidation_timeout_seconds,
         )
-    if settings.is_production:
+    if settings.is_production_like:
         return UnavailableRevalidationSender()
     return DevelopmentRevalidationSender()
 

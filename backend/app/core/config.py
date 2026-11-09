@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from email.utils import parseaddr
 from functools import lru_cache
 from pathlib import Path
@@ -29,6 +30,9 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "staging", "production"] = "development"
     debug: bool = False
     log_level: str = "INFO"
+    sentry_dsn: SecretStr | None = None
+    sentry_release: str | None = Field(default=None, min_length=1, max_length=200)
+    sentry_traces_sample_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+asyncpg://bojro:bojro@localhost:5432/bojro"
     redis_url: str | None = None
@@ -170,6 +174,10 @@ class Settings(BaseSettings):
     checkout_rate_window_seconds: int = Field(default=900, ge=60, le=3600)
     tracking_rate_limit: int = Field(default=10, ge=1, le=100)
     tracking_rate_window_seconds: int = Field(default=600, ge=60, le=3600)
+    catalog_search_ip_limit: int = Field(default=60, ge=1, le=1000)
+    catalog_suggestion_ip_limit: int = Field(default=120, ge=1, le=2000)
+    catalog_filter_ip_limit: int = Field(default=90, ge=1, le=1000)
+    catalog_rate_window_seconds: int = Field(default=60, ge=10, le=3600)
     account_mutation_user_limit: int = Field(default=60, ge=1, le=1000)
     account_mutation_ip_limit: int = Field(default=120, ge=1, le=2000)
     account_sensitive_user_limit: int = Field(default=20, ge=1, le=500)
@@ -218,6 +226,7 @@ class Settings(BaseSettings):
     provider_write_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     provider_pool_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
     provider_response_max_bytes: int = Field(default=512 * 1024, ge=1024, le=2 * 1024 * 1024)
+    request_body_max_bytes: int = Field(default=1024 * 1024, ge=16 * 1024, le=4 * 1024 * 1024)
     webhook_body_max_bytes: int = Field(default=256 * 1024, ge=1024, le=1024 * 1024)
     webhook_timestamp_tolerance_seconds: int = Field(default=300, ge=30, le=900)
     webhook_ip_rate_limit: int = Field(default=120, ge=1, le=5000)
@@ -237,12 +246,20 @@ class Settings(BaseSettings):
     trusted_hosts: list[str] = Field(
         default_factory=lambda: ["localhost", "127.0.0.1", "testserver", "backend"]
     )
+    trusted_proxy_cidrs: list[str] = Field(default_factory=list)
     db_pool_size: int = Field(default=10, ge=1, le=100)
     db_max_overflow: int = Field(default=20, ge=0, le=200)
+    db_pool_timeout_seconds: int = Field(default=10, ge=1, le=60)
+    db_pool_recycle_seconds: int = Field(default=300, ge=30, le=3600)
+    db_statement_timeout_ms: int = Field(default=15_000, ge=1000, le=120_000)
+    db_lock_timeout_ms: int = Field(default=5_000, ge=100, le=30_000)
+    db_idle_transaction_timeout_ms: int = Field(default=30_000, ge=1000, le=120_000)
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    readiness_diagnostics_token: SecretStr | None = None
     worker_heartbeat_key: str = "bojro:worker:heartbeat"
     worker_heartbeat_max_age_seconds: int = Field(default=180, ge=30, le=3600)
     worker_heartbeat_required: bool = False
+    retention_cleanup_batch_size: int = Field(default=500, ge=1, le=5000)
     seed_admin_email: EmailStr | None = None
     seed_admin_password: SecretStr | None = None
     seed_admin_force_password_rotation: bool = False
@@ -286,6 +303,9 @@ class Settings(BaseSettings):
         "meta_capi_access_token",
         "assistant_api_key",
         "phase7_e2e_reset_token",
+        "sentry_dsn",
+        "sentry_release",
+        "readiness_diagnostics_token",
         mode="before",
     )
     @classmethod
@@ -371,7 +391,7 @@ class Settings(BaseSettings):
         api_url = urlsplit(self.public_api_base_url)
         storefront_url = urlsplit(self.public_storefront_base_url)
         if api_url.scheme == "http" and not (
-            not self.is_production
+            not self.is_production_like
             and api_url.hostname in {"localhost", "127.0.0.1", "::1"}
             and ProviderMode.MOCK in provider_modes
         ):
@@ -379,7 +399,7 @@ class Settings(BaseSettings):
                 "local HTTP API origin is allowed only for an explicit non-production provider mock"
             )
         if storefront_url.scheme == "http" and not (
-            not self.is_production
+            not self.is_production_like
             and storefront_url.hostname in {"localhost", "127.0.0.1", "::1"}
             and ProviderMode.MOCK in payment_modes
         ):
@@ -388,8 +408,8 @@ class Settings(BaseSettings):
             )
         if ProviderMode.MOCK in payment_modes and (storefront_url.hostname or "").endswith(".test"):
             raise ValueError("payment mocks require a real storefront origin, never a .test host")
-        if self.is_production and self.phase6_e2e_reset_token is not None:
-            raise ValueError("PHASE6_E2E_RESET_TOKEN is forbidden in production")
+        if self.is_production_like and self.phase6_e2e_reset_token is not None:
+            raise ValueError("PHASE6_E2E_RESET_TOKEN is forbidden in deployed environments")
         if self.phase6_e2e_reset_token is not None and any(
             mode != ProviderMode.MOCK for mode in provider_modes
         ):
@@ -527,13 +547,58 @@ class Settings(BaseSettings):
                 "PHASE7_E2E_RESET_TOKEN requires mock email, SMS, Meta CAPI, "
                 "and assistant providers"
             )
-        if self.is_production:
+        if any(
+            value is not None
+            for value in (
+                self.otp_provider,
+                self.otp_external_endpoint,
+                self.otp_external_api_key,
+            )
+        ):
+            raise ValueError(
+                "OTP_PROVIDER and OTP_EXTERNAL_* are deprecated; configure SMS_PROVIDER"
+            )
+        if self.webhook_body_max_bytes > self.request_body_max_bytes:
+            raise ValueError("WEBHOOK_BODY_MAX_BYTES cannot exceed REQUEST_BODY_MAX_BYTES")
+        if self.notification_lease_seconds <= self.provider_read_timeout_seconds + 5:
+            raise ValueError("NOTIFICATION_LEASE_SECONDS must exceed provider read timeout")
+        for cidr in self.trusted_proxy_cidrs:
+            try:
+                ipaddress.ip_network(cidr, strict=False)
+            except ValueError as exc:
+                raise ValueError(f"TRUSTED_PROXY_CIDRS contains invalid network {cidr!r}") from exc
+        if self.sentry_dsn is not None:
+            sentry_url = urlsplit(self.sentry_dsn.get_secret_value())
+            if sentry_url.scheme != "https" or not sentry_url.hostname or not sentry_url.username:
+                raise ValueError("SENTRY_DSN must be a valid HTTPS DSN")
+            if self.is_production_like and self.sentry_release is None:
+                raise ValueError("SENTRY_RELEASE is required when Sentry is enabled")
+        if self.is_production_like:
             if self.debug:
-                raise ValueError("DEBUG must be false in production")
+                raise ValueError("DEBUG must be false in deployed environments")
             if self.redis_url is None:
-                raise ValueError("REDIS_URL is required in production")
+                raise ValueError("REDIS_URL is required in deployed environments")
             if self.app_secret_key is None or len(self.app_secret_key.get_secret_value()) < 32:
-                raise ValueError("APP_SECRET_KEY must contain at least 32 characters in production")
+                raise ValueError(
+                    "APP_SECRET_KEY must contain at least 32 characters in deployed environments"
+                )
+            if self.app_secret_key.get_secret_value().startswith(
+                ("development-", "local-only", "replace-with-")
+            ):
+                raise ValueError("APP_SECRET_KEY must not use a public default")
+            if not self.admin_totp_required:
+                raise ValueError("ADMIN_TOTP_REQUIRED must be true in deployed environments")
+            if self.admin_totp_keyring is None:
+                raise ValueError("ADMIN_TOTP_KEYRING must be explicitly configured")
+            if (
+                self.readiness_diagnostics_token is None
+                or len(self.readiness_diagnostics_token.get_secret_value()) < 32
+            ):
+                raise ValueError("READINESS_DIAGNOSTICS_TOKEN must contain at least 32 characters")
+            if self.readiness_diagnostics_token.get_secret_value().startswith(
+                ("development-", "replace-with-")
+            ):
+                raise ValueError("READINESS_DIAGNOSTICS_TOKEN must not use a public default")
             if "engagement_pii_keyring" not in self.model_fields_set:
                 raise ValueError("ENGAGEMENT_PII_KEYRING must be explicitly configured")
             public_engagement_keys = {
@@ -592,18 +657,7 @@ class Settings(BaseSettings):
                     "must use distinct key material"
                 )
             if self.cookie_secure is False:
-                raise ValueError("COOKIE_SECURE cannot be false in production")
-            if any(
-                value is not None
-                for value in (
-                    self.otp_provider,
-                    self.otp_external_endpoint,
-                    self.otp_external_api_key,
-                )
-            ):
-                raise ValueError(
-                    "OTP_PROVIDER and OTP_EXTERNAL_* are deprecated; configure SMS_PROVIDER"
-                )
+                raise ValueError("COOKIE_SECURE cannot be false in deployed environments")
             secrets = {
                 "JWT_SECRET_KEY": self.jwt_secret_key,
                 "ADMIN_JWT_SECRET_KEY": self.admin_jwt_secret_key,
@@ -621,20 +675,32 @@ class Settings(BaseSettings):
                 raise ValueError("signing secrets must be distinct")
             if any(value == bytes(32) for value in decoded_keys.values()):
                 raise ValueError("ADMIN_TOTP_KEYRING must not contain the default zero key")
-            if self.email_provider != "resend":
+            if self.is_production and self.email_provider != "resend":
                 raise ValueError(
                     "production transactional email requires the idempotent Resend adapter"
                 )
-            if self.sms_provider != "external":
+            if self.is_production and self.sms_provider != "external":
                 raise ValueError("production OTP requires a real external SMS provider")
+            if self.email_provider == "mock":
+                raise ValueError("mock email provider is forbidden in deployed environments")
+            if self.sms_provider == "mock":
+                raise ValueError("mock SMS provider is forbidden in deployed environments")
             if self.meta_capi_mode == "mock":
-                raise ValueError("mock Meta CAPI provider is forbidden in production")
+                raise ValueError("mock Meta CAPI provider is forbidden in deployed environments")
             if self.assistant_provider == "mock":
-                raise ValueError("mock assistant provider is forbidden in production")
+                raise ValueError("mock assistant provider is forbidden in deployed environments")
             if self.phase7_e2e_reset_token is not None:
-                raise ValueError("PHASE7_E2E_RESET_TOKEN is forbidden in production")
+                raise ValueError("PHASE7_E2E_RESET_TOKEN is forbidden in deployed environments")
+            if self.phase7_e2e_enabled:
+                raise ValueError("PHASE7_E2E_ENABLED is forbidden in deployed environments")
+            if self.engagement_test_recipient_aliases:
+                raise ValueError(
+                    "ENGAGEMENT_TEST_RECIPIENT_ALIASES are forbidden in deployed environments"
+                )
+            if self.seed_admin_email is not None or self.seed_admin_force_password_rotation:
+                raise ValueError("SEED_ADMIN_* is forbidden in deployed environments")
             if not self.worker_heartbeat_required:
-                raise ValueError("WORKER_HEARTBEAT_REQUIRED must be true in production")
+                raise ValueError("WORKER_HEARTBEAT_REQUIRED must be true in deployed environments")
             if self.email_provider in {"smtp", "resend"} and any(
                 marker in self.email_from.casefold()
                 for marker in ("bojro.test", "example.com", "placeholder")
@@ -667,17 +733,17 @@ class Settings(BaseSettings):
                 if any(marker in lowered for marker in ("placeholder", "replace-with", "example")):
                     raise ValueError("Phase 7 provider secrets must not use placeholders")
             if "*" in self.trusted_hosts:
-                raise ValueError("wildcard TRUSTED_HOSTS are forbidden in production")
+                raise ValueError("wildcard TRUSTED_HOSTS are forbidden in deployed environments")
             if self.storage_provider == "mock":
-                raise ValueError("mock storage provider is forbidden in production")
+                raise ValueError("mock storage provider is forbidden in deployed environments")
             if (
                 not self.cloudinary_cloud_name
                 or self.cloudinary_api_key is None
                 or self.cloudinary_api_secret is None
             ):
-                raise ValueError("Cloudinary configuration is required in production")
+                raise ValueError("Cloudinary configuration is required in deployed environments")
             if self.courier_provider == "mock":
-                raise ValueError("mock courier provider is forbidden in production")
+                raise ValueError("mock courier provider is forbidden in deployed environments")
             modes = {
                 "BKASH_MODE": self.bkash_mode,
                 "NAGAD_MODE": self.nagad_mode,
@@ -687,10 +753,12 @@ class Settings(BaseSettings):
                 "REDX_MODE": self.redx_mode,
             }
             for name, mode in modes.items():
-                if mode in {ProviderMode.MOCK, ProviderMode.SANDBOX}:
-                    raise ValueError(f"{name}={mode.value} is forbidden in production")
+                if mode == ProviderMode.MOCK or (
+                    self.is_production and mode == ProviderMode.SANDBOX
+                ):
+                    raise ValueError(f"{name}={mode.value} is forbidden in {self.app_env}")
             if any(not origin.startswith("https://") for origin in self.cors_origins):
-                raise ValueError("production CORS origins must use HTTPS")
+                raise ValueError("deployed CORS origins must use HTTPS")
             if self.public_storefront_base_url not in self.cors_origins:
                 raise ValueError("PUBLIC_STOREFRONT_BASE_URL must be an allowed CORS origin")
             for name, value in (
@@ -701,14 +769,17 @@ class Settings(BaseSettings):
                 if hostname in {"localhost", "127.0.0.1", "::1"} or hostname.endswith(".test"):
                     raise ValueError(f"{name} must use a public production hostname")
             mock_secret = self.provider_mock_signing_secret.get_secret_value()
-            if mock_secret.startswith(("development-", "replace-with-")):
+            storage_mock_secret = self.storage_mock_secret.get_secret_value()
+            if mock_secret.startswith(
+                ("development-", "replace-with-")
+            ) or storage_mock_secret.startswith(("development-", "replace-with-")):
                 raise ValueError("PROVIDER_MOCK_SIGNING_SECRET must not use a placeholder")
             if self.revalidation_url is None or self.revalidation_secret is None:
                 raise ValueError(
-                    "REVALIDATION_URL and REVALIDATION_SECRET are required in production"
+                    "REVALIDATION_URL and REVALIDATION_SECRET are required in deployed environments"
                 )
             if not self.revalidation_url.startswith("https://"):
-                raise ValueError("REVALIDATION_URL must use HTTPS in production")
+                raise ValueError("REVALIDATION_URL must use HTTPS in deployed environments")
         documentation_gates = {
             "bkash": (
                 self.bkash_mode,
@@ -743,6 +814,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"{provider.upper()} real mode requires explicit CONFIGURED and "
                     "DOCUMENTATION_VERIFIED gates"
+                )
+            if self.is_production_like and mode != ProviderMode.DISABLED:
+                raise ValueError(
+                    f"{provider.upper()} is documentation-gated and must remain disabled "
+                    "until its real adapter is independently verified"
                 )
         if self.sslcommerz_mode in {ProviderMode.SANDBOX, ProviderMode.LIVE}:
             if self.sslcommerz_store_id is None or self.sslcommerz_store_password is None:
@@ -826,8 +902,12 @@ class Settings(BaseSettings):
         return self.app_env == "production"
 
     @property
+    def is_production_like(self) -> bool:
+        return self.app_env in {"staging", "production"}
+
+    @property
     def effective_cookie_secure(self) -> bool:
-        return self.is_production if self.cookie_secure is None else self.cookie_secure
+        return self.is_production_like if self.cookie_secure is None else self.cookie_secure
 
     @property
     def access_cookie_name(self) -> str:

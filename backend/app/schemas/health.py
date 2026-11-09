@@ -17,6 +17,15 @@ class HealthResponse(BaseModel):
     timestamp: datetime
 
 
+class PublicReadinessResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    status: Literal["ready", "unavailable"]
+    service: str
+    version: str
+    timestamp: datetime
+
+
 class ComponentHealth(BaseModel):
     model_config = ConfigDict(frozen=True)
 

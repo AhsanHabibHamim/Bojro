@@ -934,9 +934,31 @@ class PaymentService:
                 }:
                     previous = order.status
                     order_repository = SQLAlchemyOrderRepository(self._session)
-                    await order_repository.apply_inventory_side_effects(
-                        order, OrderStatus.CANCELLED
-                    )
+                    try:
+                        async with self._session.begin_nested():
+                            await order_repository.apply_inventory_side_effects(
+                                order, OrderStatus.CANCELLED
+                            )
+                    except RuntimeError:
+                        order.payment_status = PaymentStatus.FAILED
+                        order.payment_due_at = None
+                        order.revision += 1
+                        self._repository.add(
+                            AuditLog(
+                                action="order.unpaid_expiry_inventory_conflict",
+                                entity="order",
+                                entity_id=order.id,
+                                event_kind="worker",
+                                actor_snapshot={"kind": "system"},
+                                diff={
+                                    "payment_status": {
+                                        "to": PaymentStatus.FAILED.value,
+                                    },
+                                    "reason_code": "INVENTORY_RESERVATION_CONFLICT",
+                                },
+                            )
+                        )
+                        continue
                     order.status = OrderStatus.CANCELLED
                     order.payment_status = PaymentStatus.FAILED
                     order.payment_due_at = None

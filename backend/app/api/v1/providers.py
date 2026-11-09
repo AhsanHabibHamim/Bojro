@@ -66,7 +66,7 @@ async def phase6_e2e_reset(
 ) -> Phase6E2EResetResponse:
     settings: Settings = request.app.state.settings
     configured = settings.phase6_e2e_reset_token
-    if settings.is_production or configured is None:
+    if settings.is_production_like or configured is None:
         raise DomainError("NOT_FOUND", "Resource not found.", status_code=404)
     expected = f"Bearer {configured.get_secret_value()}"
     if authorization is None or not constant_time_equal(authorization, expected):

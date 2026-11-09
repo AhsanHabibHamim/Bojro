@@ -21,9 +21,11 @@ from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import (
     NoStoreMiddleware,
+    RequestBodyLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
+from app.core.observability import configure_observability
 from app.core.security import TokenService
 from app.db.session import create_engine, create_session_factory
 from app.providers import (
@@ -45,6 +47,7 @@ _LOGGER = structlog.get_logger(__name__)
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.log_level)
+    observability = configure_observability(resolved_settings)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -64,7 +67,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.redis = redis
         application.state.hot_cache = HotCache(redis)
         application.state.rate_limiter = RateLimiter(
-            redis, fail_closed=resolved_settings.is_production
+            redis, fail_closed=resolved_settings.is_production_like
         )
         application.state.otp_service = OTPService(
             redis,
@@ -87,11 +90,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         debug=resolved_settings.debug,
         lifespan=lifespan,
-        openapi_url=f"{resolved_settings.api_v1_prefix}/openapi.json",
-        docs_url=None if resolved_settings.is_production else "/docs",
-        redoc_url=None if resolved_settings.is_production else "/redoc",
+        openapi_url=(
+            None
+            if resolved_settings.is_production_like
+            else f"{resolved_settings.api_v1_prefix}/openapi.json"
+        ),
+        docs_url=None if resolved_settings.is_production_like else "/docs",
+        redoc_url=None if resolved_settings.is_production_like else "/redoc",
     )
     application.state.settings = resolved_settings
+    application.state.observability = observability
     application.state.token_service = TokenService(resolved_settings)
     application.state.engagement_crypto = EngagementCrypto(resolved_settings)
     application.state.engagement_tokens = EngagementTokenSigner(resolved_settings)
@@ -131,6 +139,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(NoStoreMiddleware)
+    application.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_bytes=resolved_settings.request_body_max_bytes,
+    )
     application.add_middleware(RequestContextMiddleware)
     application.include_router(operations_router)
     application.include_router(api_v1_router, prefix=resolved_settings.api_v1_prefix)

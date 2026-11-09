@@ -24,20 +24,14 @@ def test_invalid_request_id_is_replaced(client: TestClient) -> None:
     assert len(response.headers["X-Request-ID"]) == 36
 
 
-def test_readiness_requires_database_but_tolerates_missing_redis(client: TestClient) -> None:
+def test_public_readiness_is_generic_when_database_is_unavailable(client: TestClient) -> None:
     response = client.get("/ready")
 
     assert response.status_code == 503
     body = response.json()
     assert body["status"] == "unavailable"
-    assert body["checks"]["database"]["required"] is True
-    assert body["checks"]["database"]["status"] == "unavailable"
-    assert body["checks"]["redis"] == {
-        "status": "degraded",
-        "required": False,
-        "latency_ms": None,
-        "detail": "not_configured",
-    }
+    assert "checks" not in body
+    assert "schema_revision" not in body
 
 
 def test_cors_allowlist(client: TestClient) -> None:

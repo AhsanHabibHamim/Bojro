@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 
 from app.api.dependencies import get_catalog_service
+from app.api.security import client_ip
+from app.core.errors import DomainError
 from app.schemas.catalog import (
     CategoryDetailResponse,
     CategoryListResponse,
@@ -24,10 +26,59 @@ from app.schemas.catalog import (
     SearchSuggestionResponse,
 )
 from app.services.catalog import CatalogNotFoundError, CatalogService
+from app.services.rate_limit import RateLimitExceeded, RateLimitUnavailable
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 Service = Annotated[CatalogService, Depends(get_catalog_service)]
 SlugPath = Annotated[str, Path(min_length=1, max_length=220, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+
+
+async def _enforce_catalog_rate(request: Request, bucket: str, limit: int) -> None:
+    settings = request.app.state.settings
+    try:
+        await request.app.state.rate_limiter.hit(
+            bucket,
+            client_ip(request),
+            limit=limit,
+            window_seconds=settings.catalog_rate_window_seconds,
+        )
+    except RateLimitExceeded as exc:
+        raise DomainError(
+            "RATE_LIMITED",
+            "Too many catalog requests. Please try again shortly.",
+            status_code=429,
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
+    except RateLimitUnavailable as exc:
+        raise DomainError(
+            "RATE_LIMIT_UNAVAILABLE",
+            "Catalog request protection is temporarily unavailable.",
+            status_code=503,
+        ) from exc
+
+
+async def enforce_product_search_rate(request: Request) -> None:
+    await _enforce_catalog_rate(
+        request,
+        "catalog:products",
+        request.app.state.settings.catalog_search_ip_limit,
+    )
+
+
+async def enforce_catalog_filter_rate(request: Request) -> None:
+    await _enforce_catalog_rate(
+        request,
+        "catalog:filters",
+        request.app.state.settings.catalog_filter_ip_limit,
+    )
+
+
+async def enforce_catalog_suggestion_rate(request: Request) -> None:
+    await _enforce_catalog_rate(
+        request,
+        "catalog:suggestions",
+        request.app.state.settings.catalog_suggestion_ip_limit,
+    )
 
 
 def _not_found(exc: CatalogNotFoundError) -> HTTPException:
@@ -58,6 +109,7 @@ async def category_detail(
 async def products(
     query: Annotated[ProductListQuery, Query()],
     service: Service,
+    _: Annotated[None, Depends(enforce_product_search_rate)],
 ) -> ProductListResponse:
     return await service.products(query)
 
@@ -66,6 +118,7 @@ async def products(
 async def filters(
     query: Annotated[ProductFilterQuery, Query()],
     service: Service,
+    _: Annotated[None, Depends(enforce_catalog_filter_rate)],
 ) -> FilterMetadataResponse:
     return await service.filters(query)
 
@@ -74,6 +127,7 @@ async def filters(
 async def search_suggestions(
     query: Annotated[SearchSuggestionQuery, Query()],
     service: Service,
+    _: Annotated[None, Depends(enforce_catalog_suggestion_rate)],
 ) -> SearchSuggestionResponse:
     return await service.suggestions(query)
 

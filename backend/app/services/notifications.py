@@ -229,35 +229,35 @@ class NotificationDeliveryService:
             limit or self._settings.notification_batch_size,
             delivery_time,
         )
-        results: list[tuple[UUID, int, NotificationProviderResult | None, int, str | None]] = []
+        accepted = retries = terminal = suppressed = 0
         for delivery_id, revision in claimed:
+            provider_result: NotificationProviderResult | None = None
+            forced: str | None = None
+            latency = 0
             try:
                 prepared = await self._prepare(delivery_id, delivery_time)
             except Exception:
-                results.append((delivery_id, revision, None, 0, "invalid_content"))
-                continue
-            if prepared is None:
-                results.append((delivery_id, revision, None, 0, "suppressed"))
-                continue
-            provider, envelope = prepared
-            started = time.perf_counter()
-            try:
-                provider_result = await provider.send(envelope)
-            except Exception as exc:
-                provider_result = NotificationProviderResult(
-                    "retryable",
-                    f"provider_{type(exc).__name__.lower()}",
-                    response_class="provider_exception",
-                )
-            latency = max(0, round((time.perf_counter() - started) * 1000))
-            results.append((delivery_id, revision, provider_result, latency, None))
-        accepted = retries = terminal = suppressed = 0
-        for delivery_id, revision, final_result, latency, forced in results:
+                forced = "invalid_content"
+            else:
+                if prepared is None:
+                    forced = "suppressed"
+                else:
+                    provider, envelope = prepared
+                    started = time.perf_counter()
+                    try:
+                        provider_result = await provider.send(envelope)
+                    except Exception as exc:
+                        provider_result = NotificationProviderResult(
+                            "retryable",
+                            f"provider_{type(exc).__name__.lower()}",
+                            response_class="provider_exception",
+                        )
+                    latency = max(0, round((time.perf_counter() - started) * 1000))
             outcome = await self._finalize(
                 delivery_id,
                 revision,
                 worker_id,
-                final_result,
+                provider_result,
                 latency,
                 delivery_time,
                 forced,

@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, union_all
+from sqlalchemy.engine import ScalarResult
 
 from app.core.errors import DomainError
 from app.core.security import TokenService
@@ -86,8 +87,9 @@ class AdminMediaService(AdminServiceBase):
         )
         has_next = len(rows) > limit
         rows = rows[:limit]
+        referenced_ids = await self._referenced_ids([asset.id for asset in rows])
         return MediaListResponse(
-            items=[await self._response(asset) for asset in rows],
+            items=[await self._response(asset, asset.id in referenced_ids) for asset in rows],
             page_info=AdminPageInfo(
                 next_cursor=str(offset + limit) if has_next else None,
                 has_next=has_next,
@@ -415,8 +417,40 @@ class AdminMediaService(AdminServiceBase):
                 return True
         return False
 
-    async def _response(self, asset: MediaAsset) -> MediaAssetResponse:
-        referenced = await self._is_referenced(asset.id)
+    async def _referenced_ids(self, asset_ids: list[UUID]) -> set[UUID]:
+        if not asset_ids:
+            return set()
+        references = union_all(
+            select(ProductImage.media_asset_id.label("asset_id")).where(
+                ProductImage.media_asset_id.in_(asset_ids)
+            ),
+            select(Category.image_asset_id.label("asset_id")).where(
+                Category.image_asset_id.in_(asset_ids)
+            ),
+            select(Brand.logo_asset_id.label("asset_id")).where(Brand.logo_asset_id.in_(asset_ids)),
+            select(Banner.image_bn_asset_id.label("asset_id")).where(
+                Banner.image_bn_asset_id.in_(asset_ids)
+            ),
+            select(Banner.image_en_asset_id.label("asset_id")).where(
+                Banner.image_en_asset_id.in_(asset_ids)
+            ),
+            select(StaticPage.cover_asset_id.label("asset_id")).where(
+                StaticPage.cover_asset_id.in_(asset_ids)
+            ),
+            select(BlogPost.cover_asset_id.label("asset_id")).where(
+                BlogPost.cover_asset_id.in_(asset_ids)
+            ),
+        ).subquery()
+        values: ScalarResult[UUID] = await self._session.scalars(
+            select(references.c.asset_id).where(references.c.asset_id.is_not(None)).distinct()
+        )
+        return set(values)
+
+    async def _response(
+        self, asset: MediaAsset, referenced: bool | None = None
+    ) -> MediaAssetResponse:
+        if referenced is None:
+            referenced = await self._is_referenced(asset.id)
         delivery_url = None
         if asset.state == MediaState.READY:
             delivery_url = self._storage.delivery_url(asset.public_id)

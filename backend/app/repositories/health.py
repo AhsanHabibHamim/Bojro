@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from datetime import UTC, datetime
+from typing import Protocol
 
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -12,6 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.schemas.health import ComponentHealth
 from app.services.bootstrap import SCHEMA_HEAD
+
+
+class StorageHealthProbe(Protocol):
+    name: str
+
+    async def healthcheck(self) -> None: ...
 
 
 class HealthRepository:
@@ -106,6 +113,27 @@ class HealthRepository:
             status="ok",
             required=True,
             latency_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
+
+    async def check_storage(
+        self, provider: StorageHealthProbe, *, required: bool
+    ) -> ComponentHealth:
+        started = time.perf_counter()
+        try:
+            async with asyncio.timeout(self._timeout_seconds):
+                await provider.healthcheck()
+        except Exception as exc:
+            return ComponentHealth(
+                status="unavailable" if required else "degraded",
+                required=required,
+                latency_ms=round((time.perf_counter() - started) * 1000, 2),
+                detail=f"provider={provider.name},error={type(exc).__name__}",
+            )
+        return ComponentHealth(
+            status="ok",
+            required=required,
+            latency_ms=round((time.perf_counter() - started) * 1000, 2),
+            detail=f"provider={provider.name}",
         )
 
     async def check_admin_policy(self, *, totp_required: bool, required: bool) -> ComponentHealth:

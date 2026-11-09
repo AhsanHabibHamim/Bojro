@@ -56,7 +56,7 @@ def get_health_service(request: Request) -> HealthService:
         request.app.state.engine,
         request.app.state.redis,
         redis_configured=settings.redis_url is not None,
-        redis_required=settings.is_production,
+        redis_required=settings.is_production_like,
         timeout_seconds=settings.readiness_timeout_seconds,
     )
     capabilities = [
@@ -74,7 +74,13 @@ def get_health_service(request: Request) -> HealthService:
             request.app.state.assistant_provider,
         )
     )
-    return HealthService(repository, settings, capabilities)
+    return HealthService(
+        repository,
+        settings,
+        request.app.state.storage_provider,
+        capabilities,
+        observability_available=request.app.state.observability.available,
+    )
 
 
 def get_catalog_service(
@@ -316,7 +322,7 @@ def get_admin_order_service(
     return AdminOrderService(
         AdminRepository(session),
         request.app.state.courier_gateways,
-        not settings.is_production and settings.courier_provider == "mock",
+        not settings.is_production_like and settings.courier_provider == "mock",
         request.app.state.courier_providers,
         settings,
         request.app.state.payment_providers,

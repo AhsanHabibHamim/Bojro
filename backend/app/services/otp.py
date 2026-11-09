@@ -265,7 +265,7 @@ class OTPService:
             except DomainError:
                 raise
             except Exception as exc:
-                if self._settings.is_production:
+                if self._settings.is_production_like:
                     raise DomainError(
                         "OTP_UNAVAILABLE",
                         "OTP verification is temporarily unavailable.",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated, cast
@@ -368,4 +369,32 @@ def require_public_json(
 
 
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client is not None else "unknown"
+    if request.client is None:
+        return "unknown"
+    peer_text = request.client.host.split("%", 1)[0]
+    try:
+        peer = ipaddress.ip_address(peer_text)
+    except ValueError:
+        return "unknown"
+    trusted = tuple(
+        ipaddress.ip_network(cidr, strict=False) for cidr in _settings(request).trusted_proxy_cidrs
+    )
+    if not any(peer in network for network in trusted):
+        return str(peer)
+    forwarded = request.headers.get("X-Forwarded-For")
+    if not forwarded:
+        return str(peer)
+    try:
+        chain = [
+            ipaddress.ip_address(value.strip().split("%", 1)[0])
+            for value in forwarded.split(",")
+            if value.strip()
+        ]
+    except ValueError:
+        return str(peer)
+    if not chain:
+        return str(peer)
+    for candidate in reversed(chain):
+        if not any(candidate in network for network in trusted):
+            return str(candidate)
+    return str(chain[0])

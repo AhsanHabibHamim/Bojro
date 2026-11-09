@@ -94,6 +94,7 @@ async def test_cloudinary_completion_uses_server_side_resource_metadata() -> Non
     )
     assert signed.fields["allowed_formats"] == "webp"
     assert signed.fields["max_file_size"] == "2048"
+    assert signed.fields["overwrite"] == "false"
     response_signature = str(
         cloudinary.utils.api_sign_request({"public_id": public_id, "version": version}, secret)
     )

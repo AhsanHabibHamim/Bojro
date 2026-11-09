@@ -75,14 +75,18 @@ class CloudinaryResourceLookup(Protocol):
 
 
 class SDKCloudinaryResourceLookup:
+    def __init__(self, timeout_seconds: float = 10.0) -> None:
+        self._timeout_seconds = timeout_seconds
+
     async def resource(self, public_id: str) -> CloudinaryAssetMetadata:
         try:
-            raw = await asyncio.to_thread(
-                cloudinary.api.resource,
-                public_id,
-                resource_type="image",
-                type="upload",
-            )
+            async with asyncio.timeout(self._timeout_seconds):
+                raw = await asyncio.to_thread(
+                    cloudinary.api.resource,
+                    public_id,
+                    resource_type="image",
+                    type="upload",
+                )
         except Exception as exc:
             raise StorageProviderUnavailable("Cloudinary resource metadata lookup failed") from exc
         try:
@@ -102,6 +106,8 @@ class SDKCloudinaryResourceLookup:
 
 class StorageProvider(Protocol):
     name: str
+
+    async def healthcheck(self) -> None: ...
 
     async def sign_review_upload(
         self,
@@ -159,6 +165,9 @@ class MockStorageProvider:
             )
         ).encode()
         return hmac.new(self._secret, message, hashlib.sha256).hexdigest()
+
+    async def healthcheck(self) -> None:
+        return None
 
     async def sign_review_upload(
         self,
@@ -254,11 +263,13 @@ class CloudinaryStorageProvider:
         api_secret: str | None = None,
         *,
         resource_lookup: CloudinaryResourceLookup | None = None,
+        timeout_seconds: float = 10.0,
     ) -> None:
         self._cloud_name = cloud_name
         self._api_key = api_key
         self._api_secret = api_secret
-        self._resource_lookup = resource_lookup or SDKCloudinaryResourceLookup()
+        self._timeout_seconds = timeout_seconds
+        self._resource_lookup = resource_lookup or SDKCloudinaryResourceLookup(timeout_seconds)
         if cloud_name and api_key and api_secret:
             cloudinary.config(
                 cloud_name=cloud_name,
@@ -272,6 +283,17 @@ class CloudinaryStorageProvider:
         return StorageProviderUnavailable(
             "Cloudinary review uploads are not configured for this phase"
         )
+
+    async def healthcheck(self) -> None:
+        if not self._cloud_name or not self._api_key or not self._api_secret:
+            raise self._unavailable()
+        try:
+            async with asyncio.timeout(self._timeout_seconds):
+                result = await asyncio.to_thread(cloudinary.api.ping)
+        except Exception as exc:
+            raise StorageProviderUnavailable("Cloudinary availability check failed") from exc
+        if not isinstance(result, dict) or result.get("status") != "ok":
+            raise StorageProviderUnavailable("Cloudinary availability check was not accepted")
 
     async def sign_review_upload(
         self,
@@ -309,6 +331,7 @@ class CloudinaryStorageProvider:
             "context": f"bojro_upload_id={upload_id}|bojro_user_id={user_id}",
             "folder": folder,
             "max_file_size": byte_size,
+            "overwrite": False,
             "public_id": public_id.rsplit("/", 1)[-1],
             "timestamp": timestamp,
         }
@@ -325,6 +348,7 @@ class CloudinaryStorageProvider:
                 "context": f"bojro_upload_id={upload_id}|bojro_user_id={user_id}",
                 "folder": folder,
                 "max_file_size": str(byte_size),
+                "overwrite": "false",
                 "public_id": public_id.rsplit("/", 1)[-1],
                 "timestamp": str(timestamp),
                 "signature": signature,
@@ -403,7 +427,8 @@ class CloudinaryStorageProvider:
     async def delete_asset(self, public_id: str) -> None:
         if not self._api_secret:
             raise self._unavailable()
-        await asyncio.to_thread(cloudinary.uploader.destroy, public_id, invalidate=True)
+        async with asyncio.timeout(self._timeout_seconds):
+            await asyncio.to_thread(cloudinary.uploader.destroy, public_id, invalidate=True)
 
 
 def create_storage_provider(settings: Settings) -> StorageProvider:

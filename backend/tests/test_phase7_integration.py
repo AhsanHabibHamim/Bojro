@@ -1176,7 +1176,7 @@ def test_phase7_migration_append_only_trigger_and_downgrade_refusal_metadata(
         try:
             async with engine.connect() as connection:
                 revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                assert revision == "0014_phase7_release_hardening"
+                assert revision == "0015_phase8_hardening"
                 trigger = await connection.scalar(
                     text(
                         "SELECT count(*) FROM pg_trigger "
@@ -1688,7 +1688,7 @@ def test_admin_engagement_views_are_masked_allowlisted_and_withdraw_only(
                 fixture = next(
                     item
                     for item in newsletter.items
-                    if item.masked_email == "p*********@bojro.test"
+                    if item.masked_email == "p*********@bojro.com.bd"
                 )
                 await session.rollback()
                 withdrawn = await service.change_newsletter_status(

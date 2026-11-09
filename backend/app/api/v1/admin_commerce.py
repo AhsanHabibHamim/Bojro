@@ -24,6 +24,7 @@ from app.api.dependencies import (
     get_order_pdf_service,
     get_payment_service,
 )
+from app.api.security import client_ip
 from app.core.errors import PHASE3_ERROR_RESPONSES, DomainError
 from app.db.enums import OrderStatus, PaymentStatus, ReviewStatus
 from app.schemas.admin_commerce import (
@@ -78,7 +79,7 @@ def _context(request: Request, admin: AuthenticatedAdmin) -> AdminCommandContext
     return AdminCommandContext(
         actor_id=admin.user_id,
         request_id=getattr(request.state, "request_id", None),
-        ip_address=request.client.host if request.client else "127.0.0.1",
+        ip_address=client_ip(request),
         user_agent=request.headers.get("User-Agent", "unknown"),
         method=request.method,
         path=request.url.path,

@@ -52,6 +52,10 @@ def test_production_requires_explicit_engagement_keyrings() -> None:
         "redis_url": "redis://redis:6379/0",
         "trusted_hosts": ["api.bojro.com.bd"],
         "cors_origins": ["https://bojro.com.bd"],
+        "admin_totp_required": True,
+        "admin_totp_keyring": {"prod-v1": "Q0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0M="},
+        "admin_totp_active_key_id": "prod-v1",
+        "readiness_diagnostics_token": "diagnostics-production-token-32-characters",
     }
     with pytest.raises(ValidationError, match="ENGAGEMENT_PII_KEYRING must be explicitly"):
         Settings(**common)

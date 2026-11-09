@@ -143,6 +143,6 @@ async def test_combined_arq_worker_entrypoint_starts_and_stops(
     await worker_module.startup(context)
     assert "session_factory" in context
     assert "storage_provider" in context
-    assert len(worker_module.WorkerSettings.functions) == 10
-    assert len(worker_module.WorkerSettings.cron_jobs) == 10
+    assert len(worker_module.WorkerSettings.functions) == 11
+    assert len(worker_module.WorkerSettings.cron_jobs) == 11
     await worker_module.shutdown(context)
