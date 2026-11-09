@@ -111,7 +111,7 @@ x-backend-environment: &backend-environment
   RETENTION_CLEANUP_BATCH_SIZE: ${RETENTION_CLEANUP_BATCH_SIZE:-500}
   CORS_ORIGINS: '["${FRONTEND_ORIGIN:-http://localhost:3000}"]'
   TRUSTED_HOSTS: '["localhost","127.0.0.1","backend"]'
-  TRUSTED_PROXY_CIDRS: '${TRUSTED_PROXY_CIDRS:-[]}'
+  TRUSTED_PROXY_CIDRS: "${TRUSTED_PROXY_CIDRS:-[]}"
 
 services:
   postgres:

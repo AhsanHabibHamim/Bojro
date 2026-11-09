@@ -71,7 +71,7 @@ jobs:
       - name: Scan Git history for verified secrets
         uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
         with:
-          version: v3.99.8
+          version: 3.99.0
           extra_args: --results=verified --fail-on-scan-errors
 
   container-security:

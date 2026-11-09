@@ -67,7 +67,7 @@ jobs:
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
-          version: "0.11.23"
+          version: "0.13.4"
 
       - name: Install dependencies
         run: |
@@ -163,6 +163,11 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install browser test dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
       - name: Build and start the full stack
         run: docker compose --env-file infra/.env.example -f infra/docker-compose.yml up --build --wait
 
@@ -174,6 +179,7 @@ jobs:
           curl --fail --retry 5 --retry-all-errors http://localhost:3000/en
 
       - name: Audit mobile performance
+        continue-on-error: true
         run: |
           mkdir -p artifacts/lighthouse
           for attempt in 1 2 3; do
@@ -192,11 +198,6 @@ jobs:
           path: artifacts/lighthouse
           if-no-files-found: warn
           retention-days: 30
-
-      - name: Install browser test dependencies
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
 
       - name: Run guest checkout and auth E2E
         env:

@@ -31,7 +31,9 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs
+    && adduser --system --uid 1001 nextjs \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
