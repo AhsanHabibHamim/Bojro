@@ -10,21 +10,20 @@ import {
   Star,
   Truck,
 } from "@phosphor-icons/react";
-import { useReducedMotion } from "framer-motion";
-import dynamic from "next/dynamic";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-const LottiePlayer = dynamic(() => import("lottie-react").then((module) => module.Lottie), {
-  ssr: false,
-});
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+const subscribeToReducedMotion = (callback: () => void) => {
+  const media = window.matchMedia(reducedMotionQuery);
+  media.addEventListener("change", callback);
+  return () => media.removeEventListener("change", callback);
+};
+const reducedMotionSnapshot = () => window.matchMedia(reducedMotionQuery).matches;
+const serverReducedMotionSnapshot = () => false;
 
 export type LottieIconName =
   "bolt" | "checkmark" | "heart" | "cart" | "loader" | "confetti" | "truck" | "star";
-
-const animationAssets: Partial<Record<LottieIconName, string>> = {
-  bolt: "/lottie/bolt-pulse.json",
-};
 
 type LottieIconProps = {
   name: LottieIconName;
@@ -65,13 +64,11 @@ function DefaultFallback({ name, size }: Pick<LottieIconProps, "name" | "size">)
 export function LottieIcon({ name, label, fallback, size = 32, className }: LottieIconProps) {
   const containerRef = useRef<HTMLSpanElement>(null);
   const [inView, setInView] = useState(false);
-  const shouldReduceMotion = useReducedMotion();
-  const asset = animationAssets[name];
-  const [playerStatus, setPlayerStatus] = useState({
-    asset,
-    failed: false,
-    ready: false,
-  });
+  const shouldReduceMotion = useSyncExternalStore(
+    subscribeToReducedMotion,
+    reducedMotionSnapshot,
+    serverReducedMotionSnapshot,
+  );
 
   useEffect(() => {
     const element = containerRef.current;
@@ -98,11 +95,6 @@ export function LottieIcon({ name, label, fallback, size = 32, className }: Lott
 
   const stableSizeClass =
     size <= 24 ? "size-6" : size <= 32 ? "size-8" : size === 42 ? "size-[42px]" : "size-11";
-  const showAnimation = Boolean(asset && inView && !shouldReduceMotion);
-  const playerReady = playerStatus.asset === asset && playerStatus.ready;
-  const playerFailed = playerStatus.asset === asset && playerStatus.failed;
-  const showFallback = !showAnimation || !playerReady || playerFailed;
-
   return (
     <span
       ref={containerRef}
@@ -117,31 +109,17 @@ export function LottieIcon({ name, label, fallback, size = 32, className }: Lott
         .filter(Boolean)
         .join(" ")}
     >
-      {showAnimation && asset && !playerFailed ? (
-        <LottiePlayer
-          autoplay
-          className="h-full w-full"
-          loop
-          src={asset}
-          subscriptions={{
-            error: () => setPlayerStatus({ asset, failed: true, ready: false }),
-            ready: () => setPlayerStatus({ asset, failed: false, ready: true }),
-          }}
-        />
-      ) : null}
-      {showFallback ? (
-        <span
-          className={[
-            "lottie-fallback absolute inset-0 inline-flex items-center justify-center",
-            name !== "loader" && inView && !shouldReduceMotion ? "is-animated" : "",
-            name === "loader" && inView && !shouldReduceMotion ? "animate-spin" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          {fallback ?? <DefaultFallback name={name} size={size} />}
-        </span>
-      ) : null}
+      <span
+        className={[
+          "lottie-fallback absolute inset-0 inline-flex items-center justify-center",
+          name !== "loader" && inView && !shouldReduceMotion ? "is-animated" : "",
+          name === "loader" && inView && !shouldReduceMotion ? "animate-spin" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {fallback ?? <DefaultFallback name={name} size={size} />}
+      </span>
     </span>
   );
 }

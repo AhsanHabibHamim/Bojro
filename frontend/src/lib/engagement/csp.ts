@@ -36,19 +36,23 @@ export function providerConsentFromCookieHeader(cookieHeader: string | null): Cs
 export function createContentSecurityPolicy({
   nonce,
   apiUrl,
+  pathname = "/",
+  reportingUrl,
   consent,
   allowE2EStorage = false,
   upgradeInsecureRequests = true,
 }: {
   nonce: string;
   apiUrl: string;
+  pathname?: string;
+  reportingUrl?: string;
   consent: CspProviderConsent;
   allowE2EStorage?: boolean;
   upgradeInsecureRequests?: boolean;
 }): string {
   const apiOrigin = origin(apiUrl) ?? "http://localhost:8000";
   const scriptSources = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];
-  const connectSources = ["'self'", apiOrigin, "https://api.cloudinary.com"];
+  const connectSources = ["'self'", apiOrigin];
   const imageSources = [
     "'self'",
     "data:",
@@ -67,6 +71,11 @@ export function createContentSecurityPolicy({
     connectSources.push(...metaConnections);
     imageSources.push("https://www.facebook.com");
   }
+  if (/^\/(?:bn|en)\/admin(?:\/|$)/.test(pathname)) {
+    connectSources.push("https://api.cloudinary.com");
+  }
+  const reportingOrigin = reportingUrl ? origin(reportingUrl) : null;
+  if (reportingOrigin) connectSources.push(reportingOrigin);
   if (allowE2EStorage) imageSources.push("https://bojro-storage-mock.invalid");
 
   return [
@@ -77,6 +86,7 @@ export function createContentSecurityPolicy({
     "object-src 'none'",
     `script-src ${[...new Set(scriptSources)].join(" ")}`,
     `style-src 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'none'",
     "font-src 'self' data:",
     `img-src ${[...new Set(imageSources)].join(" ")}`,
     `connect-src ${[...new Set(connectSources)].join(" ")}`,

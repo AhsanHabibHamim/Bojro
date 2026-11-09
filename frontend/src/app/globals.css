@@ -26,6 +26,7 @@
   --color-ink: var(--brand-text);
   --color-muted: var(--brand-text-secondary);
   --color-sale-amber: var(--brand-sale-amber);
+  --color-sale-amber-ink: #a16207;
   --color-success: var(--brand-success);
   --color-error: var(--brand-error);
   --font-display: var(--font-chonburi), "Rozha One", serif;
@@ -50,7 +51,6 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  overflow-x: clip;
   background: var(--brand-background);
   color: var(--brand-text);
   font-family: var(--font-body);
@@ -58,6 +58,15 @@ body {
   line-height: 1.7;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+body.launch-scroll-lock {
+  overflow: hidden;
+}
+
+/* The locked success swatch is suitable for fills/icons; text needs AA contrast on white. */
+.text-success {
+  color: #137a3d;
 }
 
 html[lang="bn"] body {

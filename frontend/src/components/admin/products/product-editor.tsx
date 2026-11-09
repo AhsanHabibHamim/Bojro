@@ -1,11 +1,11 @@
 "use client";
 
 import { FloppyDisk, Plus, Trash } from "@phosphor-icons/react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
+import { CspImage } from "@/components/shared/csp-image";
 import type { AppLocale } from "@/i18n/routing";
 import { AdminApiError } from "@/lib/admin/client";
 import {
@@ -850,7 +850,7 @@ export function ProductEditor({ id, locale }: { id: string | null; locale: AppLo
               onReorder={setImages}
               render={(image) => (
                 <div className="flex items-center gap-3">
-                  <Image
+                  <CspImage
                     alt={locale === "bn" ? image.alt_bn : image.alt_en}
                     className="size-20 rounded-xl object-cover"
                     height={80}

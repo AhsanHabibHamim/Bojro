@@ -13,10 +13,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { useEngagement } from "@/components/engagement/engagement-provider";
 import type { AppLocale } from "@/i18n/routing";
 import type { OrderReceipt } from "@/lib/commerce/types";
 import { formatNumber } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
+import { confirmedOnlinePurchase } from "@/lib/engagement/purchase";
 import type { CourierProvider, PaymentMethod } from "@/lib/providers/types";
 
 import { OrderTimeline } from "./order-timeline";
@@ -77,6 +79,7 @@ export function OrderSuccessClient({
   labels: OrderSuccessLabels;
 }) {
   const { getOrder } = useCommerce();
+  const { trackPurchase } = useEngagement();
   const [order, setOrder] = useState<OrderReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -95,6 +98,11 @@ export function OrderSuccessClient({
       });
     return () => controller.abort();
   }, [getOrder, labels.errorDescription, number]);
+
+  useEffect(() => {
+    const event = confirmedOnlinePurchase(order);
+    if (event) void trackPurchase(event);
+  }, [order, trackPurchase]);
 
   const retry = async () => {
     setLoading(true);
@@ -165,7 +173,7 @@ export function OrderSuccessClient({
         ) : null}
         <div className="relative">
           <span
-            className={`${celebrate ? "order-success-check" : ""} mx-auto inline-grid size-20 place-items-center rounded-full bg-white shadow-lg ${onlineProcessing ? "text-sale-amber" : onlineResolved ? "text-brand-purple" : "text-success"}`}
+            className={`${celebrate ? "order-success-check" : ""} mx-auto inline-grid size-20 place-items-center rounded-full bg-white shadow-lg ${onlineProcessing ? "text-sale-amber-ink" : onlineResolved ? "text-brand-purple" : "text-success"}`}
           >
             {onlineProcessing || onlineResolved ? (
               <ClockCountdown aria-hidden size={42} weight="duotone" />

@@ -59,7 +59,7 @@ describe("safe rich documents", () => {
     rerender(
       <RichDocumentRenderer
         document={document}
-        media={{ "asset-1": { url: "https://cdn.example.test/safe.webp" } }}
+        media={{ "asset-1": "https://cdn.example.test/safe.webp" }}
       />,
     );
     expect(screen.getByRole("img", { name: "Safe product detail" })).toBeVisible();

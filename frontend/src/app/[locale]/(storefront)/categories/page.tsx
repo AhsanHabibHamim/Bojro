@@ -6,6 +6,7 @@ import { CatalogImage } from "@/components/catalog/catalog-image";
 import { EmptyState } from "@/components/catalog/empty-state";
 import type { AppLocale } from "@/i18n/routing";
 import { catalogApi } from "@/lib/api/catalog";
+import { createPublicMetadata } from "@/lib/seo";
 
 type CategoriesPageProps = { params: Promise<{ locale: AppLocale }> };
 
@@ -14,15 +15,13 @@ export const revalidate = 600;
 export async function generateMetadata({ params }: CategoriesPageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "catalog.categories" });
-  return {
+  return createPublicMetadata({
+    locale,
+    pathname: `/${locale}/categories`,
+    alternatePathname: "categories",
     title: t("metaTitle"),
     description: t("description"),
-    alternates: {
-      canonical: `/${locale}/categories`,
-      languages: { bn: "/bn/categories", en: "/en/categories" },
-    },
-    openGraph: { title: t("metaTitle"), description: t("description"), type: "website" },
-  };
+  });
 }
 
 export default async function CategoriesPage({ params }: CategoriesPageProps) {
@@ -84,7 +83,7 @@ export default async function CategoriesPage({ params }: CategoriesPageProps) {
                     {category.children.map((child) => (
                       <a
                         key={child.id}
-                        className="rounded-full bg-soft-lavender px-3 py-1 text-xs font-bold text-deep-indigo hover:bg-brand-purple hover:text-white"
+                        className="inline-flex min-h-11 items-center rounded-full bg-soft-lavender px-3 py-1 text-xs font-bold text-deep-indigo hover:bg-brand-purple hover:text-white"
                         href={`/${locale}/category/${encodeURIComponent(child.slug)}`}
                       >
                         {child.name}

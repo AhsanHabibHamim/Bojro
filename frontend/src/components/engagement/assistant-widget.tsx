@@ -14,7 +14,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { isValidBangladeshPhone, normalizeBangladeshPhone } from "@/lib/commerce/checkout";
@@ -103,6 +103,15 @@ function disclosureMessage(
   };
 }
 
+export type AssistantWidgetProps = {
+  locale: AppLocale;
+  settings: AssistantPublicSettings;
+  whatsapp: { enabled: boolean; phone: string; message: string };
+  whatsappLabel: string;
+  labels: AssistantLabels;
+  api?: EngagementApi;
+};
+
 export function AssistantWidget({
   locale,
   settings,
@@ -110,14 +119,7 @@ export function AssistantWidget({
   whatsappLabel,
   labels,
   api = engagementApi,
-}: {
-  locale: AppLocale;
-  settings: AssistantPublicSettings;
-  whatsapp: { enabled: boolean; phone: string; message: string };
-  whatsappLabel: string;
-  labels: AssistantLabels;
-  api?: EngagementApi;
-}) {
+}: AssistantWidgetProps) {
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<AssistantSession | null>(null);
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
@@ -135,17 +137,24 @@ export function AssistantWidget({
     "idle" | "pending" | "invalid" | "error" | "success"
   >("idle");
   const closeRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const dialogId = useId();
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     closeRef.current?.focus();
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      queueMicrotask(() => trigger?.focus());
+    };
   }, [open]);
 
   useEffect(() => {
@@ -330,8 +339,11 @@ export function AssistantWidget({
   return (
     <>
       <button
+        ref={triggerRef}
+        aria-controls={dialogId}
         aria-label={labels.button}
         aria-expanded={open}
+        aria-haspopup="dialog"
         className="fixed right-4 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] z-[61] grid size-12 place-items-center rounded-full bg-deep-indigo text-white shadow-[0_10px_34px_rgb(42_21_101/0.35)] transition-transform hover:-translate-y-0.5 lg:right-20 lg:bottom-6"
         onClick={() => setOpen((value) => !value)}
         type="button"
@@ -340,9 +352,10 @@ export function AssistantWidget({
       </button>
       {open ? (
         <section
-          aria-label={labels.title}
+          aria-labelledby={titleId}
           aria-modal="false"
           className="fixed inset-x-3 bottom-[calc(12.5rem+env(safe-area-inset-bottom))] z-[70] flex max-h-[min(70dvh,42rem)] flex-col overflow-hidden rounded-3xl border border-brand-purple/15 bg-white shadow-[0_24px_90px_rgb(42_21_101/0.32)] sm:left-auto sm:right-4 sm:w-[25rem] lg:right-6 lg:bottom-20"
+          id={dialogId}
           role="dialog"
         >
           <header className="flex items-center gap-3 border-b border-brand-purple/10 p-4">
@@ -350,7 +363,7 @@ export function AssistantWidget({
               <Robot aria-hidden size={25} weight="duotone" />
             </span>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-extrabold">
+              <h2 className="truncate text-lg font-extrabold" id={titleId}>
                 {settings.display_name || labels.title}
               </h2>
               <p className="text-xs font-bold text-brand-purple">{labels.disclosureLabel}</p>

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CspImage } from "@/components/shared/csp-image";
 
 type CatalogImageProps = {
   src?: string | null;
@@ -18,7 +18,7 @@ export function CatalogImage({
   fallback = "/placeholders/product.svg",
 }: CatalogImageProps) {
   return (
-    <Image
+    <CspImage
       fill
       alt={alt}
       className={className}

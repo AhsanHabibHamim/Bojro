@@ -7,7 +7,7 @@ const orderNumber = process.env.E2E_ADMIN_ORDER_NUMBER ?? "";
 test.describe("@admin order lifecycle and documents", () => {
   test.describe.configure({ mode: "serial", retries: 0 });
   test.skip(
-    !hasAdminCredentials || !orderNumber,
+    process.env.CI !== "true" && (!hasAdminCredentials || !orderNumber),
     "E2E_ADMIN_ORDER_NUMBER in the fresh database is required",
   );
 

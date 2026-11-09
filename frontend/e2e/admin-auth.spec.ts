@@ -3,7 +3,10 @@ import { expect, test } from "@playwright/test";
 import { adminEmail, adminLogin, hasAdminCredentials } from "./admin-helpers";
 
 test.describe("@admin-auth dedicated admin authentication", () => {
-  test.skip(!hasAdminCredentials, "E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are required");
+  test.skip(
+    process.env.CI !== "true" && !hasAdminCredentials,
+    "E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are required",
+  );
 
   test("uses generic failures, optional env-only TOTP, refresh, and logout without browser tokens", async ({
     page,
@@ -33,7 +36,7 @@ test.describe("@admin-auth dedicated admin authentication", () => {
   test("customer credentials never disclose whether an admin account exists", async ({ page }) => {
     await page.goto("/en/account/login");
     await page.getByRole("button", { name: "Email" }).click();
-    await page.getByLabel("Email address").fill(adminEmail);
+    await page.getByRole("textbox", { name: "Email address", exact: true }).fill(adminEmail);
     await page.getByLabel("Password").fill("wrong-for-all-users");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.getByText(/could not be completed/i)).toBeVisible();

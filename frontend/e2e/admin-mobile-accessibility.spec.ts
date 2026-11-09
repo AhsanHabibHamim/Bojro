@@ -3,7 +3,10 @@ import { expect, test } from "@playwright/test";
 import { hasAdminCredentials } from "./admin-helpers";
 
 test.describe("@admin-mobile mobile and keyboard accessibility", () => {
-  test.skip(!hasAdminCredentials, "Admin E2E credentials are required");
+  test.skip(
+    process.env.CI !== "true" && !hasAdminCredentials,
+    "Admin E2E credentials are required",
+  );
 
   test("operates sidebar, card tables, filters, dialogs, and focus restoration by keyboard", async ({
     page,

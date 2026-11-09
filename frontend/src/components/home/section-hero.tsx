@@ -86,6 +86,7 @@ export function HomeHero({
           <div className="signature-gradient bolt-grid relative aspect-[4/4.25] overflow-hidden rounded-[2rem] shadow-[0_36px_90px_rgb(42_21_101/0.25)]">
             {section.data.slides.length ? (
               <HeroArtworkCarousel
+                idPrefix={`hero-${section.id}`}
                 labels={carouselLabels}
                 locale={locale}
                 slides={section.data.slides}
@@ -93,6 +94,23 @@ export function HomeHero({
             ) : (
               <div className="h-full w-full bg-[url('/placeholders/feature.svg')] bg-cover bg-center" />
             )}
+            {section.data.slides.length > 1 ? (
+              <nav
+                aria-label={carouselLabels.slide}
+                className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1"
+              >
+                {section.data.slides.map((slide, index) => (
+                  <a
+                    key={slide.id}
+                    aria-label={`${carouselLabels.slide} ${index + 1}`}
+                    className="grid size-11 place-items-center rounded-full bg-deep-indigo/80 text-sm font-black text-white shadow-sm hover:bg-deep-indigo"
+                    href={`#hero-${section.id}-slide-${index + 1}`}
+                  >
+                    {index + 1}
+                  </a>
+                ))}
+              </nav>
+            ) : null}
           </div>
         </div>
       </div>

@@ -57,7 +57,7 @@ export function CartDrawer({
   useEffect(() => {
     if (!open) return;
     const opener = openerRef.current;
-    const previousOverflow = document.body.style.overflow;
+    const wasScrollLocked = document.body.classList.contains("launch-scroll-lock");
     const background = Array.from(document.body.children)
       .filter(
         (element): element is HTMLElement =>
@@ -68,7 +68,7 @@ export function CartDrawer({
         inert: Boolean(element.inert),
         ariaHidden: element.getAttribute("aria-hidden"),
       }));
-    document.body.style.overflow = "hidden";
+    document.body.classList.add("launch-scroll-lock");
     background.forEach(({ element }) => {
       element.inert = true;
       element.setAttribute("aria-hidden", "true");
@@ -98,7 +98,7 @@ export function CartDrawer({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      if (!wasScrollLocked) document.body.classList.remove("launch-scroll-lock");
       background.forEach(({ element, inert, ariaHidden }) => {
         element.inert = inert;
         if (ariaHidden === null) element.removeAttribute("aria-hidden");

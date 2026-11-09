@@ -103,10 +103,10 @@ export function EngagementProvider({
     if (!settingsOpen) return;
     const content = contentRef.current;
     const banner = bannerRef.current;
-    const previousOverflow = document.body.style.overflow;
+    const wasScrollLocked = document.body.classList.contains("launch-scroll-lock");
     content?.setAttribute("inert", "");
     banner?.setAttribute("inert", "");
-    document.body.style.overflow = "hidden";
+    document.body.classList.add("launch-scroll-lock");
 
     const focusable = () =>
       Array.from(
@@ -142,7 +142,7 @@ export function EngagementProvider({
       document.removeEventListener("keydown", onKeyDown);
       content?.removeAttribute("inert");
       banner?.removeAttribute("inert");
-      document.body.style.overflow = previousOverflow;
+      if (!wasScrollLocked) document.body.classList.remove("launch-scroll-lock");
       const opener = openerRef.current;
       const fallback = content?.querySelector<HTMLElement>(
         'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',

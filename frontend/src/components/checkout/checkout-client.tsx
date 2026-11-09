@@ -46,6 +46,7 @@ import type {
 import { formatNumber } from "@/lib/format-number";
 import { formatPrice } from "@/lib/format-price";
 import { engagementApi } from "@/lib/engagement/client";
+import { metaAttributionCookies } from "@/lib/engagement/attribution";
 import {
   clearPaymentContinuation,
   clearPaymentInitiationKey,
@@ -136,6 +137,7 @@ export type CheckoutLabels = {
     itemCount: string;
   };
   validation: {
+    summary: string;
     required: string;
     nameLength: string;
     addressLength: string;
@@ -313,7 +315,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: CheckoutLabels }) {
   const router = useRouter();
-  const { consent, policyVersion, track, trackPurchase } = useEngagement();
+  const { consent, policyVersion, track } = useEngagement();
   const {
     cart,
     session,
@@ -344,6 +346,9 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
   const [quoteNow, setQuoteNow] = useState(() => Date.now());
   const [conflict, setConflict] = useState("");
   const submissionKey = useRef<SubmissionKey | null>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
+  const districtRequest = useRef<AbortController | null>(null);
+  const upazilaRequest = useRef<AbortController | null>(null);
 
   const loadPaymentMethods = async (signal?: AbortSignal) => {
     setPaymentMethodsLoading(true);
@@ -389,6 +394,14 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       });
     return () => controller.abort();
   }, [getDivisions, labels.address.error]);
+
+  useEffect(
+    () => () => {
+      districtRequest.current?.abort();
+      upazilaRequest.current?.abort();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!quote) return;
@@ -443,7 +456,10 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
     event.preventDefault();
     const nextErrors = validateCheckoutForm(form, labels.validation);
     setFormErrors(nextErrors);
-    if (Object.keys(nextErrors).length) return;
+    if (Object.keys(nextErrors).length) {
+      queueMicrotask(() => errorSummaryRef.current?.focus());
+      return;
+    }
     setConflict("");
     try {
       const selected = paymentMethods.find((item) => item.code === paymentMethod);
@@ -501,9 +517,7 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
 
   const submitOrder = async () => {
     if (!validQuote || Date.now() >= quoteExpiresAt || pendingAction === "checkout") return;
-    const attribution = consent.advertising
-      ? (await import("@/lib/engagement/analytics")).metaAttributionCookies()
-      : {};
+    const attribution = consent.advertising ? metaAttributionCookies() : {};
     const request: PlaceOrderRequest = {
       ...detailsFromForm(form, paymentMethod),
       quote_token: validQuote.quote_token,
@@ -520,29 +534,16 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       const response = await placeOrder(request, submissionKey.current.key);
       clearSubmissionKey();
       submissionKey.current = null;
-      const purchaseEventId = response.analytics.purchase_event_id;
-      if (purchaseEventId && /^[0-9a-f-]{36}$/i.test(purchaseEventId)) {
-        await trackPurchase({
-          event_id: purchaseEventId,
-          event_name: "purchase",
-          commerce: {
-            currency: "BDT",
-            value_poisha: response.order.grand_total_poisha,
-            item_ids: [...new Set((cart?.items ?? []).map((item) => item.product.id))],
-            quantity: (cart?.items ?? []).reduce((total, item) => total + item.quantity, 0),
-          },
-        });
-      }
       if (newsletterOptIn && form.email.trim()) {
-        try {
-          await engagementApi.subscribeNewsletter({
+        void engagementApi
+          .subscribeNewsletter({
             email: form.email.trim(),
             locale,
             consent: true,
             policy_version: policyVersion,
             source: "checkout",
-          });
-        } catch {}
+          })
+          .catch(() => undefined);
       }
       if (response.payment_required && paymentMethod !== "cod") {
         await startOnlinePayment(response.order.number, paymentMethod);
@@ -554,7 +555,10 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
       const normalized =
         error instanceof CommerceError ? error : new CommerceError(labels.conflict.generic);
       const structuredErrors = mapCheckoutFieldErrors(normalized.fieldErrors, labels.validation);
-      if (Object.keys(structuredErrors).length) setFormErrors(structuredErrors);
+      if (Object.keys(structuredErrors).length) {
+        setFormErrors(structuredErrors);
+        queueMicrotask(() => errorSummaryRef.current?.focus());
+      }
       setConflict(
         isAmbiguousOrderError(normalized)
           ? labels.conflict.unknown
@@ -598,6 +602,18 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
   }
 
   const authoritativeCart = validQuote?.cart ?? cart;
+  const fieldLabels: Record<keyof CheckoutForm, string> = {
+    customerName: labels.contact.name,
+    customerPhone: labels.contact.phone,
+    email: labels.contact.email,
+    recipient: labels.address.recipient,
+    shippingPhone: labels.address.phone,
+    divisionId: labels.address.division,
+    districtId: labels.address.district,
+    upazilaId: labels.address.upazila,
+    addressLine: labels.address.line,
+    notes: labels.address.notes,
+  };
   const fieldClass =
     "mt-1 min-h-12 w-full rounded-xl border border-brand-purple/20 bg-white px-4 focus:border-brand-purple focus:outline-none";
 
@@ -611,6 +627,23 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
 
       <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <form className="space-y-5" noValidate onSubmit={(event) => void requestQuote(event)}>
+          {Object.keys(formErrors).length ? (
+            <div
+              ref={errorSummaryRef}
+              className="rounded-2xl border border-error/25 bg-error/8 p-5 text-error"
+              role="alert"
+              tabIndex={-1}
+            >
+              <h2 className="font-extrabold">{labels.validation.summary}</h2>
+              <ul className="mt-2 list-disc space-y-1 ps-5 text-sm font-bold">
+                {Object.entries(formErrors).map(([field, message]) => (
+                  <li key={field}>
+                    {fieldLabels[field as keyof CheckoutForm]}: {message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <section className="rounded-3xl border border-brand-purple/10 bg-white p-5 shadow-sm sm:p-7">
             <h2 className="flex items-center gap-2 text-xl font-extrabold">
               <UserCircle aria-hidden className="text-brand-purple" size={27} weight="duotone" />
@@ -764,19 +797,31 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
                   disabled={geoLoading}
                   onChange={async (event) => {
                     const value = event.target.value;
+                    districtRequest.current?.abort();
+                    upazilaRequest.current?.abort();
                     edit("divisionId", value);
                     setForm((current) => ({ ...current, districtId: "", upazilaId: "" }));
                     setDistricts([]);
                     setUpazilas([]);
-                    if (!value) return;
+                    if (!value) {
+                      setGeoLoading(false);
+                      return;
+                    }
+                    const controller = new AbortController();
+                    districtRequest.current = controller;
                     setGeoLoading(true);
                     try {
-                      setDistricts(await getDistricts(value));
+                      const nextDistricts = await getDistricts(value, controller.signal);
+                      if (controller.signal.aborted || districtRequest.current !== controller)
+                        return;
+                      setDistricts(nextDistricts);
                       setGeoError("");
                     } catch {
-                      setGeoError(labels.address.error);
+                      if (!controller.signal.aborted) setGeoError(labels.address.error);
                     } finally {
-                      setGeoLoading(false);
+                      if (districtRequest.current === controller && !controller.signal.aborted) {
+                        setGeoLoading(false);
+                      }
                     }
                   }}
                   value={form.divisionId}
@@ -800,18 +845,29 @@ export function CheckoutClient({ locale, labels }: { locale: AppLocale; labels: 
                   disabled={!form.divisionId || geoLoading}
                   onChange={async (event) => {
                     const value = event.target.value;
+                    upazilaRequest.current?.abort();
                     edit("districtId", value);
                     setForm((current) => ({ ...current, upazilaId: "" }));
                     setUpazilas([]);
-                    if (!value) return;
+                    if (!value) {
+                      setGeoLoading(false);
+                      return;
+                    }
+                    const controller = new AbortController();
+                    upazilaRequest.current = controller;
                     setGeoLoading(true);
                     try {
-                      setUpazilas(await getUpazilas(value));
+                      const nextUpazilas = await getUpazilas(value, controller.signal);
+                      if (controller.signal.aborted || upazilaRequest.current !== controller)
+                        return;
+                      setUpazilas(nextUpazilas);
                       setGeoError("");
                     } catch {
-                      setGeoError(labels.address.error);
+                      if (!controller.signal.aborted) setGeoError(labels.address.error);
                     } finally {
-                      setGeoLoading(false);
+                      if (upazilaRequest.current === controller && !controller.signal.aborted) {
+                        setGeoLoading(false);
+                      }
                     }
                   }}
                   value={form.districtId}

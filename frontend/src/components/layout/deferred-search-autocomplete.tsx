@@ -65,7 +65,7 @@ export function DeferredSearchAutocomplete({
       />
       <button
         aria-label={labels.submit}
-        className="signature-gradient absolute top-1/2 right-1.5 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-white"
+        className="signature-gradient absolute top-1/2 right-0.5 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-white"
         type="submit"
       >
         <span aria-hidden>ϟ</span>

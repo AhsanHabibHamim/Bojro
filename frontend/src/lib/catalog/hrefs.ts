@@ -4,7 +4,10 @@ export function localizeStorefrontHref(href: string, locale: AppLocale): string 
   const value = href.trim();
   if (!value || /^(javascript|data):/i.test(value)) return `/${locale}`;
   if (value.startsWith("#")) return `/${locale}/${value}`;
-  if (/^https:\/\//i.test(value) || value.startsWith(`/${locale}`)) return value;
+  if (/^https:\/\//i.test(value)) return value;
+  if (/^\/(?:bn|en)(?:\/|$)/.test(value)) {
+    return value.replace(/^\/(?:bn|en)(?=\/|$)/, `/${locale}`);
+  }
   if (value.startsWith("/")) return `/${locale}${value}`;
   return `/${locale}/${value.replace(/^\.\//, "")}`;
 }

@@ -50,7 +50,7 @@ export function HeaderCommerce({
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={count ? cartCount : labels.cart}
-        className="relative inline-flex min-h-11 items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-deep-indigo transition-colors hover:bg-soft-lavender sm:px-3"
+        className="relative inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-deep-indigo transition-colors hover:bg-soft-lavender sm:px-3"
         href={`/${locale}/cart`}
         onClick={(event) => {
           if (

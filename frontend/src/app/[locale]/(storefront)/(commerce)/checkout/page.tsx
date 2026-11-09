@@ -108,6 +108,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           itemCount: t("review.itemCount", { count: "{count}" }),
         },
         validation: {
+          summary: t("validation.summary"),
           required: t("validation.required"),
           nameLength: t("validation.nameLength"),
           addressLength: t("validation.addressLength"),

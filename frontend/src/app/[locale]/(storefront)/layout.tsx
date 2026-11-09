@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import type { ReactNode } from "react";
 
 import { CommerceProvider } from "@/components/commerce/commerce-provider";
-import { AssistantWidget } from "@/components/engagement/assistant-widget";
+import { DeferredAssistantWidget } from "@/components/engagement/deferred-assistant-widget";
 import { EngagementProvider } from "@/components/engagement/engagement-provider";
 import { WhatsAppButton } from "@/components/engagement/whatsapp-button";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
@@ -15,6 +15,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { catalogApi } from "@/lib/api/catalog";
 import { localizeStorefrontHref } from "@/lib/catalog/hrefs";
 import { CONSENT_COOKIE_NAME } from "@/lib/engagement/consent";
+import { absoluteUrl, getSiteUrl, serializeJsonLd } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -49,16 +50,21 @@ export default async function StorefrontLayout({
       .map((item) => item.trim())
       .find((item) => item.startsWith(`${CONSENT_COOKIE_NAME}=`))
       ?.slice(CONSENT_COOKIE_NAME.length + 1) ?? null;
+  const siteUrl = getSiteUrl();
+  const organizationLogo = shell ? absoluteUrl(shell.organization.logo, siteUrl) : null;
   const organizationJsonLd = shell
     ? {
         "@context": "https://schema.org",
         "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
         name: shell.organization.name,
-        url: shell.organization.url,
-        logo: shell.organization.logo,
+        url: siteUrl,
+        logo: organizationLogo ?? undefined,
         telephone: shell.organization.phone ?? undefined,
         email: shell.organization.email ?? undefined,
-        sameAs: shell.organization.social_urls,
+        sameAs: shell.organization.social_urls
+          .map((url) => absoluteUrl(url, siteUrl))
+          .filter((url): url is string => Boolean(url)),
       }
     : null;
 
@@ -95,7 +101,7 @@ export default async function StorefrontLayout({
             <script
               nonce={nonce ?? undefined}
               dangerouslySetInnerHTML={{
-                __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
+                __html: serializeJsonLd(organizationJsonLd),
               }}
               type="application/ld+json"
             />
@@ -133,54 +139,56 @@ export default async function StorefrontLayout({
             />
             {shell ? (
               <>
-                <AssistantWidget
-                  labels={{
-                    button: tAssistant("button"),
-                    close: tAssistant("close"),
-                    title: tAssistant("title"),
-                    disclosureLabel: tAssistant("disclosureLabel"),
-                    start: tAssistant("start"),
-                    starting: tAssistant("starting"),
-                    firstMessage: tAssistant("firstMessage"),
-                    identityAnswer: tAssistant("identityAnswer"),
-                    inputLabel: tAssistant("inputLabel"),
-                    placeholder: tAssistant("placeholder"),
-                    send: tAssistant("send"),
-                    sending: tAssistant("sending"),
-                    sensitive: tAssistant("sensitive"),
-                    tooLong: tAssistant("tooLong"),
-                    genericError: tAssistant("genericError"),
-                    rateLimited: tAssistant("rateLimited", { seconds: "{seconds}" }),
-                    retry: tAssistant("retry"),
-                    delete: tAssistant("delete"),
-                    deleting: tAssistant("deleting"),
-                    deleted: tAssistant("deleted"),
-                    citations: tAssistant("citations"),
-                    handoff: tAssistant("handoff"),
-                    uncertain: tAssistant("uncertain"),
-                    verification: {
-                      open: tAssistant("verification.open"),
-                      title: tAssistant("verification.title"),
-                      description: tAssistant("verification.description"),
-                      number: tAssistant("verification.number"),
-                      phone: tAssistant("verification.phone"),
-                      submit: tAssistant("verification.submit"),
-                      submitting: tAssistant("verification.submitting"),
-                      invalid: tAssistant("verification.invalid"),
-                      failure: tAssistant("verification.failure"),
-                      result: tAssistant("verification.result"),
-                      status: tAssistant("verification.status"),
-                      payment: tAssistant("verification.payment"),
-                      area: tAssistant("verification.area"),
-                      updated: tAssistant("verification.updated"),
-                      statusRequest: tAssistant("verification.statusRequest"),
-                    },
-                  }}
-                  locale={locale}
-                  settings={shell.engagement.assistant}
-                  whatsapp={shell.whatsapp}
-                  whatsappLabel={tWhatsApp("label")}
-                />
+                {shell.engagement.assistant.enabled ? (
+                  <DeferredAssistantWidget
+                    labels={{
+                      button: tAssistant("button"),
+                      close: tAssistant("close"),
+                      title: tAssistant("title"),
+                      disclosureLabel: tAssistant("disclosureLabel"),
+                      start: tAssistant("start"),
+                      starting: tAssistant("starting"),
+                      firstMessage: tAssistant("firstMessage"),
+                      identityAnswer: tAssistant("identityAnswer"),
+                      inputLabel: tAssistant("inputLabel"),
+                      placeholder: tAssistant("placeholder"),
+                      send: tAssistant("send"),
+                      sending: tAssistant("sending"),
+                      sensitive: tAssistant("sensitive"),
+                      tooLong: tAssistant("tooLong"),
+                      genericError: tAssistant("genericError"),
+                      rateLimited: tAssistant("rateLimited", { seconds: "{seconds}" }),
+                      retry: tAssistant("retry"),
+                      delete: tAssistant("delete"),
+                      deleting: tAssistant("deleting"),
+                      deleted: tAssistant("deleted"),
+                      citations: tAssistant("citations"),
+                      handoff: tAssistant("handoff"),
+                      uncertain: tAssistant("uncertain"),
+                      verification: {
+                        open: tAssistant("verification.open"),
+                        title: tAssistant("verification.title"),
+                        description: tAssistant("verification.description"),
+                        number: tAssistant("verification.number"),
+                        phone: tAssistant("verification.phone"),
+                        submit: tAssistant("verification.submit"),
+                        submitting: tAssistant("verification.submitting"),
+                        invalid: tAssistant("verification.invalid"),
+                        failure: tAssistant("verification.failure"),
+                        result: tAssistant("verification.result"),
+                        status: tAssistant("verification.status"),
+                        payment: tAssistant("verification.payment"),
+                        area: tAssistant("verification.area"),
+                        updated: tAssistant("verification.updated"),
+                        statusRequest: tAssistant("verification.statusRequest"),
+                      },
+                    }}
+                    locale={locale}
+                    settings={shell.engagement.assistant}
+                    whatsapp={shell.whatsapp}
+                    whatsappLabel={tWhatsApp("label")}
+                  />
+                ) : null}
                 <div className="fixed right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[60] lg:right-6 lg:bottom-6">
                   <WhatsAppButton label={tWhatsApp("label")} settings={shell.whatsapp} />
                 </div>

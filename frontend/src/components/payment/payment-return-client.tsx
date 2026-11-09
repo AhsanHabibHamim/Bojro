@@ -13,9 +13,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { useCommerce } from "@/components/commerce/commerce-provider";
+import { useEngagement } from "@/components/engagement/engagement-provider";
 import type { AppLocale } from "@/i18n/routing";
 import type { OrderReceipt } from "@/lib/commerce/types";
 import { formatPrice } from "@/lib/format-price";
+import { confirmedOnlinePurchase } from "@/lib/engagement/purchase";
 import {
   clearPaymentContinuation,
   clearPaymentInitiationKey,
@@ -71,6 +73,7 @@ export function PaymentReturnClient({
   labels: PaymentReturnLabels;
 }) {
   const { getLatestPaymentAttempt, getOrder, initiatePayment } = useCommerce();
+  const { trackPurchase } = useEngagement();
   const [attempt, setAttempt] = useState<CustomerPaymentAttempt | null>(null);
   const [order, setOrder] = useState<OrderReceipt | null>(null);
   const [view, setView] = useState<PaymentViewState>("processing");
@@ -143,6 +146,11 @@ export function PaymentReturnClient({
       if (timer !== null) window.clearTimeout(timer);
     };
   }, [getLatestPaymentAttempt, getOrder, labels.missing, labels.unavailable, pollRun, provider]);
+
+  useEffect(() => {
+    const event = confirmedOnlinePurchase(order);
+    if (event) void trackPurchase(event);
+  }, [order, trackPurchase]);
 
   const retry = async () => {
     const continuation = readPaymentContinuation();

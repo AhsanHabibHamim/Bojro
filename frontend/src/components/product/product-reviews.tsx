@@ -98,7 +98,7 @@ export function ProductReviews({
           <p className="text-4xl font-extrabold text-brand-purple">
             {formatOneDecimal(product.rating_avg, locale)}
           </p>
-          <div className="mt-2 flex gap-1 text-sale-amber">
+          <div className="mt-2 flex gap-1 text-sale-amber-ink">
             {Array.from({ length: 5 }, (_, index) => (
               <Star
                 key={index}
@@ -171,7 +171,7 @@ export function ProductReviews({
                       <p className="font-extrabold text-deep-indigo">{review.author_name}</p>
                       <div
                         aria-label={`${formatNumber(review.rating, locale)} / ${formatNumber(5, locale)}`}
-                        className="mt-1 flex gap-0.5 text-sale-amber"
+                        className="mt-1 flex gap-0.5 text-sale-amber-ink"
                         role="img"
                       >
                         {Array.from({ length: 5 }, (_, index) => (

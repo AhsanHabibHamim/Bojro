@@ -98,7 +98,7 @@ export function ReviewList({ locale }: { locale: AppLocale }) {
                   <h3 className="text-xl font-extrabold">{review.product.name}</h3>
                   <div
                     aria-label={t("ratingLabel", { rating: review.rating })}
-                    className="mt-1 flex gap-0.5 text-sale-amber"
+                    className="mt-1 flex gap-0.5 text-sale-amber-ink"
                     role="img"
                   >
                     {Array.from({ length: 5 }, (_, index) => (

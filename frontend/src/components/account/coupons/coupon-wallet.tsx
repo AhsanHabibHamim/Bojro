@@ -124,7 +124,7 @@ export function CouponWallet({ locale }: { locale: AppLocale }) {
                     </div>
                     <Ticket
                       aria-hidden
-                      className="shrink-0 text-sale-amber"
+                      className="shrink-0 text-sale-amber-ink"
                       size={31}
                       weight="duotone"
                     />

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CspImage } from "@/components/shared/csp-image";
 
 const BRAND_ASSETS = {
   wordmark: "/logo.png",
@@ -22,7 +22,7 @@ export function Logo({ label, variant = "wordmark", priority = false, className 
 
   return (
     <span className={["inline-flex shrink-0 items-center", className].filter(Boolean).join(" ")}>
-      <Image
+      <CspImage
         alt={label}
         className="h-auto max-w-full object-contain"
         height={size.height}

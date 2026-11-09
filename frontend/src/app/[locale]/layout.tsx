@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 import { routing } from "@/i18n/routing";
 import { fontVariables } from "@/lib/fonts";
+import { createPublicMetadata, getSiteUrl } from "@/lib/seo";
 
 import "../globals.css";
 
@@ -32,19 +33,21 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
   }
 
   const t = await getTranslations({ locale, namespace: "metadata" });
-
-  return {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://bojro.com.bd"),
+  const publicMetadata = createPublicMetadata({
+    locale,
+    pathname: `/${locale}`,
     title: t("title"),
     description: t("description"),
+  });
+
+  return {
+    metadataBase: new URL(getSiteUrl()),
+    ...publicMetadata,
     applicationName: "Bojro",
-    alternates: {
-      canonical: `/${locale}`,
-      languages: {
-        bn: "/bn",
-        en: "/en",
-      },
-    },
+    category: "shopping",
+    creator: "Bojro",
+    publisher: "Bojro",
+    formatDetection: { email: false, address: false, telephone: false },
     icons: {
       icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
       apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],

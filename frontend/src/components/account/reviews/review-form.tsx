@@ -171,7 +171,7 @@ export function ReviewForm({
                 key={value}
                 aria-label={t("ratingValue", { rating: value })}
                 aria-pressed={rating === value}
-                className="inline-grid min-h-11 min-w-11 place-items-center rounded-full text-sale-amber hover:bg-soft-lavender"
+                className="inline-grid min-h-11 min-w-11 place-items-center rounded-full text-sale-amber-ink hover:bg-soft-lavender"
                 onClick={() => {
                   setDraftRating(value);
                   createMutation.reset();

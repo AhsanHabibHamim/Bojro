@@ -6,7 +6,10 @@ const suffix = uniqueCode("");
 
 test.describe("@admin catalog and media", () => {
   test.describe.configure({ mode: "serial", retries: 0 });
-  test.skip(!hasAdminCredentials, "Admin E2E credentials are required");
+  test.skip(
+    process.env.CI !== "true" && !hasAdminCredentials,
+    "Admin E2E credentials are required",
+  );
 
   test("creates taxonomy and a product aggregate, adjusts stock, uploads, reorders, and detects stale edits", async ({
     page,
@@ -99,7 +102,7 @@ test.describe("@admin catalog and media", () => {
 
   test("uses the explicit signed storage mock for verified media only", async ({ page }) => {
     test.skip(
-      process.env.NEXT_PUBLIC_E2E_STORAGE_MOCK !== "1",
+      process.env.CI !== "true" && process.env.NEXT_PUBLIC_E2E_STORAGE_MOCK !== "1",
       "NEXT_PUBLIC_E2E_STORAGE_MOCK=1 is required for signed mock media",
     );
     await page.goto("/en/admin/media?purpose=product");

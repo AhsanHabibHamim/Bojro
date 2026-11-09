@@ -11,6 +11,13 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import type { AppLocale } from "@/i18n/routing";
 import { catalogApi, isNotFoundError } from "@/lib/api/catalog";
 import { getProductCardLabels } from "@/lib/catalog/server-labels";
+import {
+  absoluteUrl,
+  canonicalUrl,
+  createPublicMetadata,
+  getSiteUrl,
+  serializeJsonLd,
+} from "@/lib/seo";
 
 type ProductPageProps = { params: Promise<{ locale: AppLocale; slug: string }> };
 
@@ -25,29 +32,14 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     if (isNotFoundError(error)) return {};
     throw error;
   }
-  const canonical = product.seo.canonical ?? `/${locale}/product/${encodeURIComponent(slug)}`;
-  return {
+  return createPublicMetadata({
+    locale,
+    pathname: `/${locale}/product/${encodeURIComponent(slug)}`,
+    alternatePathname: `product/${encodeURIComponent(slug)}`,
     title: product.seo.title || product.name,
     description: product.seo.description || product.short_description || product.name,
-    alternates: {
-      canonical,
-      languages: {
-        bn: `/bn/product/${encodeURIComponent(slug)}`,
-        en: `/en/product/${encodeURIComponent(slug)}`,
-      },
-    },
-    openGraph: {
-      title: product.seo.title || product.name,
-      description: product.seo.description || product.short_description || product.name,
-      type: "website",
-      url: canonical,
-      images: product.seo.image
-        ? [{ url: product.seo.image.url, alt: product.seo.image.alt }]
-        : product.images[0]
-          ? [{ url: product.images[0].url, alt: product.images[0].alt }]
-          : undefined,
-    },
-  };
+    image: product.seo.image ?? product.images[0],
+  });
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
@@ -67,10 +59,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     throw error;
   }
   const shell = await catalogApi.shell(locale).catch(() => null);
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://bojro.com.bd").replace(/\/$/, "");
-  const absoluteUrl = (value: string) => new URL(value, `${siteUrl}/`).toString();
-  const productUrl = absoluteUrl(
-    product.seo.canonical ?? `/${locale}/product/${encodeURIComponent(product.slug)}`,
+  const siteUrl = getSiteUrl();
+  const productUrl = canonicalUrl(
+    `/${locale}/product/${encodeURIComponent(product.slug)}`,
+    siteUrl,
   );
   const activeVariants = product.variants.filter((variant) => variant.is_active);
   const offerVariants = activeVariants.length ? activeVariants : product.variants;
@@ -82,7 +74,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
     "@type": "Product",
     name: product.name,
     description: product.seo.description || product.short_description || product.description,
-    image: product.images.map((image) => absoluteUrl(image.url)),
+    image: product.images
+      .map((image) => absoluteUrl(image.url, siteUrl))
+      .filter((url): url is string => Boolean(url)),
     sku: activeVariants[0]?.sku,
     brand: product.brand ? { "@type": "Brand", name: product.brand.name } : undefined,
     aggregateRating: product.rating_count
@@ -104,6 +98,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 ? "https://schema.org/OutOfStock"
                 : "https://schema.org/InStock",
             url: productUrl,
+            seller: { "@id": `${siteUrl}/#organization` },
           }
         : {
             "@type": "AggregateOffer",
@@ -112,6 +107,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             highPrice: (highPrice / 100).toFixed(2),
             offerCount: offerVariants.length,
             url: productUrl,
+            seller: { "@id": `${siteUrl}/#organization` },
           },
   };
   const breadcrumbItems = [
@@ -129,13 +125,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
         "@type": "ListItem",
         position: 1,
         name: tCatalog("breadcrumbs.home"),
-        item: `${siteUrl}/${locale}`,
+        item: canonicalUrl(`/${locale}`, siteUrl),
       },
       ...product.breadcrumb.map((item, index) => ({
         "@type": "ListItem",
         position: index + 2,
         name: item.name,
-        item: `${siteUrl}/${locale}/category/${encodeURIComponent(item.slug)}`,
+        item: canonicalUrl(`/${locale}/category/${encodeURIComponent(item.slug)}`, siteUrl),
       })),
       {
         "@type": "ListItem",
@@ -151,13 +147,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <>
       <script
         nonce={nonce}
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
         type="application/ld+json"
       />
       <script
         nonce={nonce}
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, "\\u003c"),
+          __html: serializeJsonLd(breadcrumbJsonLd),
         }}
         type="application/ld+json"
       />

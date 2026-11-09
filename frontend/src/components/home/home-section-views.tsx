@@ -131,7 +131,13 @@ export function FlashSaleView({
             }}
           />
         </div>
-        <div className="mt-9 flex snap-x gap-4 overflow-x-auto pb-5 [scrollbar-color:var(--brand-purple)_transparent]">
+        <div
+          aria-label={section.content.title}
+          aria-roledescription="carousel"
+          className="mt-9 flex snap-x gap-4 overflow-x-auto pb-5 [scrollbar-color:var(--brand-purple)_transparent]"
+          role="region"
+          tabIndex={0}
+        >
           {section.data.products.map((product) => (
             <div key={product.id} className="w-[min(76vw,17rem)] shrink-0 snap-start">
               <ProductCard labels={cardLabels} locale={locale} product={product} />
@@ -404,7 +410,13 @@ export function SocialProofView({
           title={section.content.title}
         />
       </div>
-      <div className="mt-10 flex snap-x gap-3 overflow-x-auto px-4 pb-4 sm:justify-center">
+      <div
+        aria-label={section.content.title}
+        aria-roledescription="carousel"
+        className="mt-10 flex snap-x gap-3 overflow-x-auto px-4 pb-4 sm:justify-center"
+        role="region"
+        tabIndex={0}
+      >
         {section.data.photos.map((photo, index) => {
           const image = (
             <span className="relative block aspect-square w-[65vw] max-w-64 shrink-0 snap-center overflow-hidden rounded-2xl bg-soft-lavender">
@@ -557,22 +569,29 @@ export function ReviewsView({
             <input id={`review-motion-${section.id}`} className="peer sr-only" type="checkbox" />
             <div className="mb-4 text-center">
               <label
-                className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-brand-purple/20 px-4 py-2 text-sm font-bold text-brand-purple hover:bg-soft-lavender"
+                className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-brand-purple/20 px-4 py-2 text-sm font-bold text-brand-purple hover:bg-soft-lavender peer-focus-visible:outline-3 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-brand-purple"
                 htmlFor={`review-motion-${section.id}`}
               >
                 {labels.reviewPause} / {labels.reviewResume}
               </label>
             </div>
-            <div className="overflow-hidden peer-checked:[&_.review-auto-track]:[animation-play-state:paused]">
+            <div
+              aria-label={section.content.title}
+              aria-roledescription="carousel"
+              className="snap-x overflow-x-auto peer-checked:[&_.review-auto-track]:[animation-play-state:paused] focus:[&_.review-auto-track]:[animation-play-state:paused]"
+              role="region"
+              tabIndex={0}
+            >
               <div className="review-auto-track flex w-max gap-5 hover:[animation-play-state:paused] focus-within:[animation-play-state:paused]">
                 {[...section.data.reviews, ...section.data.reviews].map((review, index) => (
                   <article
                     key={`${review.id}-${index}`}
-                    className="w-[min(82vw,38rem)] shrink-0 rounded-[2rem] border border-brand-purple/10 bg-white p-7 text-center shadow-soft"
+                    aria-hidden={index >= section.data.reviews.length ? true : undefined}
+                    className="w-[min(82vw,38rem)] shrink-0 snap-center rounded-[2rem] border border-brand-purple/10 bg-white p-7 text-center shadow-soft"
                   >
                     <div
                       aria-label={`${review.rating} / 5`}
-                      className="flex justify-center gap-1 text-sale-amber"
+                      className="flex justify-center gap-1 text-sale-amber-ink"
                       role="img"
                     >
                       {Array.from({ length: 5 }, (_, star) => (

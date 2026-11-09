@@ -138,7 +138,7 @@ export function ProductCard({ product, locale, labels, view = "grid" }: ProductC
             className="inline-flex items-center gap-1 font-bold text-muted"
             role="img"
           >
-            <Star aria-hidden className="text-sale-amber" size={16} weight="fill" />
+            <Star aria-hidden className="text-sale-amber-ink" size={16} weight="fill" />
             {formatOneDecimal(product.rating_avg, locale)}
             <span className="font-normal">({formatNumber(product.rating_count, locale)})</span>
           </span>

@@ -47,6 +47,7 @@ describe("engagement consent and privacy policy", () => {
     expect(denied).not.toContain("unsafe-inline");
     expect(denied).not.toContain("unsafe-eval");
     expect(denied).not.toMatch(/(?:^|\s)https:(?:\s|;|$)/);
+    expect(denied).toContain("style-src-attr 'none'");
 
     const analytics = createContentSecurityPolicy({
       nonce: "nonce-value",
@@ -54,6 +55,8 @@ describe("engagement consent and privacy policy", () => {
       consent: { analytics: true, advertising: false },
     });
     expect(analytics).toContain("https://www.googletagmanager.com");
+    expect(analytics).toContain("https://www.google-analytics.com");
+    expect(analytics).toContain("https://region1.google-analytics.com");
     expect(analytics).not.toContain("connect.facebook.net");
 
     const advertising = createContentSecurityPolicy({
@@ -62,8 +65,29 @@ describe("engagement consent and privacy policy", () => {
       consent: { analytics: false, advertising: true },
     });
     expect(advertising).toContain("https://connect.facebook.net");
+    expect(advertising).toContain("https://www.facebook.com");
     expect(advertising).not.toContain("googletagmanager");
     expect(advertising).not.toMatch(/mailgun|sendgrid|twilio|sslcommerz|bkash/i);
+  });
+
+  it("scopes upload and reporting connections to their exact origins", () => {
+    const publicPolicy = createContentSecurityPolicy({
+      nonce: "nonce-value",
+      apiUrl: "https://api.bojro.test",
+      pathname: "/en/product/face-wash",
+      consent: { analytics: false, advertising: false },
+    });
+    const adminPolicy = createContentSecurityPolicy({
+      nonce: "nonce-value",
+      apiUrl: "https://api.bojro.test",
+      pathname: "/en/admin/media",
+      reportingUrl: "https://errors.bojro.test/v1/capture",
+      consent: { analytics: false, advertising: false },
+    });
+    expect(publicPolicy).not.toContain("https://api.cloudinary.com");
+    expect(adminPolicy).toContain("https://api.cloudinary.com");
+    expect(adminPolicy).toContain("https://errors.bojro.test");
+    expect(adminPolicy).not.toContain("/v1/capture");
   });
 
   it("reads category flags from the minimal cookie header", () => {

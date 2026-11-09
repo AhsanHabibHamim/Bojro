@@ -33,6 +33,10 @@ function serverGet<T>(path: string, tags: string[], revalidate = DEFAULT_REVALID
   });
 }
 
+function serverUncachedGet<T>(path: string) {
+  return fetchApiJson<T>(path, { baseUrl: getServerApiUrl(), cache: "no-store" });
+}
+
 const localeQuery = (locale: AppLocale) => new URLSearchParams({ locale }).toString();
 
 export const catalogApi = {
@@ -62,17 +66,15 @@ export const catalogApi = {
   },
   products(query: CatalogQuery) {
     const search = serializeCatalogApiQuery(query);
-    return serverGet<ApiProductList>(`${API_PREFIX}/catalog/products?${search}`, [
-      catalogTags.products,
-      ...(query.category ? [catalogTags.category(query.category)] : []),
-    ]).then(mapProductList);
+    return serverUncachedGet<ApiProductList>(`${API_PREFIX}/catalog/products?${search}`).then(
+      mapProductList,
+    );
   },
   filters(query: Pick<CatalogQuery, "category" | "q" | "locale">) {
     const search = serializeCatalogApiQuery(query as CatalogQuery, { includeListing: false });
-    return serverGet<ApiFilters>(`${API_PREFIX}/catalog/filters?${search}`, [
-      catalogTags.filters,
-      ...(query.category ? [catalogTags.category(query.category)] : []),
-    ]).then(mapFilters);
+    return serverUncachedGet<ApiFilters>(`${API_PREFIX}/catalog/filters?${search}`).then(
+      mapFilters,
+    );
   },
   product(slug: string, locale: AppLocale) {
     return serverGet<ApiProductDetail>(

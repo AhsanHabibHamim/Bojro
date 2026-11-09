@@ -95,6 +95,7 @@ const labels: CheckoutLabels = {
     itemCount: "Quantity: {count}",
   },
   validation: {
+    summary: "Review checkout fields",
     required: "Required",
     nameLength: "Name too short",
     addressLength: "Address too short",

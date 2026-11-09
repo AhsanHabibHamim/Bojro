@@ -79,8 +79,12 @@ export function AddressForm({ locale, addressId }: { locale: AppLocale; addressI
     const controller = new AbortController();
     getDivisions(controller.signal)
       .then(setDivisions)
-      .catch(() => setError(t("geoError")))
-      .finally(() => setGeoLoading(false));
+      .catch(() => {
+        if (!controller.signal.aborted) setError(t("geoError"));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setGeoLoading(false);
+      });
     return () => controller.abort();
   }, [getDivisions, t]);
 

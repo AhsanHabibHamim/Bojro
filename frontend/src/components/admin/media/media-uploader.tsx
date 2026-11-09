@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowClockwise, ImageSquare, Trash, UploadSimple } from "@phosphor-icons/react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { CspImage } from "@/components/shared/csp-image";
 import { AdminApiError, mediaContentType, mediaPurposeAccept } from "@/lib/admin/client";
 import { useAdminApi, useAdminMutation, useAdminSession } from "@/lib/admin/context";
 import { isAmbiguousAdminMutation } from "@/lib/admin/idempotency";
@@ -202,7 +202,7 @@ export function MediaUploader({
       </AdminField>
       {previewUrl ? (
         <div className="relative aspect-video max-w-sm overflow-hidden rounded-xl bg-page-background">
-          <Image alt="" className="object-contain" fill src={previewUrl} unoptimized />
+          <CspImage alt="" className="object-contain" fill src={previewUrl} unoptimized />
         </div>
       ) : (
         <span className="grid aspect-video max-w-sm place-items-center rounded-xl bg-page-background text-muted">

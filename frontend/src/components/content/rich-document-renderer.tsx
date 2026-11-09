@@ -1,6 +1,6 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
 
+import { CspImage } from "@/components/shared/csp-image";
 import { parseRichDocument } from "@/lib/admin/rich-document";
 import type { RichDocument, RichNode, RichTextNode } from "@/lib/admin/types";
 
@@ -41,7 +41,10 @@ function renderText(node: RichTextNode, key: string): ReactNode {
   return <span key={key}>{content}</span>;
 }
 
-export type ResolvedRichMedia = Record<string, { url: string; width?: number; height?: number }>;
+export type ResolvedRichMedia = Record<
+  string,
+  string | { url: string; width?: number; height?: number }
+>;
 
 function nodes(
   content: RichNode[] | undefined,
@@ -74,17 +77,17 @@ function renderNode(node: RichNode, key: string, media: ResolvedRichMedia): Reac
     return <ol key={key}>{nodes(node.content, key, media)}</ol>;
   }
   if (node.type === "listItem") return <li key={key}>{nodes(node.content, key, media)}</li>;
-  const resolved = media[node.attrs.media_asset_id];
+  const mediaValue = media[node.attrs.media_asset_id];
+  const resolved = typeof mediaValue === "string" ? { url: mediaValue } : mediaValue;
   if (resolved && /^https:\/\//.test(resolved.url)) {
     return (
       <figure key={key} className="my-7">
-        <Image
+        <CspImage
           alt={node.attrs.alt}
           className="h-auto w-full rounded-2xl object-cover"
           height={resolved.height ?? 675}
           sizes="(max-width: 768px) 100vw, 768px"
           src={resolved.url}
-          unoptimized
           width={resolved.width ?? 1200}
         />
       </figure>

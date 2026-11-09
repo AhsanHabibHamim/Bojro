@@ -1,11 +1,11 @@
 "use client";
 
 import { Check, Eye, X } from "@phosphor-icons/react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+import { CspImage } from "@/components/shared/csp-image";
 import type { AppLocale } from "@/i18n/routing";
 import {
   isAdminStaleWrite,
@@ -257,7 +257,7 @@ export function ReviewModeration({ locale }: { locale: AppLocale }) {
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {selected.photos.map((photo, index) => (
                   <li key={photo} className="relative aspect-square overflow-hidden rounded-xl">
-                    <Image
+                    <CspImage
                       alt={t("reviews.evidenceAlt", { index: index + 1 })}
                       className="object-cover"
                       fill

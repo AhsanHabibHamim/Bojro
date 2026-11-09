@@ -536,6 +536,7 @@
       "itemCount": "Quantity: {count}"
     },
     "validation": {
+      "summary": "Review the following checkout fields before continuing.",
       "required": "This field is required.",
       "nameLength": "Enter at least 2 characters.",
       "addressLength": "Enter at least 5 characters for the address.",

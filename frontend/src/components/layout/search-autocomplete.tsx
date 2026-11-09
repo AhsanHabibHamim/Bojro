@@ -177,7 +177,7 @@ export function SearchAutocomplete({
       {query ? (
         <button
           aria-label={labels.clear}
-          className="absolute top-1/2 right-12 inline-grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-soft-lavender"
+          className="absolute top-1/2 right-12 inline-grid size-11 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-soft-lavender"
           onClick={() => {
             setQuery("");
             setSuggestions([]);
@@ -191,7 +191,7 @@ export function SearchAutocomplete({
       ) : null}
       <button
         aria-label={labels.submit}
-        className="signature-gradient absolute top-1/2 right-1.5 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-white transition-transform hover:scale-105"
+        className="signature-gradient absolute top-1/2 right-0.5 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-white transition-transform hover:scale-105"
         type="submit"
       >
         <span aria-hidden className="text-base">
@@ -212,7 +212,7 @@ export function SearchAutocomplete({
                 {recent.map((item) => (
                   <a
                     key={item}
-                    className="rounded-full bg-soft-lavender px-3 py-1.5 text-sm font-bold text-deep-indigo hover:bg-brand-purple hover:text-white"
+                    className="inline-flex min-h-11 items-center rounded-full bg-soft-lavender px-3 py-1.5 text-sm font-bold text-deep-indigo hover:bg-brand-purple hover:text-white"
                     href={`/${locale}/search?q=${encodeURIComponent(item)}`}
                     onClick={() => rememberSearch(item)}
                   >
@@ -232,7 +232,7 @@ export function SearchAutocomplete({
                   role="option"
                 >
                   <button
-                    className={`flex w-full items-center justify-between gap-4 rounded-xl px-3 py-2.5 text-left ${activeIndex === index ? "bg-soft-lavender" : "hover:bg-soft-lavender/70"}`}
+                    className={`flex min-h-11 w-full items-center justify-between gap-4 rounded-xl px-3 py-2.5 text-left ${activeIndex === index ? "bg-soft-lavender" : "hover:bg-soft-lavender/70"}`}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => selectSuggestion(suggestion)}
                     type="button"

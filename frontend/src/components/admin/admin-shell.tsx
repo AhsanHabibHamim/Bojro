@@ -132,7 +132,7 @@ export function AdminShell({ children, locale }: { children: ReactNode; locale: 
         </span>
         <div>
           <p className="font-black text-white">Bojro</p>
-          <p className="text-xs font-bold text-white/55">Admin</p>
+          <p className="text-xs font-bold text-white/75">Admin</p>
         </div>
         <button
           aria-label={t("close")}
@@ -149,7 +149,7 @@ export function AdminShell({ children, locale }: { children: ReactNode; locale: 
       <nav aria-label={t("label")} className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
         {groups.map((group) => (
           <section key={group.label} className="mb-5">
-            <h2 className="px-3 text-[0.68rem] font-black tracking-[0.17em] text-white/45 uppercase">
+            <h2 className="px-3 text-[0.68rem] font-black tracking-[0.17em] text-white/70 uppercase">
               {group.label}
             </h2>
             <ul className="mt-2 grid gap-1">

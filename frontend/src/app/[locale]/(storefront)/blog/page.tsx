@@ -1,10 +1,11 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
-import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
+import { CspImage } from "@/components/shared/csp-image";
 import type { AppLocale } from "@/i18n/routing";
 import { contentApi } from "@/lib/content/client";
+import { createPublicMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "publicContent.blog" });
-  return {
+  return createPublicMetadata({
+    locale,
+    pathname: `/${locale}/blog`,
+    alternatePathname: "blog",
     title: t("metaTitle"),
     description: t("description"),
-    alternates: { canonical: `/${locale}/blog` },
-  };
+  });
 }
 
 export default async function BlogPage({
@@ -50,13 +53,12 @@ export default async function BlogPage({
               <article className="h-full overflow-hidden rounded-3xl border border-brand-purple/10 bg-white shadow-soft">
                 {post.cover_url ? (
                   <div className="relative aspect-[16/9]">
-                    <Image
-                      alt=""
+                    <CspImage
+                      alt={post.title}
                       className="object-cover"
                       fill
                       sizes="(max-width: 768px) 100vw, 33vw"
                       src={post.cover_url}
-                      unoptimized
                     />
                   </div>
                 ) : null}

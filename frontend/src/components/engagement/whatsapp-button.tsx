@@ -20,7 +20,7 @@ export function WhatsAppButton({
   return (
     <a
       aria-label={label}
-      className={`inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-[#128c4c] px-3 font-extrabold text-white shadow-[0_10px_34px_rgb(18_140_76/0.35)] transition-transform hover:-translate-y-0.5 ${className}`}
+      className={`inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-full bg-[#0d713d] px-3 font-extrabold text-white shadow-[0_10px_34px_rgb(13_113_61/0.35)] transition-transform hover:-translate-y-0.5 ${className}`}
       href={href}
       rel="noopener noreferrer"
       target="_blank"

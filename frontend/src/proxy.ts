@@ -8,6 +8,7 @@ import {
   providerConsentFromCookieHeader,
 } from "./lib/engagement/csp";
 import { isExplicitLocalEngagementMock } from "./lib/engagement/e2e";
+import { isIndexExcludedPath, isSensitiveReferrerPath } from "./lib/seo";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -17,6 +18,8 @@ export default function proxy(request: NextRequest): NextResponse {
   const contentSecurityPolicy = createContentSecurityPolicy({
     nonce,
     apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+    pathname: request.nextUrl.pathname,
+    reportingUrl: process.env.NEXT_PUBLIC_ERROR_REPORTING_ENDPOINT,
     consent: providerConsentFromCookieHeader(request.headers.get("cookie")),
     allowE2EStorage:
       process.env.NEXT_PUBLIC_E2E_STORAGE_MOCK === "1" &&
@@ -29,9 +32,16 @@ export default function proxy(request: NextRequest): NextResponse {
   const securedRequest = new NextRequest(request, { headers: requestHeaders });
   const response = handleI18nRouting(securedRequest);
   response.headers.set("Content-Security-Policy", contentSecurityPolicy);
-  response.headers.set("x-nonce", nonce);
-  if (isTokenResultPath(request.nextUrl.pathname)) {
+  if (isIndexExcludedPath(request.nextUrl.pathname)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  if (
+    isTokenResultPath(request.nextUrl.pathname) ||
+    isSensitiveReferrerPath(request.nextUrl.pathname)
+  ) {
     response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Pragma", "no-cache");
   }
   return response;
 }

@@ -149,7 +149,7 @@ export function ProductPurchasePanel({
       <h1 className="mt-2 text-[clamp(2rem,5vw,3.6rem)] font-extrabold">{product.name}</h1>
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
         <span className="inline-flex items-center gap-1 font-extrabold text-deep-indigo">
-          <Star aria-hidden className="text-sale-amber" size={19} weight="fill" />
+          <Star aria-hidden className="text-sale-amber-ink" size={19} weight="fill" />
           {formatOneDecimal(product.rating_avg, locale)}{" "}
           <span className="font-normal text-muted">
             ({formatNumber(product.rating_count, locale)} {labels.reviews})

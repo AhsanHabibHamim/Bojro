@@ -14,7 +14,7 @@ export const contentApi = {
   page(slug: string, locale: AppLocale): Promise<PublicStaticPage> {
     return fetchApiJson<PublicStaticPage>(
       `/api/v1/content/pages/${encodeURIComponent(slug)}?${query({ lang: locale })}`,
-      { cache: "no-store" },
+      { next: { revalidate: 300, tags: ["content", `page:${slug}`] } },
     );
   },
   blog(
@@ -23,13 +23,15 @@ export const contentApi = {
   ): Promise<PublicBlogList> {
     return fetchApiJson<PublicBlogList>(
       `/api/v1/content/blog?${query({ lang: locale, cursor: options.cursor, limit: options.limit ?? 12 })}`,
-      { cache: "no-store" },
+      options.cursor
+        ? { cache: "no-store" }
+        : { next: { revalidate: 300, tags: ["content", "blog"] } },
     );
   },
   blogPost(slug: string, locale: AppLocale): Promise<PublicBlogPost> {
     return fetchApiJson<PublicBlogPost>(
       `/api/v1/content/blog/${encodeURIComponent(slug)}?${query({ lang: locale })}`,
-      { cache: "no-store" },
+      { next: { revalidate: 300, tags: ["content", "blog", `blog:${slug}`] } },
     );
   },
 };

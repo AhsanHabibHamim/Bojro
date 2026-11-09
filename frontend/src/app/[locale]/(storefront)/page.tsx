@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/catalog/empty-state";
 import { HomeSections } from "@/components/home/home-sections";
 import type { AppLocale } from "@/i18n/routing";
 import { catalogApi } from "@/lib/api/catalog";
+import { createPublicMetadata } from "@/lib/seo";
 
 type HomePageProps = {
   params: Promise<{ locale: AppLocale }>;
@@ -18,21 +19,13 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const home = await catalogApi.home(locale).catch(() => null);
   const title = home?.seo?.title ?? t("title");
   const description = home?.seo?.description ?? t("description");
-  const canonical = home?.seo?.canonical ?? `/${locale}`;
-
-  return {
+  return createPublicMetadata({
+    locale,
+    pathname: `/${locale}`,
     title,
     description,
-    alternates: { canonical, languages: { bn: "/bn", en: "/en" } },
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      locale: locale === "bn" ? "bn_BD" : "en_BD",
-      url: canonical,
-      images: home?.seo?.image ? [{ url: home.seo.image.url, alt: home.seo.image.alt }] : undefined,
-    },
-  };
+    image: home?.seo?.image,
+  });
 }
 
 export default async function HomePage({ params }: HomePageProps) {

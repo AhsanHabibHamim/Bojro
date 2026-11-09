@@ -1,11 +1,11 @@
 "use client";
 
 import { Trash } from "@phosphor-icons/react";
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { CspImage } from "@/components/shared/csp-image";
 import {
   isAdminStaleWrite,
   requireAdminEtag,
@@ -86,7 +86,7 @@ export function MediaManager() {
               >
                 <div className="relative aspect-video bg-page-background">
                   {asset.delivery_url ? (
-                    <Image
+                    <CspImage
                       alt=""
                       className="object-cover"
                       fill

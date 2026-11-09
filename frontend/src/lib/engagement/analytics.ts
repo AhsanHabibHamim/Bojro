@@ -8,6 +8,9 @@ import type {
   AnalyticsRouteName,
   ConsentChoice,
 } from "./types";
+import { metaAttributionCookies } from "./attribution";
+
+export { metaAttributionCookies } from "./attribution";
 
 export type TrackableEngagementEvent =
   | {
@@ -66,25 +69,6 @@ function markTracked(eventId: string): void {
   } catch {}
 }
 
-function analyticsCookie(name: "_fbp" | "_fbc"): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  const prefix = `${name}=`;
-  const value = document.cookie
-    .split(";")
-    .map((item) => item.trim())
-    .find((item) => item.startsWith(prefix))
-    ?.slice(prefix.length);
-  const valid =
-    name === "_fbp"
-      ? /^fb\.1\.[0-9]+\.[0-9]+$/.test(value ?? "")
-      : /^fb\.1\.[0-9]+\.[A-Za-z0-9_-]+$/.test(value ?? "");
-  return value && value.length <= 255 && valid ? value : undefined;
-}
-
-export function metaAttributionCookies(): { fbp?: string; fbc?: string } {
-  return { fbp: analyticsCookie("_fbp"), fbc: analyticsCookie("_fbc") };
-}
-
 export async function trackAuthoritativeEvent(
   event: TrackableEngagementEvent,
   runtime: AnalyticsRuntime,
@@ -137,12 +121,24 @@ export async function trackPurchaseEvent(
   runtime: AnalyticsRuntime,
 ): Promise<void> {
   if (!runtime.consent.analytics && !runtime.consent.advertising) return;
-  const { dispatchSelectedProviders } = await import("./analytics-adapters");
-  dispatchSelectedProviders(event, runtime.consent, {
-    googleAnalyticsId: runtime.googleAnalyticsId,
-    metaPixelId: runtime.metaPixelId,
-    nonce: runtime.nonce,
-  });
+  if (wasTracked(event.event_id)) return;
+  const pending = trackedEvents.get(event.event_id);
+  if (pending) return pending;
+  const operation = (async () => {
+    const { dispatchSelectedProviders } = await import("./analytics-adapters");
+    dispatchSelectedProviders(event, runtime.consent, {
+      googleAnalyticsId: runtime.googleAnalyticsId,
+      metaPixelId: runtime.metaPixelId,
+      nonce: runtime.nonce,
+    });
+    markTracked(event.event_id);
+  })();
+  trackedEvents.set(event.event_id, operation);
+  try {
+    await operation;
+  } finally {
+    trackedEvents.delete(event.event_id);
+  }
 }
 
 export function engagementEventId(): string {

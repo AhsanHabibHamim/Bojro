@@ -9,10 +9,12 @@ export function HeroArtworkCarousel({
   slides,
   labels,
   locale,
+  idPrefix,
 }: {
   slides: HeroSlide[];
   labels: { previous: string; next: string; slide: string };
   locale: AppLocale;
+  idPrefix: string;
 }) {
   return (
     <div
@@ -20,6 +22,7 @@ export function HeroArtworkCarousel({
       aria-roledescription="carousel"
       className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="region"
+      tabIndex={0}
     >
       {slides.map((slide, index) => {
         const artwork = (
@@ -37,17 +40,30 @@ export function HeroArtworkCarousel({
           <a
             key={slide.id}
             aria-label={`${labels.slide} ${index + 1}: ${slide.image.alt}`}
+            aria-roledescription="slide"
             className={className}
             href={localizeStorefrontHref(slide.href, locale)}
+            id={`${idPrefix}-slide-${index + 1}`}
+            role="group"
           >
             {artwork}
           </a>
         ) : (
-          <div key={slide.id} className={className}>
+          <div
+            key={slide.id}
+            aria-label={`${labels.slide} ${index + 1}: ${slide.image.alt}`}
+            aria-roledescription="slide"
+            className={className}
+            id={`${idPrefix}-slide-${index + 1}`}
+            role="group"
+          >
             {artwork}
           </div>
         );
       })}
+      <span className="sr-only">
+        {labels.previous} / {labels.next}
+      </span>
     </div>
   );
 }

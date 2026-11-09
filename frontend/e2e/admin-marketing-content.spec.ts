@@ -3,7 +3,10 @@ import { expect, test } from "@playwright/test";
 import { hasAdminCredentials, uniqueCode } from "./admin-helpers";
 
 test.describe("@admin marketing and content", () => {
-  test.skip(!hasAdminCredentials, "Admin E2E credentials are required");
+  test.skip(
+    process.env.CI !== "true" && !hasAdminCredentials,
+    "Admin E2E credentials are required",
+  );
 
   test("creates bounded coupon and flash sale rules and keyboard-reorders homepage sections", async ({
     page,

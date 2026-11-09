@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EngagementApi } from "./client";
-import { trackAuthoritativeEvent, type AnalyticsRuntime } from "./analytics";
+import { trackAuthoritativeEvent, trackPurchaseEvent, type AnalyticsRuntime } from "./analytics";
 import { resetAnalyticsAdaptersForTests } from "./analytics-adapters";
 
 const runtime: AnalyticsRuntime = {
@@ -106,5 +106,28 @@ describe("authoritative analytics event pipeline", () => {
     const pixelEvents = (fbq?.queue ?? []).filter((call) => call[0] === "track");
     expect(pixelEvents).toHaveLength(1);
     expect((pixelEvents[0]?.[3] as { eventID?: string }).eventID).toBe(serverEventId);
+  });
+
+  it("deduplicates confirmed purchase dispatch by the authoritative event UUID", async () => {
+    const event = {
+      event_id: "9b6f9a78-ced0-47df-9e96-9c085802a283",
+      event_name: "purchase" as const,
+      commerce: { currency: "BDT" as const, value_poisha: 209_000, item_ids: ["v1"], quantity: 2 },
+    };
+    const advertisingRuntime = {
+      ...runtime,
+      consent: { analytics: false, advertising: true },
+      googleAnalyticsId: null,
+    };
+
+    await trackPurchaseEvent(event, advertisingRuntime);
+    await trackPurchaseEvent(event, advertisingRuntime);
+
+    const fbq = (window as Window & { fbq?: { queue?: unknown[][] } }).fbq;
+    const purchases = (fbq?.queue ?? []).filter(
+      (call) => call[0] === "track" && call[1] === "Purchase",
+    );
+    expect(purchases).toHaveLength(1);
+    expect((purchases[0]?.[3] as { eventID?: string }).eventID).toBe(event.event_id);
   });
 });

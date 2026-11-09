@@ -28,9 +28,11 @@ export function DealsGrid({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
+  const inFlight = useRef(false);
 
   const loadMore = async () => {
-    if (!cursor || loading) return;
+    if (!cursor || loading || inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(false);
     try {
@@ -49,13 +51,16 @@ export function DealsGrid({
     } catch {
       setError(true);
     } finally {
+      inFlight.current = false;
       setLoading(false);
     }
   };
 
   useEffect(() => {
     const element = sentinel.current;
-    if (!element || !cursor || typeof IntersectionObserver === "undefined") return;
+    if (!element || !cursor || loading || error || typeof IntersectionObserver === "undefined") {
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) void loadMore();

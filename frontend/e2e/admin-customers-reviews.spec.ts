@@ -3,7 +3,10 @@ import { expect, test } from "@playwright/test";
 import { hasAdminCredentials } from "./admin-helpers";
 
 test.describe("@admin customers and review moderation", () => {
-  test.skip(!hasAdminCredentials, "Admin E2E credentials are required");
+  test.skip(
+    process.env.CI !== "true" && !hasAdminCredentials,
+    "Admin E2E credentials are required",
+  );
 
   test("requires a customer disable reason and exposes no optimistic state", async ({ page }) => {
     await page.goto("/en/admin/customers");

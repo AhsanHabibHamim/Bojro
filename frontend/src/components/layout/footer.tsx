@@ -82,7 +82,7 @@ export async function Footer({
             <ul className="mt-3 space-y-2.5 text-sm text-white/80">
               <li>
                 <a
-                  className="inline-flex items-start gap-2.5 rounded-md transition-colors hover:text-white"
+                  className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                   href={`tel:${(footer?.phone ?? t("phone")).replace(/[^+\d]/g, "")}`}
                 >
                   <Phone
@@ -96,7 +96,7 @@ export async function Footer({
               </li>
               <li>
                 <a
-                  className="inline-flex items-start gap-2.5 rounded-md transition-colors hover:text-white"
+                  className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                   href={`mailto:${footer?.email ?? t("email")}`}
                 >
                   <EnvelopeSimple
@@ -127,7 +127,7 @@ export async function Footer({
                 ? shopLinks.map((link) => (
                     <li key={link.id}>
                       <a
-                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                         href={localizeStorefrontHref(link.href, locale)}
                       >
                         <Storefront
@@ -143,7 +143,7 @@ export async function Footer({
                 : fallbackShopLinks.map(({ id, labelKey, href, Icon }) => (
                     <li key={id}>
                       <a
-                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                         href={localizeStorefrontHref(href, locale)}
                       >
                         <Icon
@@ -164,7 +164,7 @@ export async function Footer({
             <ul className="mt-4 space-y-3 text-sm text-white/75">
               <li>
                 <a
-                  className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                  className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                   href={`/${locale}/track-order`}
                 >
                   <Truck aria-hidden className="text-soft-lavender" size={18} weight="duotone" />
@@ -175,7 +175,7 @@ export async function Footer({
                 ? quickLinks.map((link) => (
                     <li key={link.id}>
                       <a
-                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                         href={localizeStorefrontHref(link.href, locale)}
                       >
                         <BookOpenText
@@ -191,7 +191,7 @@ export async function Footer({
                 : fallbackQuickLinks.map(({ id, labelKey, href, Icon }) => (
                     <li key={id}>
                       <a
-                        className="inline-flex items-center gap-2.5 rounded-md transition-colors hover:text-white"
+                        className="inline-flex min-h-11 items-center gap-2.5 rounded-md transition-colors hover:text-white"
                         href={localizeStorefrontHref(href, locale)}
                       >
                         <Icon
@@ -234,7 +234,7 @@ export async function Footer({
                   return (
                     <a
                       key={social.id}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/85 transition-colors hover:bg-white/10 hover:text-white"
                       href={/^https:\/\//i.test(social.href) ? social.href : "#footer"}
                       rel="noreferrer"
                       target="_blank"

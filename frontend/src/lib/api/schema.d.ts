@@ -2850,6 +2850,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ready/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ready Diagnostics */
+        get: operations["ready_diagnostics_ready_diagnostics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7847,6 +7864,23 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** PublicReadinessResponse */
+        PublicReadinessResponse: {
+            /** Service */
+            service: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "unavailable";
+            /**
+             * Timestamp
+             * Format: date-time
+             */
+            timestamp: string;
+            /** Version */
+            version: string;
         };
         /** QuestionPreviewItem */
         QuestionPreviewItem: {
@@ -35798,7 +35832,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadinessResponse"];
+                    "application/json": components["schemas"]["PublicReadinessResponse"];
                 };
             };
             /** @description Required dependency unavailable */
@@ -35807,7 +35841,45 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["PublicReadinessResponse"];
+                };
+            };
+        };
+    };
+    ready_diagnostics_ready_diagnostics_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+            /** @description Diagnostics authentication failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

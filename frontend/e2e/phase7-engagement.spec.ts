@@ -103,7 +103,7 @@ test.describe("Phase 7 frozen engagement audit", () => {
     await expect(page.locator("tbody")).not.toContainText(seed.phone);
   });
 
-  test("records one real purchase with the server Pixel/CAPI UUID exactly once", async ({
+  test("does not emit browser Purchase before COD delivery while retaining the server CAPI UUID", async ({
     page,
     context,
   }) => {
@@ -184,9 +184,9 @@ test.describe("Phase 7 frozen engagement audit", () => {
             (call[3] as { eventID?: string } | undefined)?.eventID === eventId,
         ).length;
       }, purchaseId);
-    await expect.poll(purchaseCount).toBe(1);
+    await expect.poll(purchaseCount).toBe(0);
     await page.reload();
-    await expect.poll(purchaseCount).toBe(1);
+    await expect.poll(purchaseCount).toBe(0);
     expect(intentEvents).toEqual(
       expect.arrayContaining(["view_item", "add_to_cart", "begin_checkout"]),
     );
