@@ -32,6 +32,6 @@
     "check": "pnpm api:generate && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
-    "concurrently": "^10.0.6"
+    "concurrently": "^9.2.1"
   }
 }
