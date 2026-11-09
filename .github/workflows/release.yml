@@ -1,0 +1,143 @@
+name: Release Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected target environment
+        required: true
+        type: choice
+        options: [staging, production]
+      release_ref:
+        description: Immutable 40-character commit SHA already deployed to the target
+        required: true
+        type: string
+      api_url:
+        description: Public custom API origin
+        required: true
+        type: string
+      storefront_url:
+        description: Public custom storefront origin
+        required: true
+        type: string
+      preflight_evidence:
+        description: HTTPS URL to successful in-environment backend preflight evidence
+        required: true
+        type: string
+      change_reference:
+        description: Approved release/change record ID
+        required: true
+        type: string
+      confirmation:
+        description: Type VERIFY to run read-only post-deploy checks
+        required: true
+        type: string
+
+concurrency:
+  group: release-verification-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.storefront_url }}
+    env:
+      RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+      RELEASE_REF: ${{ inputs.release_ref }}
+      API_URL: ${{ inputs.api_url }}
+      STOREFRONT_URL: ${{ inputs.storefront_url }}
+      PREFLIGHT_EVIDENCE: ${{ inputs.preflight_evidence }}
+      CHANGE_REFERENCE: ${{ inputs.change_reference }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_ref }}
+
+      - name: Validate immutable release inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$CONFIRMATION" == "VERIFY" ]] || { printf 'confirmation must equal VERIFY\n' >&2; exit 1; }
+          [[ "$RELEASE_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { printf 'release_ref must be a full commit SHA\n' >&2; exit 1; }
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_REF" ]] || { printf 'checked-out SHA differs from release_ref\n' >&2; exit 1; }
+          [[ "$PREFLIGHT_EVIDENCE" == https://* ]] || { printf 'preflight evidence must be an HTTPS URL\n' >&2; exit 1; }
+          [[ -n "$CHANGE_REFERENCE" ]] || { printf 'change reference is required\n' >&2; exit 1; }
+          if [[ "$RELEASE_ENVIRONMENT" == "production" ]]; then
+            [[ "$API_URL" == "https://api.bojro.com.bd" ]] || { printf 'unexpected production API origin\n' >&2; exit 1; }
+            [[ "$STOREFRONT_URL" == "https://bojro.com.bd" ]] || { printf 'unexpected production storefront origin\n' >&2; exit 1; }
+          else
+            [[ "$API_URL" == "https://api-staging.bojro.com.bd" ]] || { printf 'unexpected staging API origin\n' >&2; exit 1; }
+            [[ "$STOREFRONT_URL" == "https://staging.bojro.com.bd" ]] || { printf 'unexpected staging storefront origin\n' >&2; exit 1; }
+          fi
+
+      - name: Validate operator tooling and Compose contract
+        run: |
+          bash -n scripts/backup-postgres.sh scripts/restore-drill.sh scripts/postdeploy-smoke.sh
+          node --check scripts/check-lighthouse.mjs
+          node --check scripts/accessibility-smoke.mjs
+          docker compose --env-file infra/.env.example -f infra/docker-compose.yml config --quiet
+
+      - name: Record preflight summary
+        shell: bash
+        run: |
+          {
+            printf '### Release preflight\n\n'
+            printf -- '- Environment: `%s`\n' "$RELEASE_ENVIRONMENT"
+            printf -- '- Commit: `%s`\n' "$RELEASE_REF"
+            printf -- '- Change: `%s`\n' "$CHANGE_REFERENCE"
+            printf -- '- In-environment preflight evidence: %s\n' "$PREFLIGHT_EVIDENCE"
+            printf -- '- This workflow verifies an existing deployment; it does not deploy or migrate.\n'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  postdeploy:
+    name: Post-deploy smoke
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+      RELEASE_REF: ${{ inputs.release_ref }}
+      API_URL: ${{ inputs.api_url }}
+      STOREFRONT_URL: ${{ inputs.storefront_url }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_ref }}
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version-file: .python-version
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Install backend runtime dependencies
+        run: uv sync --project backend --frozen --no-dev
+
+      - name: Run read-only public smoke checks
+        run: |
+          mkdir -p artifacts/release
+          scripts/postdeploy-smoke.sh | tee artifacts/release/postdeploy-smoke.txt
+
+      - name: Run backend contract and provider verification
+        env:
+          POSTDEPLOY_BASE_URL: ${{ inputs.api_url }}
+          POSTDEPLOY_STOREFRONT_ORIGIN: ${{ inputs.storefront_url }}
+          POSTDEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        run: uv run --project backend python -m scripts.postdeploy_verify | tee artifacts/release/backend-postdeploy.json
+
+      - name: Upload release verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-verification-${{ inputs.environment }}-${{ inputs.release_ref }}
+          path: artifacts/release
+          if-no-files-found: warn
+          retention-days: 90

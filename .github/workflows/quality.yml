@@ -48,23 +48,23 @@ jobs:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.5.2
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
           version: "0.11.23"
@@ -100,14 +100,28 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
-        run: pnpm test
+        run: |
+          mkdir -p coverage
+          pnpm test
+          uv run --project backend coverage xml --rcfile=backend/pyproject.toml -o coverage/backend.xml
+
+      - name: Upload backend coverage evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage
+          path: |
+            coverage/backend.xml
+            .coverage
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Build
         run: pnpm build
 
   compose-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     env:
       SEED_ADMIN_EMAIL: admin-e2e@bojro.com.bd
       SEED_ADMIN_PASSWORD: "E2E-only-admin-password-47!"
@@ -115,16 +129,37 @@ jobs:
       E2E_ADMIN_PASSWORD: "E2E-only-admin-password-47!"
       E2E_ADMIN_ORDER_NUMBER: BJ-2099-900002
       APP_ENV: test
+      BKASH_MODE: mock
+      NAGAD_MODE: mock
+      SSLCOMMERZ_MODE: mock
+      PATHAO_MODE: mock
+      STEADFAST_MODE: mock
+      REDX_MODE: mock
+      COURIER_PROVIDER: mock
+      EMAIL_PROVIDER: mock
+      SMS_PROVIDER: mock
+      META_CAPI_MODE: mock
+      META_PIXEL_ID: "123456789012345"
+      GOOGLE_ANALYTICS_ID: G-E2EBOJRO
+      ASSISTANT_PROVIDER: mock
+      ASSISTANT_PUBLIC_ENABLED: "true"
+      WHATSAPP_ENABLED: "true"
+      WHATSAPP_PHONE: "+8801700000000"
+      PHASE6_E2E_RESET_TOKEN: local-phase6-e2e-reset-token
       PHASE7_E2E_ENABLED: "true"
+      PHASE7_E2E_RESET_TOKEN: local-phase7-e2e-reset-token
+      NEXT_PUBLIC_E2E_STORAGE_MOCK: "1"
+      NEXT_PUBLIC_E2E_PROVIDER_MOCK: "1"
+      NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.5.2
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
 
@@ -140,11 +175,23 @@ jobs:
 
       - name: Audit mobile performance
         run: |
+          mkdir -p artifacts/lighthouse
           for attempt in 1 2 3; do
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="home-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="product-lighthouse-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn --output=json --output-path="artifacts/lighthouse/bn-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/bn-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="artifacts/lighthouse/en-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/en-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
           done
-          node -e "for (const route of ['home','product']) { const reports=[1,2,3].map(run=>require('./'+route+'-lighthouse-'+run+'.json').categories); const performance=reports.map(r=>r.performance.score).sort(); const median=performance[1]; const accessibility=Math.min(...reports.map(r=>r.accessibility.score)); if (median < 0.9) throw new Error(route+' median performance '+median+' from '+performance.join(',')+' is below 0.9'); if (accessibility < 0.95) throw new Error(route+' accessibility '+accessibility+' is below 0.95'); console.log(route,{performance,median,accessibility}); }"
+          node scripts/check-lighthouse.mjs artifacts/lighthouse
+
+      - name: Upload Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lighthouse-mobile
+          path: artifacts/lighthouse
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Install browser test dependencies
         run: |
@@ -170,14 +217,24 @@ jobs:
           E2E_REVALIDATION_SECRET: local-only-change-me-revalidation-secret
         run: pnpm --filter @bojro/frontend test:e2e
 
-      - name: Upload Playwright report on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - name: Run BN and EN accessibility smoke
+        if: always()
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          A11Y_REPORT_PATH: artifacts/accessibility/playwright-a11y.json
+        run: node scripts/accessibility-smoke.mjs
+
+      - name: Upload Playwright and accessibility evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report
-          path: frontend/playwright-report
-          if-no-files-found: ignore
-          retention-days: 7
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            artifacts/accessibility
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Print container logs on failure
         if: failure()

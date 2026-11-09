@@ -1,0 +1,156 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9418214df1f2c4b8128c770156c409013b07d6b9 # v3.30.6
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9418214df1f2c4b8128c770156c409013b07d6b9 # v3.30.6
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          retry-on-snapshot-warnings: true
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan Git history for verified secrets
+        uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
+        with:
+          version: v3.99.8
+          extra_args: --results=verified --fail-on-scan-errors
+
+  container-security:
+    name: Container security and SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Build runtime images
+        run: |
+          docker build --file infra/backend.Dockerfile --tag bojro-backend:${{ github.sha }} .
+          docker build --file infra/frontend.Dockerfile --tag bojro-frontend:${{ github.sha }} --build-arg NEXT_PUBLIC_SITE_URL=https://staging.bojro.com.bd --build-arg NEXT_PUBLIC_API_URL=https://api-staging.bojro.com.bd --build-arg NEXT_PUBLIC_E2E_STORAGE_MOCK=0 --build-arg NEXT_PUBLIC_E2E_PROVIDER_MOCK=0 --build-arg NEXT_PUBLIC_E2E_ENGAGEMENT_MOCK=0 .
+
+      - name: Scan backend runtime image
+        id: backend-scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: bojro-backend:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          scanners: vuln
+          timeout: 15m
+
+      - name: Scan frontend runtime image
+        id: frontend-scan
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: bojro-frontend:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          scanners: vuln
+          timeout: 15m
+
+      - name: Generate backend CycloneDX SBOM
+        id: backend-sbom
+        continue-on-error: true
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: bojro-backend:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: backend.cdx.json
+          artifact-name: backend-sbom.cdx.json
+          upload-artifact-retention: 30
+          upload-release-assets: false
+
+      - name: Generate frontend CycloneDX SBOM
+        id: frontend-sbom
+        continue-on-error: true
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: bojro-frontend:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: frontend.cdx.json
+          artifact-name: frontend-sbom.cdx.json
+          upload-artifact-retention: 30
+          upload-release-assets: false
+
+      - name: Enforce scan and SBOM results
+        if: always()
+        env:
+          BACKEND_SCAN_OUTCOME: ${{ steps.backend-scan.outcome }}
+          FRONTEND_SCAN_OUTCOME: ${{ steps.frontend-scan.outcome }}
+          BACKEND_SBOM_OUTCOME: ${{ steps.backend-sbom.outcome }}
+          FRONTEND_SBOM_OUTCOME: ${{ steps.frontend-sbom.outcome }}
+        run: |
+          failed=0
+          for result in "$BACKEND_SCAN_OUTCOME" "$FRONTEND_SCAN_OUTCOME" "$BACKEND_SBOM_OUTCOME" "$FRONTEND_SBOM_OUTCOME"; do
+            if [[ "$result" != "success" ]]; then
+              printf 'required container security step ended with: %s\n' "$result" >&2
+              failed=1
+            fi
+          done
+          exit "$failed"

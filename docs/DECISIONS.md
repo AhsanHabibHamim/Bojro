@@ -131,3 +131,39 @@
 **Decision:** The model receives a fixed prompt plus bounded, redacted outputs from allowlisted product/policy/order tools; it cannot select arbitrary tools, browse URLs, run SQL or receive raw order/phone/address data.
 
 **Reason:** Store content is untrusted retrieval data, and sincere identity questions/order checks require deterministic server behavior rather than unconstrained model claims.
+
+## 2026-11-08: Public Vercel-to-Railway API boundary
+
+**Decision:** Both browser and Vercel server-rendered requests use the public Railway API custom domain. Railway private networking is limited to Railway services and data stores; `INTERNAL_API_URL` is server-only but not a private Railway URL.
+
+**Reason:** Vercel does not participate in Railway's private network. A same-site storefront/API custom-domain pair preserves SameSite=Lax cookie behavior without claiming impossible private connectivity.
+
+## 2026-11-08: Production-like staging and explicit test capability
+
+**Decision:** Staging uses secure cookies, separate real infrastructure, Cloudinary, real provider sandbox/test accounts, worker heartbeat, and no application mocks or reset endpoints. Local and CI E2E capabilities default off and are enabled only by explicit command environment.
+
+**Reason:** A permissive staging environment cannot prove production configuration, while ambient E2E reset routes and public mock switches create avoidable data and authorization risk.
+
+## 2026-11-08: Forward-compatible releases instead of automatic schema downgrade
+
+**Decision:** Release order is backup/PITR marker, backward-compatible migration, worker, API, then frontend. Application rollback is allowed only across a compatible schema. Database downgrade is never an automatic rollback; prefer a forward fix and use isolated restore/cutover only through incident approval.
+
+**Reason:** Several migrations intentionally refuse lossy downgrade when live data exists. Coupling code rollback to destructive schema reversal would turn an application incident into a data-loss incident.
+
+## 2026-11-08: Recovery objectives and authoritative stores
+
+**Decision:** PostgreSQL targets a 15-minute RPO and four-hour RTO using Railway PITR plus encrypted off-platform logical backups. Cloudinary asset bytes require provider backup/version evidence. Redis is non-authoritative and is rebuilt empty.
+
+**Reason:** Platform-local snapshots alone do not cover account compromise, provider outage, or logical corruption. Explicit authority and objectives make restore drills measurable and prevent stale Redis data from being treated as commerce truth.
+
+## 2026-11-08: Retention survives backup and restore
+
+**Decision:** Source data, logs, provider payloads, and backups follow the schedule in `PRIVACY_RETENTION.md`. Backups are immutable until expiry rather than edited in place; a restored copy remains isolated until deletion, suppression, and consent-withdrawal ledgers are replayed.
+
+**Reason:** Recovery must not silently resurrect data that was deleted or suppressions that were applied after the recovery point. Immutable expiring backups plus pre-cutover replay preserve both recoverability and privacy obligations.
+
+## 2026-11-08: Initial external-provider launch scope
+
+**Decision:** Initial production launch is COD with audited manual fulfillment. Online payments, couriers, Meta CAPI, and the assistant remain disabled until each provider's signed evidence record is complete. Production email uses Resend and OTP uses a named documentation-verified idempotent SMS provider because the application requires those real delivery paths.
+
+**Reason:** Adapter boundaries and mocks prove internal behavior, not merchant onboarding, live credentials, callback ownership, settlement, or legal approval. Disabled is safer than pretending an incomplete provider is production-ready.

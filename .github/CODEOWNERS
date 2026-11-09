@@ -1,0 +1,9 @@
+# Repository-wide fallback. Replace or extend with an organization team when available.
+* @AhsanHabibHamim
+
+/.github/ @AhsanHabibHamim
+/docs/ @AhsanHabibHamim
+/infra/ @AhsanHabibHamim
+/scripts/ @AhsanHabibHamim
+/backend/ @AhsanHabibHamim
+/frontend/ @AhsanHabibHamim

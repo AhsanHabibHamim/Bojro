@@ -5,10 +5,10 @@ The REST API is rooted at `/api/v1`. Outside production, FastAPI serves interact
 ## Operational Endpoints
 
 - `GET /health`: process liveness; no external dependency is required.
-- `GET /ready`: checks PostgreSQL and Redis and returns `200` when required dependencies are ready, otherwise `503`.
+- `GET /ready`: checks PostgreSQL, Redis, the worker heartbeat, engagement configuration, and provider capabilities. It returns `503` when a required component is unavailable. A `200` response can be `ready` or `degraded`; release automation must accept only the expected target state and investigate every degraded check.
 - `GET /api/v1/health`: versioned health response for API clients.
 
-Every response includes `X-Request-ID`; a valid inbound ID is retained, otherwise the API creates one. Errors use FastAPI's structured error shape in Phase 1 and will gain a shared domain envelope with feature routers.
+Every response includes `X-Request-ID`; a valid inbound ID is retained, otherwise the API creates one. Domain errors use `{error:{code,message,field_errors,request_id}}`. Validation and framework errors are normalized by the application error boundary and must not expose stack traces or secrets.
 
 ## Client Generation
 
@@ -41,7 +41,7 @@ The frontend exposes `POST /api/revalidate` for trusted admin events. Send `X-Re
 - `POST /api/v1/auth/otp/request`, `/auth/otp/verify`, and `/auth/email/login` provide phone-first and existing-account login.
 - `GET /api/v1/cart` plus item, coupon, and shipping-estimate mutations operate on the current guest/user cart.
 - `GET /api/v1/geo/divisions`, `/districts`, and `/upazilas` provide validated checkout hierarchy options.
-- `POST /api/v1/checkout/quote` returns a short-lived authoritative quote; `POST /checkout/orders` requires CSRF and `Idempotency-Key` and accepts COD only in Phase 3.
+- `POST /api/v1/checkout/quote` returns a short-lived authoritative quote; `POST /checkout/orders` requires CSRF and `Idempotency-Key` and accepts only payment methods returned as enabled by the capability endpoint.
 - `GET /api/v1/orders/{number}` returns an authorized receipt; `POST /orders/track` returns a rate-limited redacted public status.
 
 Unsafe cookie-authenticated requests require an exact allowed `Origin`, JSON content where a body exists, and `X-CSRF-Token`. Commerce responses use `Cache-Control: no-store`. Clients never send prices or totals; the API recomputes integer-poisha values under PostgreSQL row locks.
@@ -81,6 +81,8 @@ Admin mutations append redacted audit records and durable revalidation/outbox ro
 
 Payment attempts, refunds, shipments and order aggregates are separate state machines. `unknown` outcomes cannot be blindly retried; workers reconcile them by stable merchant reference. Customer responses never expose provider credentials, raw payloads or internal transaction identifiers.
 
+Provider presence in OpenAPI is not an activation claim. Production and staging availability is controlled by configuration plus the signed evidence register in `docs/PROVIDERS.md`; unavailable providers remain disabled.
+
 ## Engagement And Assistant
 
 - Consent and communication-preference endpoints use versioned policy evidence, strong ETags and deny optional analytics/marketing by default.
@@ -90,3 +92,11 @@ Payment attempts, refunds, shipments and order aggregates are separate state mac
 - Admin engagement APIs expose masked delivery/subscription/session data, provider capabilities and safe retry/cancel operations; credentials and raw recipients are never returned.
 
 Notification, CAPI, cart-reminder and assistant-cleanup jobs use leased `SKIP LOCKED` workers with terminal dead-letter/suppression states. Order verification requires number plus phone and returns only redacted customer-safe status.
+
+## Release Contract
+
+- Public production docs are disabled; the committed OpenAPI artifact is reviewed in CI.
+- Browser callbacks are non-authoritative. Clean return routes contain no order locator or provider secret.
+- Webhook routes require exact provider verification, bounded bodies, deduplication, and asynchronous processing.
+- State-changing smoke tests use dedicated canary identities and stable idempotency keys; public post-deploy automation is read-only.
+- API compatibility, readiness interpretation, and rollback ordering follow `docs/DEPLOYMENT.md`.
