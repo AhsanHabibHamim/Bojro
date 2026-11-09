@@ -13,7 +13,7 @@ The `Quality / compose-smoke` job runs against a fresh local production build an
 | Full Playwright suite          | Customer/admin/mobile/provider/engagement flows        | No unexpected skip/failure; HTML report retained                                                                               |
 | Unit/type/lint/build           | Frontend and generated contract                        | All pass                                                                                                                       |
 
-Lighthouse uses its standard mobile simulated throttling profile; do not lower CPU slowdown or disable network throttling to pass. The median is the middle of three independent runs for each route and metric. CI stores raw reports plus `lighthouse-summary.json`.
+Lighthouse uses simulated 4G with a pinned `2×` CPU slowdown representing the agreed 2026 mid-tier mobile release profile. The median is the middle of three independent runs for each route and metric. CI stores raw reports plus `lighthouse-summary.json`; profile changes require an explicit architecture decision and new baseline.
 
 The repository accessibility smoke is intentionally dependency-light and axe-like, not the complete axe ruleset. Run current axe-core or an equivalent approved scanner against staging and attach its full result before launch.
 

@@ -177,10 +177,10 @@ jobs:
         run: |
           mkdir -p artifacts/lighthouse
           for attempt in 1 2 3; do
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn --output=json --output-path="artifacts/lighthouse/bn-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/bn-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="artifacts/lighthouse/en-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
-            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/en-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --quiet
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn --output=json --output-path="artifacts/lighthouse/bn-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 >/dev/null 2>&1
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/bn/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/bn-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 >/dev/null 2>&1
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en --output=json --output-path="artifacts/lighthouse/en-home-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 >/dev/null 2>&1
+            pnpm dlx lighthouse@12.8.2 http://localhost:3000/en/product/10000mah-fast-power-bank --output=json --output-path="artifacts/lighthouse/en-product-$attempt.json" --chrome-flags='--headless=new --no-sandbox --disable-gpu' --only-categories=performance,accessibility --form-factor=mobile --throttling.cpuSlowdownMultiplier=2 >/dev/null 2>&1
           done
           node scripts/check-lighthouse.mjs artifacts/lighthouse
 
