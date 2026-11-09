@@ -61,10 +61,18 @@ try {
         const imageText = Array.from(element.querySelectorAll("img"))
           .map((image) => image.getAttribute("alt") ?? "")
           .join(" ");
+        const formLabelText =
+          "labels" in element
+            ? Array.from(element.labels ?? [])
+                .map((label) => label.textContent ?? "")
+                .join(" ")
+            : "";
         return [
           element.getAttribute("aria-label"),
           labelledText,
+          formLabelText,
           element.getAttribute("title"),
+          element.getAttribute("placeholder"),
           element.textContent,
           imageText,
         ]

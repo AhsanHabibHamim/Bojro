@@ -16,6 +16,17 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
+    ignore:
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: "@playwright/test"
+        versions: [">=1.65.0"]
+      - dependency-name: "@axe-core/playwright"
+        versions: [">=4.14.0"]
+      - dependency-name: concurrently
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: pip
     directory: /backend
@@ -30,6 +41,19 @@ updates:
     groups:
       python-dependencies:
         patterns: ["*"]
+    ignore:
+      - dependency-name: redis
+        update-types: [version-update:semver-major]
+      - dependency-name: reportlab
+        update-types: [version-update:semver-major]
+      - dependency-name: structlog
+        update-types: [version-update:semver-major]
+      - dependency-name: mypy
+        update-types: [version-update:semver-major]
+      - dependency-name: pytest
+        update-types: [version-update:semver-major]
+      - dependency-name: pytest-asyncio
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: docker
     directory: /infra
@@ -41,6 +65,9 @@ updates:
     open-pull-requests-limit: 5
     rebase-strategy: auto
     labels: [dependencies, containers]
+    ignore:
+      - dependency-name: node
+        versions: [">=26"]
 
   - package-ecosystem: github-actions
     directory: /
